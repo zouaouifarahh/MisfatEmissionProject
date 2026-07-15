@@ -1,0 +1,260 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap');
+
+.profile-container {
+  display: flex;
+  gap: 24px;
+  padding: 28px 32px;
+  background-color: #F5F7FB;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  min-height: 85vh;
+  --navy-900: #0A1930;
+  --orange-500: #F0631B;
+  --orange-600: #D14F0E;
+  --ink: #0B1B33;
+  --ink-muted: #61708A;
+  --line: #E3E8F1;
+}
+
+/* Cartes */
+.profile-card, .notes-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px -8px rgba(11,27,51,0.1);
+  padding: 30px;
+  border: 1px solid var(--line);
+}
+
+.profile-card {
+  flex: 1;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.notes-card { flex: 2; }
+
+/* Avatar */
+.avatar-wrapper {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  margin-bottom: 20px;
+}
+
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--orange-500);
+  background-color: var(--line);
+  box-shadow: 0 0 0 4px rgba(240,99,27,0.12);
+}
+
+.upload-btn {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: var(--navy-900);
+  color: white;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(10,25,48,0.35);
+  transition: background 0.2s, transform 0.2s;
+  font-size: 14px;
+}
+
+.upload-btn:hover {
+  background: var(--orange-500);
+  transform: scale(1.06);
+}
+
+/* Textes et badges */
+.user-name {
+  font-family: 'Sora', sans-serif;
+  color: var(--ink);
+  font-size: 22px;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.user-badge {
+  background-color: #FFF1E8;
+  color: var(--orange-600);
+  border: 1px solid #FBD3B8;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 25px;
+}
+
+/* Détails du profil */
+.user-details {
+  width: 100%;
+  text-align: left;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+.detail-item { margin-bottom: 15px; }
+
+.detail-item label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink-muted);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.detail-item p {
+  color: var(--ink);
+  font-size: 14px;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Section Notes */
+h3 {
+  font-family: 'Sora', sans-serif;
+  color: var(--ink);
+  font-size: 20px;
+  margin: 0 0 6px 0;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: var(--ink-muted);
+  font-size: 14px;
+  margin-bottom: 25px;
+}
+
+.note-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.note-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 14px;
+  color: var(--ink);
+  background-color: #F8FAFD;
+  transition: all 0.2s;
+}
+
+.note-input:focus {
+  outline: none;
+  border-color: var(--orange-500);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(240,99,27,0.13);
+}
+
+.btn-add-note {
+  background-color: var(--navy-900);
+  color: white;
+  border: none;
+  padding: 0 20px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(10,25,48,0.22);
+}
+
+.btn-add-note:hover {
+  background-color: var(--orange-500);
+  box-shadow: 0 8px 18px rgba(240,99,27,0.3);
+}
+
+/* Liste des notes */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.empty-notes {
+  color: #94A3B8;
+  font-style: italic;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.note-item {
+  background-color: #F8FAFD;
+  border-left: 4px solid var(--orange-500);
+  padding: 12px 16px;
+  border-radius: 0 9px 9px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 45px;
+  transition: background-color .18s ease;
+}
+.note-item:hover { background-color: #F1F4F9; }
+
+.note-text {
+  color: var(--ink);
+  font-size: 14px;
+  word-break: break-word;
+  flex: 1;
+  cursor: pointer;
+}
+
+.note-text:hover { text-decoration: underline; }
+
+.note-edit-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--orange-500);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--ink);
+  background: white;
+}
+
+.note-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-left: 10px;
+}
+
+.btn-edit-note, .btn-delete-note, .btn-save-note, .btn-cancel-note {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px;
+  transition: transform 0.1s;
+}
+
+.btn-edit-note:hover, .btn-save-note:hover { transform: scale(1.2); }
+
+.btn-delete-note {
+  color: #94A3B8;
+  font-size: 20px;
+}
+
+.btn-delete-note:hover { color: #991B1B; }

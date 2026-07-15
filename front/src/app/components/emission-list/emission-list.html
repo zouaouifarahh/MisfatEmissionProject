@@ -1,0 +1,194 @@
+<div class="emission-container">
+  <!-- En-tête -->
+  <div class="emission-header">
+    <h2>Combustion dans les établissements 🏢</h2>
+    <p class="section-desc">
+      Cette section permet d'enregistrer et de suivre les émissions générées par la combustion stationnaire de combustibles au sein de vos différents établissements.
+    </p>
+  </div>
+
+  <!-- Contenu Principal -->
+  <div class="emission-card">
+    <div class="info-banner">
+      <p>ℹ️ Il s'agit d'émissions provenant de sources appartenant à l'entreprise ou directement contrôlées par elle.</p>
+      <p class="sub-info"><strong>Exemples :</strong> Émissions provenant de la combustion de combustibles dans des équipements, des chaudières, des fours ou des générateurs.</p>
+    </div>
+
+    <!-- Barre d'outils simplifiée sans bouton "Effacer tout" -->
+    <div class="table-actions">
+      <!-- Recherche dynamique -->
+      <input 
+        type="text" 
+        [(ngModel)]="rechercheTexte" 
+        placeholder="Recherche par carburant..." 
+        class="search-input">
+      
+      <!-- Filtre Établissement -->
+      <select class="filter-dropdown" [(ngModel)]="filtreEtablissement">
+        <option value="Tous">Tous les établissements</option>
+        <option value="Misfat 1">Misfat 1</option>
+        <option value="Misfat 2">Misfat 2</option>
+        <option value="Misfat 3">Misfat 3</option>
+      </select>
+
+      <div class="right-actions">
+        <button class="btn-import">📥 Importer</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Nouveau</button>
+      </div>
+    </div>
+
+    <!-- Tableau de Données -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Établissement</th>
+            <th>Carburant</th>
+            <th>Montant</th>
+            <th>Devise</th>
+            <th>Quantité</th>
+            <th>Facteur</th>
+            <th>Unité</th>
+            <th>Créé le</th>
+            <th>De</th>
+            <th>à</th>
+            <th>Émissions</th>
+            <th>Hypothèse</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="emissionsFiltrees.length === 0">
+            <td colspan="13" class="empty-table-msg">
+              📭 Aucune donnée disponible pour les critères de recherche.
+            </td>
+          </tr>
+          
+          <tr *ngFor="let item of emissionsFiltrees">
+            <td>{{ item.etablissement }}</td>
+            <td>{{ item.carburant }}</td>
+            <td>{{ item.typeDonnee === 'Monetaire' ? item.quantite : '-' }}</td>
+            <td>{{ item.typeDonnee === 'Monetaire' ? item.unite : '-' }}</td>
+            <td>{{ item.typeDonnee === 'Physique' ? item.quantite : '-' }}</td>
+            <td class="text-factor">{{ item.facteur }}</td>
+            <td>{{ item.typeDonnee === 'Physique' ? item.unite : '-' }}</td>
+            <td>{{ item.creeLe }}</td>
+            <td>{{ item.dateDebut | date:'dd/MM/yyyy' }}</td>
+            <td>{{ item.dateFin | date:'dd/MM/yyyy' }}</td>
+            <td><strong>{{ item.emissionCalculee }} tCO₂eq</strong></td>
+            <td>
+              <span class="badge-status" [ngClass]="item.hypothese.toLowerCase()">
+                {{ item.hypothese }}
+              </span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <span class="pagination-info">Affichage de {{ emissionsFiltrees.length }} entrée(s)</span>
+    </div>
+  </div>
+
+  <!-- POPUP DE SAISIE -->
+  <div class="modal-overlay" *ngIf="modaleOuverte">
+    <div class="modal-card wide-modal">
+      <div class="modal-header">
+        <h3>Détails des émissions</h3>
+        <button class="close-modal" (click)="fermerModale()">×</button>
+      </div>
+      <div class="modal-body">
+        <form (ngSubmit)="enregistrerEmission()">
+          
+          <div class="scope-box-header">
+            <span class="scope-tag">{{ formModel.scope }}</span>
+            <span class="category-text">📂 {{ formModel.categorie }}</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Établissement <span class="required">*</span></label>
+              <select class="form-control" name="etablissement" [(ngModel)]="formModel.etablissement" required>
+                <option value="" disabled>Sélectionner un établissement</option>
+                <option *ngFor="let etab of etablissementsList" [value]="etab">{{ etab }}</option>
+              </select>
+            </div>
+
+            <div class="form-group flex-1">
+              <label>Carburant <span class="required">*</span></label>
+              <select class="form-control" name="carburant" [(ngModel)]="formModel.carburant" (change)="onCarburantChange()" required>
+                <option value="" disabled>Sélectionner un carburant</option>
+                <option *ngFor="let carb of carburantsList" [value]="carb.nom">{{ carb.nom }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Type de données <span class="required">*</span></label>
+              <div class="toggle-buttons">
+                <button type="button" class="btn-toggle" [class.active]="formModel.typeDonnee === 'Physique'" (click)="changerTypeDonnee('Physique')">Physique</button>
+                <button type="button" class="btn-toggle" [class.active]="formModel.typeDonnee === 'Monetaire'" (click)="changerTypeDonnee('Monetaire')">Monétaire</button>
+              </div>
+            </div>
+
+            <div class="form-group flex-1">
+              <label>Unité <span class="required">*</span></label>
+              <input *ngIf="formModel.typeDonnee === 'Physique'" type="text" name="unite" [(ngModel)]="formModel.unite" class="form-control disabled-input" readonly>
+              <select *ngIf="formModel.typeDonnee === 'Monetaire'" name="unite" [(ngModel)]="formModel.unite" class="form-control" required>
+                <option value="TND">TND</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Quantité / Montant <span class="required">*</span></label>
+              <input type="number" name="quantite" [(ngModel)]="formModel.quantite" placeholder="Saisir la valeur" class="form-control" required>
+            </div>
+
+            <div class="form-group flex-1">
+              <label>Facteur d'émission par défaut <span class="required">*</span></label>
+              <input type="number" step="0.01" name="facteur" [(ngModel)]="formModel.facteur" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>De <span class="required">*</span></label>
+              <input type="date" name="dateDebut" [(ngModel)]="formModel.dateDebut" class="form-control" required>
+            </div>
+            <div class="form-group flex-1">
+              <label>à <span class="required">*</span></label>
+              <input type="date" name="dateFin" [(ngModel)]="formModel.dateFin" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="hypothesis-section">
+            <div class="hypothesis-header">
+              <span>💡 Hypothèse de calcul</span>
+              <span class="optional">Optionnel</span>
+            </div>
+            <div class="hypothesis-badges">
+              <button type="button" class="badge" [class.active]="formModel.hypothese === 'Réelle'" (click)="selectionnerHypothese('Réelle')">Réelle</button>
+              <button type="button" class="badge" [class.active]="formModel.hypothese === 'Estimation'" (click)="selectionnerHypothese('Estimation')">Estimation</button>
+            </div>
+            <textarea name="descriptionHypothese" [(ngModel)]="formModel.descriptionHypothese" placeholder="Décrivez les approximations ou sources..." class="form-control text-area"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,373 @@
+<div style="display: flex; min-height: 100vh; background-color: #f0f2f5; font-family: 'Inter', sans-serif;">
+  
+  <!-- BARRE LATÉRALE : INCHANGÉE -->
+  <aside style="width: 270px; background-color: #092c5c; color: white; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1); justify-content: space-between;">
+    
+    <div style="display: flex; flex-direction: column; overflow-y: auto; flex: 1;">
+        <div style="padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div style="background: white; padding: 10px; border-radius: 8px; display: inline-block;">
+                <img src="misfat logo.jpg" alt="Misfat" style="height: 35px;">
+            </div>
+            <p style="color: #f17a22; font-size: 10px; font-weight: 800; letter-spacing: 1px; margin-top: 10px;">BACKOFFICE CONSOLE</p>
+        </div>
+
+        <nav style="padding: 15px; display: flex; flex-direction: column; gap: 5px;">
+            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">ACCUEIL</p>
+            <button (click)="setActive('dashboard-home')" class="nav-btn" [style.background]="activeSub === 'dashboard-home' ? 'rgba(255,255,255,0.1)' : 'transparent'" style="width: 100%; text-align: left; padding: 10px 15px; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">🏠 Tableau de bord</button>
+
+            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">ÉMISSIONS CARBONE</p>
+            <button (click)="toggleMenu('emissions')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left;">
+                <span>🌱 Émission Carbone</span>
+                <span [style.transform]="menus.emissions ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
+            </button>
+            
+            <div *ngIf="menus.emissions" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
+                <button (click)="setActive('apercu')" [style.color]="activeSub === 'apercu' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Aperçu</button>
+                
+                <button (click)="setActive('mesure')" [style.color]="(activeSub === 'mesure' || menus.mesureCategories) ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; width: 100%; padding-right: 15px;">
+                  <span>• Mesure</span>
+                  <span style="font-size: 9px; transition: transform 0.2s;" [style.transform]="menus.mesureCategories ? 'rotate(90deg)' : 'rotate(0)'">▶</span>
+                </button>
+
+                <!-- Les 10 sous-boutons de Mesure -->
+                <div class="nested-measure-subs" *ngIf="menus.mesureCategories" style="padding-left: 10px;">
+                  <div 
+                    *ngFor="let cat of categoriesMesure" 
+                    class="nested-sub-item" 
+                    [style.color]="activeSub === cat.id ? '#f17a22' : '#cbd5e1'"
+                    style="font-size: 12px; padding: 6px 0; cursor: pointer;"
+                    (click)="setActive(cat.id)">
+                    <span>{{ cat.icone }}</span> {{ cat.nom }}
+                  </div>
+                </div>
+            </div>
+
+            <!-- MENU REPORTING -->
+            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">REPORTING</p>
+            <button (click)="toggleMenu('reporting')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left;">
+                <span>📄 Reporting</span>
+                <span [style.transform]="menus.reporting ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
+            </button>
+            <div *ngIf="menus.reporting" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
+                <button (click)="setActive('ghg')" [style.color]="activeSub === 'ghg' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Rapport GHG</button>
+            </div>
+
+            <!-- MENU PARAMÈTRES -->
+            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">PARAMÈTRES</p>
+            <button (click)="toggleMenu('parametres')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left;">
+                <span>⚙️ Paramètres</span>
+                <span [style.transform]="menus.parametres ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
+            </button>
+            <div *ngIf="menus.parametres" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
+                <button (click)="setActive('p-op')" [style.color]="activeSub === 'p-op' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Profil opérationnel</button>
+                <button (click)="setActive('p-org')" [style.color]="activeSub === 'p-org' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Profil organisationnel</button>
+            </div>
+
+            <!-- GESTION UTILISATEURS -->
+            <button (click)="toggleMenu('utilisateurs')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left; margin-top: 10px;">
+                <span>👥 Gestion Utilisateurs</span>
+                <span [style.transform]="menus.utilisateurs ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
+            </button>
+            <div *ngIf="menus.utilisateurs" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
+                <button (click)="setActive('m-prof')" [style.color]="activeSub === 'm-prof' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Mon Profil</button>
+                <button (click)="setActive('m-equipe')" [style.color]="activeSub === 'm-equipe' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Membre de l'équipe</button>
+            </div>
+
+            <!-- SÉCURITÉ ADMIN -->
+            <ng-container *ngIf="userRole === 'ADMINISTRATEUR'">
+              <p style="font-size: 11px; color: #f87171; font-weight: 700; margin: 15px 0 5px 10px;">SÉCURITÉ</p>
+              <button (click)="setActive('acces')" [style.background]="activeSub === 'acces' ? '#dc2626' : 'transparent'" style="width: 100%; text-align: left; padding: 10px 15px; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                🔐 Demandes d'Accès <span style="background: white; color: #dc2626; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 800;">New</span>
+              </button>
+            </ng-container>
+        </nav>
+    </div>
+
+    <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); background-color: #061f42;">
+      <button (click)="allerAAccueil()" style="width: 100%; background: #f17a22; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        🏠 Quitter vers l'Accueil
+      </button>
+    </div>
+  </aside>
+
+  <!-- CONTENU PRINCIPAL DYNAMIQUE -->
+  <main style="flex: 1; padding: 25px; overflow-y: auto;">
+    
+    <!-- 1️⃣ CAS : DEMANDE D'ACCÈS -->
+    <div *ngIf="activeSub === 'acces' && userRole === 'ADMINISTRATEUR'">
+      <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 30px; border-top: 4px solid #dc2626;">
+          <h2 style="color: #092c5c; margin: 0 0 5px 0; font-size: 20px; font-weight: 700;">🔐 Contrôle des Accès Secrétariat Misfat</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 0 0 20px 0;">Validez ou rejetez les demandes d'accès.</p>
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                  <tr style="background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 2px solid #e2e8f0;">
+                      <th style="padding: 12px;">Collaborateur</th>
+                      <th style="padding: 12px;">Email</th>
+                      <th style="padding: 12px;">Rôle demandé</th>
+                      <th style="padding: 12px;">Affectation</th>
+                      <th style="padding: 12px;">Statut actuel</th>
+                      <th style="padding: 12px; text-align: right;">Décision Master Admin</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr *ngFor="let user of demandesEnAttente" style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                      <td style="padding: 15px; font-weight: 700; color: #092c5c;">{{ user.firstName }} {{ user.lastName }}</td>
+                      <td style="padding: 15px; color: #475569;">{{ user.email }}</td>
+                      <td style="padding: 15px;">{{ user.role }}</td>
+                      <td style="padding: 15px;">{{ user.usine }}</td>
+                      <td style="padding: 15px;">{{ user.status }}</td>
+                      <td style="padding: 15px; text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                          <button (click)="accepterDemande(user)" style="background: #22c55e; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✔ Approuver</button>
+                          <button (click)="refuserDemande(user)" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✖ Refuser</button>
+                      </td>
+                  </tr>
+              </tbody>
+          </table>
+      </div>
+    </div>
+
+    <!-- 2️⃣ CAS : AFFICHAGE DE "MON PROFIL" -->
+    <div *ngIf="activeSub === 'm-prof'">
+       <app-profile></app-profile>
+    </div>
+
+    <!-- 3️⃣ CAS : VUES RELATIVES AUX MODULES CRUD (Corrigé pour injecter le composant d'émissions) -->
+    <div *ngIf="activeSub !== 'acces' && activeSub !== 'm-prof' && activeSub !== 'dashboard-home' && activeSub !== 'apercu' && activeSub !== 'mesure'">
+      
+      <!-- Si on clique sur Combustion Établissements, on charge directement le composant -->
+      <ng-container *ngIf="activeSub === 'combustion-etablissements'; else autreModule">
+        <app-emission-list></app-emission-list>
+      </ng-container>
+
+      <!-- Fallback dynamique pour les autres pages CRUD non encore développées -->
+      <ng-template #autreModule>
+        <div style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+          <h2 style="color: #092c5c; text-transform: capitalize; margin: 0 0 10px 0;">⚙️ Module : {{ activeSub.replace('-', ' ') }}</h2>
+          <div style="padding: 40px; border: 2px dashed #e2e8f0; border-radius: 10px; text-align: center; color: #94a3b8; margin-top: 20px;">
+            [ L'interface CRUD pour <strong>{{ activeSub }}</strong> s'affichera ici ]
+          </div>
+        </div>
+      </ng-template>
+
+    </div>
+
+    <!-- 4️⃣ CAS : TABLEAU DE BORD BILAN CARBONE — DESIGN GHG PROTOCOL -->
+    <div *ngIf="activeSub === 'dashboard-home' || activeSub === 'apercu' || activeSub === 'mesure'" class="ghg-dashboard">
+
+        <!-- EN-TÊTE + FILTRE ÉTABLISSEMENTS -->
+        <div class="ghg-header">
+            <div>
+                <h1 class="ghg-title">Bilan Carbone Misfat Filtration</h1>
+                <p class="ghg-subtitle">
+                    <span class="ghg-tag">Norme GHG Protocol</span>
+                    Fabrication de filtres à huile, à air, à carburant et d'habitacle
+                </p>
+            </div>
+            <div class="filter-pills">
+                <button (click)="changerFiltre('ALL')"
+                        class="pill pill-all"
+                        [class.active]="filtreActif === 'ALL'">
+                    🌐 Tout consolider
+                </button>
+                <button *ngFor="let num of [1,2,3,4,5]" 
+                        (click)="changerFiltre(num)"
+                        class="pill pill-num"
+                        [class.active]="filtreActif === num">
+                    Usine {{ num }}
+                </button>
+            </div>
+        </div>
+
+        <!-- KPI HERO : EMPREINTE TOTALE + 3 SCOPES -->
+        <div class="kpi-grid">
+            <div class="kpi-card kpi-total">
+                <div class="kpi-top">
+                    <span class="kpi-icon">🌍</span>
+                    <span class="kpi-label">Empreinte Totale</span>
+                </div>
+                <div class="kpi-value">{{ (stats.scope1 + stats.scope2 + stats.scope3) | number }}</div>
+                <div class="kpi-unit">tCO₂eq — cumul annuel</div>
+                <div class="stacked-bar">
+                    <div class="stacked-segment seg-1" [style.width]="(stats.scope1 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div>
+                    <div class="stacked-segment seg-2" [style.width]="(stats.scope2 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div>
+                    <div class="stacked-segment seg-3" [style.width]="(stats.scope3 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div>
+                </div>
+                <div class="stacked-legend">
+                    <span><i class="dot dot-1"></i>Scope 1</span>
+                    <span><i class="dot dot-2"></i>Scope 2</span>
+                    <span><i class="dot dot-3"></i>Scope 3</span>
+                </div>
+            </div>
+
+            <div class="kpi-card kpi-scope scope-1">
+                <div class="kpi-top">
+                    <span class="kpi-icon">🏭</span>
+                    <span class="kpi-badge">Direct</span>
+                </div>
+                <div class="kpi-label">Scope 1 · Émissions Directes</div>
+                <div class="kpi-value">{{ stats.scope1 | number }}<span class="kpi-unit-inline">tCO₂eq</span></div>
+                <div class="mini-progress"><div class="mini-progress-fill fill-1" [style.width]="(stats.scope1 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div></div>
+                <div class="kpi-percent">{{ (stats.scope1 / (stats.scope1+stats.scope2+stats.scope3) * 100) | number:'1.0-1' }}% de l'empreinte totale</div>
+            </div>
+
+            <div class="kpi-card kpi-scope scope-2">
+                <div class="kpi-top">
+                    <span class="kpi-icon">⚡</span>
+                    <span class="kpi-badge">Indirect Énergie</span>
+                </div>
+                <div class="kpi-label">Scope 2 · Énergie Achetée</div>
+                <div class="kpi-value">{{ stats.scope2 | number }}<span class="kpi-unit-inline">tCO₂eq</span></div>
+                <div class="mini-progress"><div class="mini-progress-fill fill-2" [style.width]="(stats.scope2 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div></div>
+                <div class="kpi-percent">{{ (stats.scope2 / (stats.scope1+stats.scope2+stats.scope3) * 100) | number:'1.0-1' }}% de l'empreinte totale</div>
+            </div>
+
+            <div class="kpi-card kpi-scope scope-3">
+                <div class="kpi-top">
+                    <span class="kpi-icon">🚛</span>
+                    <span class="kpi-badge">Chaîne de Valeur</span>
+                </div>
+                <div class="kpi-label">Scope 3 · Amont & Aval</div>
+                <div class="kpi-value">{{ stats.scope3 | number }}<span class="kpi-unit-inline">tCO₂eq</span></div>
+                <div class="mini-progress"><div class="mini-progress-fill fill-3" [style.width]="(stats.scope3 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div></div>
+                <div class="kpi-percent">{{ (stats.scope3 / (stats.scope1+stats.scope2+stats.scope3) * 100) | number:'1.0-1' }}% de l'empreinte totale</div>
+            </div>
+        </div>
+
+        <!-- PERFORMANCE COMMERCIALE + PRODUCTION -->
+        <div class="business-grid">
+            <div class="business-card">
+                <div class="business-header">
+                    <h3>📈 Performance Société <span class="muted">(Cumul 4 ans)</span></h3>
+                </div>
+                <div class="business-figures">
+                    <div>
+                        <p class="figure-label">CA Global Précédent</p>
+                        <p class="figure-value muted-value">{{ donneesMisfatSociete.caPrecedent | number }} TND</p>
+                    </div>
+                    <div class="figure-right">
+                        <p class="figure-label figure-label-green">🚀 Performance Actuelle</p>
+                        <p class="figure-value green-value">{{ donneesMisfatSociete.caActuel | number }} TND</p>
+                    </div>
+                </div>
+                <div class="bars-chart">
+                    <div *ngFor="let ca of donneesMisfatSociete.historiqueCA" class="bar-col">
+                        <div class="bar-value">{{ ca.hauteurBarre }}</div>
+                        <div class="bar-visual" [style.height.px]="ca.hauteurBarre"></div>
+                        <span class="bar-year">{{ ca.annee }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="business-card">
+                <div class="business-header">
+                    <h3>📦 Volumes de Production</h3>
+                </div>
+                <div class="production-list">
+                    <div *ngFor="let f of donneesMisfatSociete.filtresProduction" class="production-item">
+                        <div class="production-row">
+                            <span class="production-type">{{ f.type }}</span>
+                            <span class="production-volume">{{ f.volume }}%</span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill fill-prod" [style.width]="f.volume + '%'"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DÉTAIL DES SCOPES — GHG PROTOCOL BREAKDOWN -->
+        <div class="scopes-detail">
+
+            <!-- SCOPE 1 -->
+            <div class="scope-block scope-block-1">
+                <div class="scope-block-header">
+                    <div class="scope-block-title">
+                        <span class="scope-block-icon">🏭</span>
+                        <div>
+                            <h3>Scope 1 — Émissions Directes</h3>
+                            <p>Sources détenues ou contrôlées directement par Misfat</p>
+                        </div>
+                    </div>
+                    <span class="scope-block-total total-1">{{ stats.scope1 | number }} tCO₂eq</span>
+                </div>
+                <div class="category-grid">
+                    <div *ngFor="let item of categoriesScope1" class="category-item">
+                        <div class="category-row">
+                            <span class="category-name">{{ item.nom }}</span>
+                            <span class="category-total total-1">{{ item.total | number }} <small>tCO₂eq</small></span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill fill-1" [style.width]="(item.total / stats.scope1 * 100) + '%'"></div>
+                        </div>
+                        <div class="category-quarters">
+                            <span>Q1 : {{ item.q1 | number }}</span>
+                            <span>Q2 : {{ item.q2 | number }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCOPE 2 -->
+            <div class="scope-block scope-block-2">
+                <div class="scope-block-header">
+                    <div class="scope-block-title">
+                        <span class="scope-block-icon">⚡</span>
+                        <div>
+                            <h3>Scope 2 — Énergie Achetée</h3>
+                            <p>Émissions indirectes liées à l'électricité consommée</p>
+                        </div>
+                    </div>
+                    <span class="scope-block-total total-2">{{ stats.scope2 | number }} tCO₂eq</span>
+                </div>
+                <div class="category-grid">
+                    <div *ngFor="let item of categoriesScope2" class="category-item">
+                        <div class="category-row">
+                            <span class="category-name">{{ item.nom }}</span>
+                            <span class="category-total total-2">{{ item.total | number }} <small>tCO₂eq</small></span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill fill-2" [style.width]="(item.total / stats.scope2 * 100) + '%'"></div>
+                        </div>
+                        <div class="category-quarters">
+                            <span>Q1 : {{ item.q1 | number }}</span>
+                            <span>Q2 : {{ item.q2 | number }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCOPE 3 -->
+            <div class="scope-block scope-block-3">
+                <div class="scope-block-header">
+                    <div class="scope-block-title">
+                        <span class="scope-block-icon">🚛</span>
+                        <div>
+                            <h3>Scope 3 — Chaîne de Valeur Amont & Aval</h3>
+                            <p>Matières premières, fret, déplacements, fin de vie des filtres</p>
+                        </div>
+                    </div>
+                    <span class="scope-block-total total-3">{{ stats.scope3 | number }} tCO₂eq</span>
+                </div>
+                <div class="category-grid">
+                    <div *ngFor="let item of categoriesScope3" class="category-item">
+                        <div class="category-row">
+                            <span class="category-name">{{ item.nom }}</span>
+                            <span class="category-total total-3">{{ item.total | number }} <small>tCO₂eq</small></span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill fill-3" [style.width]="(item.total / stats.scope3 * 100) + '%'"></div>
+                        </div>
+                        <div class="category-quarters">
+                            <span>Q1 : {{ item.q1 | number }}</span>
+                            <span>Q2 : {{ item.q2 | number }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+  </main>
+</div>

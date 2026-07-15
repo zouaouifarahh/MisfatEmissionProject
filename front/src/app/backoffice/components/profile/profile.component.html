@@ -1,0 +1,84 @@
+<div class="profile-container">
+  
+  <!-- Carte de Profil -->
+  <div class="profile-card">
+    <div class="avatar-wrapper">
+      <img [src]="avatarUrl" alt="Photo de profil" class="profile-avatar">
+      <label for="fileInput" class="upload-btn" title="Changer la photo">
+        📷
+      </label>
+      <input type="file" id="fileInput" (change)="onFileSelected($event)" accept="image/*" style="display: none;">
+    </div>
+
+    <h2 class="user-name">{{ user.firstName }} {{ user.lastName }}</h2>
+    <span class="user-badge">{{ user.role }}</span>
+
+    <div class="user-details">
+      <div class="detail-item">
+        <label>Identifiant</label>
+        <p>{{ user.username }}</p>
+      </div>
+      <div class="detail-item">
+        <label>Adresse E-mail</label>
+        <p>{{ user.email }}</p>
+      </div>
+      <div class="detail-item">
+        <label>Affectation d'usine</label>
+        <p>{{ user.usine }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bloc Notes et Rappels -->
+  <div class="notes-card">
+    <h3>Mes Notes & Rappels</h3>
+    <p class="subtitle">Ajoutez des tâches ou notes personnelles pour vos suivis d'émissions.</p>
+
+    <!-- Formulaire d'ajout -->
+    <form (submit)="ajouterNote($event)" class="note-form">
+      <input 
+        type="text" 
+        [(ngModel)]="nouvelleNote" 
+        name="noteInput"
+        placeholder="Ex: Ne pas oublier d'ajouter les détails des émissions Scope 3..." 
+        class="note-input"
+        required>
+      <button type="submit" class="btn-add-note">Ajouter une note</button>
+    </form>
+
+    <!-- Liste des notes -->
+    <div class="notes-list">
+      <div *ngIf="notes.length === 0" class="empty-notes">
+        Aucune note pour le moment.
+      </div>
+      
+      <div *ngFor="let note of notes; let i = index" class="note-item">
+        
+        <!-- MODE AFFICHAGE NORMAL -->
+        <ng-container *ngIf="noteEnEdition !== i">
+          <span class="note-text" (click)="activerEdition(i, note)" title="Cliquez pour modifier">{{ note }}</span>
+          <div class="note-actions">
+            <button type="button" class="btn-edit-note" (click)="activerEdition(i, note)" title="Modifier">✏️</button>
+            <button type="button" class="btn-delete-note" (click)="supprimerNote(i)" title="Supprimer">×</button>
+          </div>
+        </ng-container>
+
+        <!-- MODE ÉDITION / MODIFICATION -->
+        <ng-container *ngIf="noteEnEdition === i">
+          <input 
+            type="text" 
+            [(ngModel)]="texteModifie" 
+            class="note-edit-input" 
+            (keyup.enter)="sauvegarderModification(i)"
+            (keyup.escape)="annulerEdition()">
+          <div class="note-actions">
+            <button type="button" class="btn-save-note" (click)="sauvegarderModification(i)" title="Valider">✔️</button>
+            <button type="button" class="btn-cancel-note" (click)="annulerEdition()" title="Annuler">❌</button>
+          </div>
+        </ng-container>
+
+      </div>
+    </div>
+  </div>
+
+</div>

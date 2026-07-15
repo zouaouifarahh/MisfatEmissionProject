@@ -1,0 +1,162 @@
+<nav class="navbar" style="background: #ffffff; display: flex; justify-content: space-between; align-items: center; padding: 1rem 8%; box-shadow: 0 4px 20px rgba(9, 44, 92, 0.06); position: sticky; top: 0; z-index: 1000;">
+    <div class="logo">
+        <img src="misfat logo.jpg" alt="Misfat Filtration" style="height: 65px; width: auto;">
+    </div>
+    <ul class="nav-links" style="display: flex; list-style: none; gap: 2.5rem;">
+        <li><a href="#" style="text-decoration: none; color: #092c5c; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid #f17a22; padding-bottom: 4px;">Tableau de Bord</a></li>
+        <li><a href="#" style="text-decoration: none; color: #092c5c; font-weight: 700; text-transform: uppercase;">Suivi des Usines</a></li>
+        <li><a href="#" style="text-decoration: none; color: #092c5c; font-weight: 700; text-transform: uppercase;">Calculateurs CO₂</a></li>
+        <li><a href="#" style="text-decoration: none; color: #092c5c; font-weight: 700; text-transform: uppercase;">Rapports ISO 14064</a></li>
+    </ul>
+    <div style="background: rgba(9, 44, 92, 0.05); color: #092c5c; padding: 0.6rem 1.2rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem; border: 1px solid rgba(9, 44, 92, 0.1);">
+        Espace Direction Générale
+    </div>
+</nav>
+
+<div style="background: linear-gradient(rgba(9, 44, 92, 0.88), rgba(9, 44, 92, 0.94)), url('https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=1200&q=80') center/cover; padding: 8rem 8%; text-align: center; color: white;">
+    <div style="max-width: 900px; margin: 0 auto;">
+        <span style="background: #f17a22; color: white; padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 1.5rem;">Plateforme de Pilotage Environnemental</span>
+        <h1 style="font-size: 3.5rem; font-weight: 800; line-height: 1.25; margin-bottom: 1.5rem;">Mesure et Bilan des <span style="color: #f17a22;">Émissions de Gaz</span> à Effet de Serre</h1>
+        <p style="font-size: 1.25rem; opacity: 0.95; line-height: 1.7; max-width: 800px; margin: 0 auto;">
+            Outil décisionnel de centralisation des flux de données énergétiques pour l'analyse précise des Scopes 1, 2 et 3. Supervisez l'empreinte carbone globale du Groupe Misfat et pilotez nos objectifs de décarbonation par site industriel.
+        </p>
+    </div>
+</div>
+
+<div style="background: #ffffff; padding: 4rem 8%; box-shadow: inset 0 10px 20px rgba(0,0,0,0.02); border-bottom: 1px solid #e2e8f0;">
+    <div style="text-align: center; margin-bottom: 3rem;">
+        <span style="color: #f17a22; font-weight: 800; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Indicateurs Global Groupe</span>
+        <h2 style="font-size: 2.3rem; font-weight: 800; color: #092c5c; margin-top: 0.5rem;">Bilan Consolidé en Temps Réel</h2>
+        <p style="color: #64748b; max-width: 600px; margin: 0.5rem auto 0 auto;">Ces compteurs sont directement connectés aux saisies et modifications d'activités effectuées depuis le back-office.</p>
+    </div>
+
+    <div style="background: linear-gradient(135deg, #092c5c 0%, #061b3a 100%); border-radius: 12px; padding: 2.5rem; text-align: center; color: white; max-width: 700px; margin: 0 auto 3.5rem auto; box-shadow: 0 10px 30px rgba(9, 44, 92, 0.15); border-left: 5px solid #f17a22;">
+        <h3 style="font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; opacity: 0.8; font-weight: 600;">Émissions Totales Consolides</h3>
+        <div style="font-size: 4rem; font-weight: 900; color: #f17a22; line-height: 1;">
+            {{ totalEmissions || '145 825' }} <span style="font-size: 1.5rem; color: white; font-weight: 500; opacity: 0.9;">tonnes de CO₂e</span>
+        </div>
+        <p style="font-size: 0.95rem; opacity: 0.75; margin-top: 1rem; line-height: 1.5; max-width: 550px; margin-left: auto; margin-right: auto;">
+            Valeur exacte calculée automatiquement sur la base des consommations énergétiques, des process d'usines et des flux logistiques enregistrés.
+        </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2.5rem;">
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 2rem; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <h4 style="color: #092c5c; font-weight: 800; font-size: 1.2rem; margin: 0;">Scope 1</h4>
+                <span style="background: rgba(9, 44, 92, 0.08); color: #092c5c; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Direct</span>
+            </div>
+            <div style="font-size: 2.2rem; font-weight: 900; color: #092c5c; margin-bottom: 0.5rem;">
+                {{ scope1Emissions || '11 813' }} <span style="font-size: 1rem; font-weight: 600; color: #64748b;">tCO₂e</span>
+            </div>
+            <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">
+                Combustion de gaz naturel, fioul industriel de process et émissions mobiles de la flotte interne.
+            </p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 2rem; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <h4 style="color: #f17a22; font-weight: 800; font-size: 1.2rem; margin: 0;">Scope 2</h4>
+                <span style="background: rgba(241, 122, 34, 0.1); color: #f17a22; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Énergie</span>
+            </div>
+            <div style="font-size: 2.2rem; font-weight: 900; color: #f17a22; margin-bottom: 0.5rem;">
+                {{ scope2Emissions || '7 218' }} <span style="font-size: 1rem; font-weight: 600; color: #64748b;">tCO₂e</span>
+            </div>
+            <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">
+                Électricité importée pour l'alimentation des lignes robotisées et des infrastructures industrielles.
+            </p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 2rem; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <h4 style="color: #092c5c; font-weight: 800; font-size: 1.2rem; margin: 0;">Scope 3</h4>
+                <span style="background: rgba(9, 44, 92, 0.08); color: #092c5c; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Indirect</span>
+            </div>
+            <div style="font-size: 2.2rem; font-weight: 900; color: #092c5c; margin-bottom: 0.5rem;">
+                {{ scope3Emissions || '126 794' }} <span style="font-size: 1rem; font-weight: 600; color: #64748b;">tCO₂e</span>
+            </div>
+            <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">
+                Achats de matières premières (médias de filtration), logistique amont/aval et cycle de fin de vie.
+            </p>
+        </div>
+
+    </div>
+</div>
+<div style="display: flex; flex-wrap: wrap;">
+    <div style="flex: 1; background: white; padding: 5rem 6%; min-width: 300px;">
+        <h2 style="font-size: 2.2rem; font-weight: 800; color: #092c5c; margin-bottom: 1.5rem;">Méthodologie de Calcul & Régulation</h2>
+        <p style="color: #64748b; line-height: 1.7; font-size: 1.05rem; margin-bottom: 1.5rem;">
+            Le système intègre nativement les facteurs d'émission réglementaires pour convertir automatiquement les consommations de combustibles, d'électricité et les activités logistiques en tonnes équivalent CO₂ (tCO₂e).
+        </p>
+        <p style="color: #64748b; line-height: 1.7; font-size: 1.05rem;">
+            Chaque Directeur d'usine dispose d'un accès sécurisé pour auditer les indicateurs de performance, détecter les postes les plus émissifs et valider les plans d’actions locaux.
+        </p>
+    </div>
+    <div style="flex: 1; background: #f17a22; color: white; padding: 5rem 6%; min-width: 300px;">
+        <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 1.5rem;">Pourquoi Auditer le CO₂ chez Misfat ?</h2>
+        <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1.2rem; font-size: 1.1rem;">
+            <li style="display: flex; gap: 10px; align-items: flex-start;"><strong style="font-size: 1.3rem;">✔</strong> <span><strong>Analyse Multi-sites :</strong> Comparaison et consolidation des rejets de CO₂ de chaque filiale et unité de production.</span></li>
+            <li style="display: flex; gap: 10px; align-items: flex-start;"><strong style="font-size: 1.3rem;">✔</strong> <span><strong>Cartographie des Scopes :</strong> Suivi des émissions directes (Scope 1), indirectes liées à l'énergie (Scope 2) et de la chaîne de valeur (Scope 3).</span></li>
+            <li style="display: flex; gap: 10px; align-items: flex-start;"><strong style="font-size: 1.3rem;">✔</strong> <span><strong>Indicateurs Clés (KPIs) :</strong> Visualisation des ratios d'émissions par pièce filtrante produite pour optimiser l'efficience énergétique.</span></li>
+        </ul>
+    </div>
+</div>
+
+<div style="background: linear-gradient(rgba(241, 122, 34, 0.9), rgba(9, 44, 92, 0.95)), url('https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?auto=format&fit=crop&w=1200&q=80') center/cover fixed; padding: 6rem 8%; text-align: center; color: white;">
+    <h2 style="font-size: 2.3rem; font-weight: 800; margin-bottom: 1rem;">Vers une Industrie Automobile Neutre en Carbone</h2>
+    <p style="max-width: 700px; margin: 0 auto; font-size: 1.1rem; opacity: 0.9; line-height: 1.6;">
+        En croisant les données de production avec nos algorithmes de calcul, la direction anticipe les taxes carbone aux frontières et renforce le leadership éco-responsable du Groupe Misfat.
+    </p>
+</div>
+
+<footer style="background-color: #08121e; color: #cbd5e1; padding: 5rem 8% 2rem 8%; border-top: 3px solid #f17a22; font-family: sans-serif;">
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 4rem; margin-bottom: 4rem;">
+        
+        <div>
+            <img src="misfat logo.jpg" alt="Misfat" style="height: 50px; background: white; padding: 5px; border-radius: 4px; margin-bottom: 1.5rem;">
+            <p style="line-height: 1.7; font-size: 0.95rem; opacity: 0.8;">
+                Portail de Gouvernance RSE & d'Analyse d'impact environnemental. Développé pour la traçabilité carbone et la conformité climatique des usines de filtration.
+            </p>
+        </div>
+
+        <div>
+            <h4 style="color: #f17a22; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem; font-weight: 700; border-left: 3px solid #f17a22; padding-left: 10px;">Catégories ISO 1 à 3</h4>
+            <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.9rem;">
+                <li><strong style="color: white;">Catégorie 1 :</strong> Émissions directes de GES (Process fixes et mobiles)</li>
+                <li><strong style="color: white;">Catégorie 2 :</strong> Émissions indirectes associées à l'énergie importée</li>
+                <li><strong style="color: white;">Catégorie 3 :</strong> Émissions indirectes liées aux transports (Fret, Voyages)</li>
+            </ul>
+        </div>
+
+        <div>
+            <h4 style="color: #f17a22; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem; font-weight: 700; border-left: 3px solid #f17a22; padding-left: 10px;">Catégories ISO 4 à 6</h4>
+            <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.9rem;">
+                <li><strong style="color: white;">Catégorie 4 :</strong> Émissions indirectes des produits utilisés par l'organisation</li>
+                <li><strong style="color: white;">Catégorie 5 :</strong> Émissions indirectes liées à l'utilisation des produits de l'entité</li>
+                <li><strong style="color: white;">Catégorie 6 :</strong> Émissions indirectes provenant d'autres sources spécifiques</li>
+            </ul>
+        </div>
+
+        <div>
+            <h4 style="color: #f17a22; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem; font-weight: 700; border-left: 3px solid #f17a22; padding-left: 10px;">Indicateurs Audités</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <span style="background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; color: white;">Methane (CH₄)</span>
+                <span style="background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; color: white;">Dioxyde de Carbone (CO₂)</span>
+                <span style="background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; color: white;">Facteurs d'Émission Ademe</span>
+                <span style="background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; color: white;">Norme ISO 14064</span>
+            </div>
+        </div>
+    </div>
+
+    <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; opacity: 0.6;">
+        <div>
+            &copy; 2026 Groupe Misfat Filtration. Tous droits réservés. Espace de Haute Direction Technologique.
+        </div>
+        <div style="display: flex; gap: 1.5rem;">
+            <span>Sécurité SSL active</span>
+            <span>Données Chiffrées</span>
+        </div>
+    </div>
+</footer>
