@@ -5,5 +5,6 @@ public enum Role {
     RESPONSABLE_RSE,
     CONTRIBUTEUR,
     AUDITEUR,
-    DIRECTION
+    DIRECTION,
+    USER
 }
