@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import { marqueurEcran } from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
@@ -251,7 +252,7 @@ export class BiensEquipementComponent implements OnInit {
    * marqueur empêche que la migration se rejoue à chaque chargement.</p>
    */
   private remigrerParReferentiel(): void {
-    const MARQUEUR = 'misfat_ref_matching_v2_biens_equipement';
+    const MARQUEUR = marqueurEcran('biens_equipement');
     if (typeof localStorage === 'undefined') return;
     if (localStorage.getItem(MARQUEUR) === 'fait') return;
     if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;

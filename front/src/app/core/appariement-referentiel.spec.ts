@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   apparier, remigrerLignes, libelleRapprochement, normaliserLibelle,
   migrationFaite, marquerMigration, messagePourMigration, adaptateurStandard,
+  marqueurEcran, purgerMarqueursObsoletes, VERSION_APPARIEMENT,
   AdaptateurLigne, Rapprochement
 } from './appariement-referentiel';
 import { FacteurDetaille } from '../services/referential.service';
@@ -320,22 +321,144 @@ describe('Appariement au référentiel carbone', () => {
     });
   });
 
+  describe('degré famille', () => {
+
+    /**
+     * Le cas des immobilisations : l'écran nomme ses familles en français, le
+     * référentiel les nomme en anglais. Comparer les libellés à l'identique
+     * échoue toujours, et la ligne restait sans référence.
+     */
+    const CATEGORIE_15 = [
+      facteur('MS3C15AL', 'Alum / Aluminium, monetary', 0.42, 'Base carbone interne'),
+      facteur('MS3C15CL', 'Air-Conditioning and Heating, monetary', 0.31, 'Base carbone interne'),
+      facteur('MS3C15EQ', 'Industrial equipment, default monetary', 0.25, 'Base carbone interne'),
+      facteur('MS3C15IX', 'Inox / Stainless steel, monetary', 0.39, 'Base carbone interne'),
+      facteur('MS3C15ME', 'Metals / Metal products, monetary', 0.38, 'Base carbone interne')
+    ];
+
+    it('rattache une famille de repli à sa référence documentée', () => {
+      // « Équipements Ind. (Fallback #N/A) » ne ressemble en rien à
+      // « Industrial equipment, default monetary » : seul le motif les rapproche.
+      const trouve = apparier(CATEGORIE_15, {
+        categorie: 'Équipements Ind. (Fallback #N/A)',
+        motifFamille: /equipment|machinery|equipement|industrial/i
+      });
+
+      expect(trouve?.rapprochement).toBe('FAMILLE');
+      expect(trouve?.facteur.referenceCode).toBe('MS3C15EQ');
+      expect(trouve?.facteur.factorValue).toBeCloseTo(0.25, 10);
+    });
+
+    it('rattache la climatisation à MS3C15CL', () => {
+      const trouve = apparier(CATEGORIE_15, {
+        categorie: 'Air-Conditioning & Heating',
+        motifFamille: /air.?conditioning|heating|climatisation|chauffage|hvac/i
+      });
+
+      // Le 0,31 que l'écran affichait comme « repli ADEME » est en réalité
+      // celui-ci : la valeur était juste, la référence manquait.
+      expect(trouve?.rapprochement).toBe('FAMILLE');
+      expect(trouve?.facteur.referenceCode).toBe('MS3C15CL');
+      expect(trouve?.facteur.factorValue).toBeCloseTo(0.31, 10);
+    });
+
+    it('passe après la catégorie, jamais avant', () => {
+      // Une catégorie qui correspond exactement doit primer : le motif est le
+      // degré interprétatif, il ne prend la main qu'en dernier.
+      const trouve = apparier(CATEGORIE_15, {
+        categorie: 'Metals / Metal products, monetary',
+        motifFamille: /equipment|industrial/i
+      });
+
+      expect(trouve?.rapprochement).toBe('CATEGORIE');
+      expect(trouve?.facteur.referenceCode).toBe('MS3C15ME');
+    });
+
+    it('passe après la référence, jamais avant', () => {
+      const trouve = apparier(CATEGORIE_15, {
+        referenceCarbone: 'MS3C15AL',
+        motifFamille: /equipment|industrial/i
+      });
+
+      expect(trouve?.rapprochement).toBe('REFERENCE');
+      expect(trouve?.facteur.referenceCode).toBe('MS3C15AL');
+    });
+
+    it('reste sans effet quand aucun type ne répond au motif', () => {
+      expect(apparier(CATEGORIE_15, { motifFamille: /nucleaire|hydrogene/i })).toBeNull();
+    });
+
+    it('est nommé distinctement, pour ne pas passer pour un appariement exact', () => {
+      // Un vérificateur doit pouvoir distinguer une référence lue d'une famille
+      // déduite : la traçabilité du rapport en dépend.
+      expect(libelleRapprochement('FAMILLE')).toContain('motif');
+      expect(libelleRapprochement('FAMILLE')).not.toBe(libelleRapprochement('REFERENCE'));
+    });
+  });
+
   describe('marqueur de migration', () => {
 
     beforeEach(() => localStorage.clear());
 
     it('n\'est pas posé avant la première exécution', () => {
-      expect(migrationFaite('misfat_ref_matching_v2_essai')).toBe(false);
+      expect(migrationFaite(marqueurEcran('essai'))).toBe(false);
     });
 
     it('tient une fois posé', () => {
-      marquerMigration('misfat_ref_matching_v2_essai');
-      expect(migrationFaite('misfat_ref_matching_v2_essai')).toBe(true);
+      marquerMigration(marqueurEcran('essai'));
+      expect(migrationFaite(marqueurEcran('essai'))).toBe(true);
     });
 
     it('ne confond pas deux écrans', () => {
-      marquerMigration('misfat_ref_matching_v2_dechets');
-      expect(migrationFaite('misfat_ref_matching_v2_transport_amont')).toBe(false);
+      marquerMigration(marqueurEcran('dechets'));
+      expect(migrationFaite(marqueurEcran('transport_amont'))).toBe(false);
+    });
+
+    it('porte la version courante dans son nom', () => {
+      expect(marqueurEcran('dechets')).toBe(`misfat_ref_matching_v${VERSION_APPARIEMENT}_dechets`);
+      expect(VERSION_APPARIEMENT).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('purge des marqueurs obsolètes', () => {
+
+    beforeEach(() => localStorage.clear());
+
+    it('efface les marqueurs des versions antérieures', () => {
+      // C'est le mécanisme qui fait rejouer l'appariement sans intervention :
+      // un marqueur v2 laissé en place figerait l'écran sur l'ancien résultat.
+      localStorage.setItem('misfat_ref_matching_v1_dechets', 'fait');
+      localStorage.setItem('misfat_ref_matching_v2_biens_services', 'fait');
+      localStorage.setItem('misfat_ref_matching_v2_combustion', 'fait');
+
+      expect(purgerMarqueursObsoletes()).toBe(3);
+      expect(localStorage.getItem('misfat_ref_matching_v2_biens_services')).toBeNull();
+      expect(localStorage.getItem('misfat_ref_matching_v1_dechets')).toBeNull();
+    });
+
+    it('conserve les marqueurs de la version courante', () => {
+      const courant = marqueurEcran('dechets');
+      localStorage.setItem(courant, 'fait');
+      localStorage.setItem('misfat_ref_matching_v2_dechets', 'fait');
+
+      expect(purgerMarqueursObsoletes()).toBe(1);
+      expect(localStorage.getItem(courant)).toBe('fait');
+    });
+
+    it('ne touche à rien d\'autre dans le stockage', () => {
+      // Les lignes d'activité vivent dans le même stockage : une purge trop
+      // large effacerait les données de collecte.
+      localStorage.setItem('listeEmissionsAchats', '[{"id":1}]');
+      localStorage.setItem('misfat_combustion_kg_v1', 'fait');
+      localStorage.setItem('misfat_ref_matching_v2_dechets', 'fait');
+
+      expect(purgerMarqueursObsoletes()).toBe(1);
+      expect(localStorage.getItem('listeEmissionsAchats')).toBe('[{"id":1}]');
+      expect(localStorage.getItem('misfat_combustion_kg_v1')).toBe('fait');
+    });
+
+    it('ne rend zéro que s\'il n\'y a rien à écarter', () => {
+      expect(purgerMarqueursObsoletes()).toBe(0);
     });
   });
 

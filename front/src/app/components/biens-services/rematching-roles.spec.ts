@@ -7,9 +7,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BiensServicesComponent } from './biens-services';
 import { DashboardComponent } from '../../backoffice/components/dashboard/dashboard';
 import { CLE_ROLE } from '../../core/roles.service';
+import { marqueurEcran } from '../../core/appariement-referentiel';
 
 /**
- * Migration {@code misfat_ref_matching_v2}, confrontée aux rôles.
+ * Migration d'appariement, confrontée aux rôles.
  *
  * <p>La migration rejoue l'appariement des lignes déjà saisies contre le
  * référentiel. Elle s'exécute à l'ouverture de l'écran de collecte, ce qui la
@@ -17,9 +18,12 @@ import { CLE_ROLE } from '../../core/roles.service';
  * l'écran. Deux garanties doivent tenir — qu'elle corrige bien les lignes de
  * celui qui y a droit, et qu'elle ne s'exécute qu'une fois.</p>
  */
-describe('misfat_ref_matching_v2 — exécution selon le rôle', () => {
+describe('Migration d\'appariement — exécution selon le rôle', () => {
 
-  const MARQUEUR = 'misfat_ref_matching_v2_biens_services';
+  // Le marqueur suit la version de l'appariement : l'épingler en dur ferait
+  // échouer ce banc au prochain incrément, alors que le comportement vérifié
+  // — une migration jouée une seule fois — ne dépend pas de la version.
+  const MARQUEUR = marqueurEcran('biens_services');
   const CLE_LIGNES = 'listeEmissionsAchats';
 
   /**

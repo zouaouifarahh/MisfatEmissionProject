@@ -14,7 +14,60 @@ import { FacteurDetaille } from '../services/referential.service';
  */
 
 /** Degré de certitude qui a désigné le facteur. */
-export type Rapprochement = 'REFERENCE' | 'CODE_ARTICLE' | 'CATEGORIE';
+export type Rapprochement = 'REFERENCE' | 'CODE_ARTICLE' | 'CATEGORIE' | 'FAMILLE';
+
+/**
+ * Version de l'appariement.
+ *
+ * <p>Elle compose le marqueur de chaque écran. L'incrémenter suffit à faire
+ * rejouer la migration sur tous les postes au prochain chargement : les anciens
+ * marqueurs ne correspondent plus, et {@link purgerMarqueursObsoletes} les
+ * efface. C'est le seul endroit à changer — la version vivait auparavant en
+ * dix-sept copies, et en oublier une laissait un écran figé.</p>
+ *
+ * <p>v3 : les familles de l'écran des investissements sont désormais rattachées
+ * à leurs références de la catégorie 15, là où la comparaison de libellés à
+ * l'identique les laissait sans référence.</p>
+ */
+export const VERSION_APPARIEMENT = 3;
+
+/** Préfixe commun à tous les marqueurs, toutes versions confondues. */
+const PREFIXE_MARQUEUR = 'misfat_ref_matching_v';
+
+/** Marqueur de migration d'un écran, pour la version courante. */
+export function marqueurEcran(ecran: string): string {
+  return `${PREFIXE_MARQUEUR}${VERSION_APPARIEMENT}_${ecran}`;
+}
+
+/**
+ * Efface les marqueurs des versions antérieures.
+ *
+ * <p>Sans cela, le stockage accumulerait un marqueur par écran et par version.
+ * Ils ne bloquent plus rien — la version courante ne les lit pas — mais les
+ * laisser entretiendrait le doute sur ce qui a déjà été joué.</p>
+ *
+ * @returns le nombre de marqueurs effacés.
+ */
+export function purgerMarqueursObsoletes(): number {
+  if (typeof localStorage === 'undefined') return 0;
+
+  try {
+    const aEffacer: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const cle = localStorage.key(i);
+      if (!cle || !cle.startsWith(PREFIXE_MARQUEUR)) continue;
+
+      const version = Number(cle.slice(PREFIXE_MARQUEUR.length).split('_')[0]);
+      if (Number.isFinite(version) && version < VERSION_APPARIEMENT) aEffacer.push(cle);
+    }
+
+    aEffacer.forEach(cle => localStorage.removeItem(cle));
+    return aEffacer.length;
+  } catch {
+    return 0;
+  }
+}
 
 /** Ce qu'une ligne d'activité offre pour être appariée. */
 export interface CriteresAppariement {
@@ -22,8 +75,20 @@ export interface CriteresAppariement {
   referenceCarbone?: string | null;
   /** Code article de l'ERP, parfois identique à la référence carbone. */
   codeArticle?: string | null;
-  /** Libellé de catégorie, le plus interprétatif des trois. */
+  /** Libellé de catégorie, comparé au type du référentiel à l'identique. */
   categorie?: string | null;
+  /**
+   * Motif de famille, dernier degré et le seul interprétatif.
+   *
+   * <p>Les écrans nomment leurs familles dans leur propre vocabulaire —
+   * « Équipements Ind. (Fallback #N/A) » — quand le référentiel emploie le sien
+   * — « Industrial equipment, default monetary ». Comparer ces libellés à
+   * l'identique échoue toujours ; le motif, lui, les rapproche.</p>
+   *
+   * <p>Il est fourni par l'écran, jamais deviné ici : c'est l'écran qui sait
+   * quelles familles il manipule.</p>
+   */
+  motifFamille?: RegExp | null;
 }
 
 export interface FacteurApparie {
@@ -83,6 +148,11 @@ export function apparier(
     if (parCategorie) return { facteur: parCategorie, rapprochement: 'CATEGORIE' };
   }
 
+  if (criteres.motifFamille) {
+    const parFamille = facteurs.find(f => criteres.motifFamille!.test(f.typeName ?? ''));
+    if (parFamille) return { facteur: parFamille, rapprochement: 'FAMILLE' };
+  }
+
   return null;
 }
 
@@ -92,6 +162,7 @@ export function libelleRapprochement(rapprochement: Rapprochement | null | undef
     case 'REFERENCE': return 'Référence carbone';
     case 'CODE_ARTICLE': return 'Code article ERP';
     case 'CATEGORIE': return 'Catégorie';
+    case 'FAMILLE': return 'Famille (rapprochement par motif)';
     default: return 'Non rapproché';
   }
 }
@@ -107,6 +178,8 @@ export interface AdaptateurLigne<T> {
   referenceCarbone(ligne: T): string | null | undefined;
   codeArticle(ligne: T): string | null | undefined;
   categorie(ligne: T): string | null | undefined;
+  /** Motif de la famille que porte la ligne, quand l'écran en connaît un. */
+  motifFamille?(ligne: T): RegExp | null | undefined;
   facteurActuel(ligne: T): number | null | undefined;
   baseActuelle(ligne: T): string | null | undefined;
   rapprochementActuel(ligne: T): Rapprochement | null | undefined;
@@ -142,7 +215,8 @@ export function remigrerLignes<T>(
     const apparie = apparier(facteurs, {
       referenceCarbone: adaptateur.referenceCarbone(ligne),
       codeArticle: adaptateur.codeArticle(ligne),
-      categorie: adaptateur.categorie(ligne)
+      categorie: adaptateur.categorie(ligne),
+      motifFamille: adaptateur.motifFamille?.(ligne)
     });
     if (!apparie) return ligne;
 
@@ -168,6 +242,13 @@ export interface ChampsLigne {
   /** Code article ERP. Absent d'un écran, le degré correspondant est ignoré. */
   codeArticle?: string;
   categorie?: string;
+  /**
+   * Motif de famille déduit de la ligne, quand l'écran sait le fournir.
+   *
+   * <p>Rendre {@code null} laisse le degré inutilisé : la ligne n'est alors
+   * rattachée que par sa référence, son code article ou sa catégorie.</p>
+   */
+  motifFamille?: (ligne: any) => RegExp | null;
   facteur: string;
   base?: string;
   uniteFacteur?: string;
@@ -200,6 +281,7 @@ export function adaptateurStandard<T extends Record<string, any>>(
     referenceCarbone: ligne => lire(ligne, champs.reference),
     codeArticle: ligne => lire(ligne, champs.codeArticle),
     categorie: ligne => lire(ligne, champs.categorie),
+    motifFamille: ligne => champs.motifFamille?.(ligne) ?? null,
     facteurActuel: ligne => lire(ligne, champs.facteur),
     baseActuelle: ligne => lire(ligne, champs.base),
     rapprochementActuel: ligne => lire(ligne, champs.rapprochement),

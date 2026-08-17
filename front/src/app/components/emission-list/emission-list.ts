@@ -5,6 +5,7 @@ import { EmissionService, EmissionFactor } from '../../services/emission';
 import { OrganizationService } from '../../services/organization.service';
 import { EntityContextService } from '../../core/entity-context.service';
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import { marqueurEcran } from '../../core/appariement-referentiel';
 import { Filiale } from '../../models/organization.model';
 import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatchees';
 import { ConfirmationService } from '../../shared/ui/confirmation.service';
@@ -200,7 +201,7 @@ export class EmissionListComponent implements OnInit {
    * intacte — la migration corrige, elle ne dévalorise pas.</p>
    */
   private remigrerParReferentiel(): void {
-    const MARQUEUR = 'misfat_ref_matching_v2_combustion_etab';
+    const MARQUEUR = marqueurEcran('combustion_etab');
     if (typeof localStorage === 'undefined') return;
     if (localStorage.getItem(MARQUEUR) === 'fait') return;
     if (!this.facteursReferentiel.length || !this.listeEmissions.length) return;

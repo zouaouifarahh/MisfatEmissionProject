@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
 import {
   Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
-  migrationFaite, marquerMigration, messagePourMigration
+  migrationFaite, marquerMigration, messagePourMigration, marqueurEcran
 } from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
@@ -743,7 +743,7 @@ export class EmissionsRefrigerantsComponent implements OnInit {
    * plutôt que d'inventer des champs que la ligne n'a pas.</p>
    */
   private remigrerParReferentiel(): void {
-    const MARQUEUR = 'misfat_ref_matching_v2_emissions_refrigerants';
+    const MARQUEUR = marqueurEcran('emissions_refrigerants');
     if (migrationFaite(MARQUEUR)) return;
     if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
 

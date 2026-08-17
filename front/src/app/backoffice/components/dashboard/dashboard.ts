@@ -38,6 +38,7 @@ import { ActivityDataComponent } from '../../../components/activity-data/activit
 
 // Services et Modèles
 import { RolesService, DroitsAcces, droitsPourRole } from '../../../core/roles.service';
+import { purgerMarqueursObsoletes, VERSION_APPARIEMENT } from '../../../core/appariement-referentiel';
 import {
   AFFECTATIONS_PROPOSEES,
   Compte,
@@ -420,6 +421,15 @@ export class DashboardComponent implements OnInit {
 
     if (typeof sessionStorage !== 'undefined') {
       for (const cle of obsoletes) sessionStorage.removeItem(cle);
+    }
+
+    // Marqueurs d'appariement des versions antérieures. La console est le point
+    // d'entrée de tous les écrans de collecte : les écarter ici suffit à ce que
+    // chacun rejoue sa migration à sa première ouverture, sans intervention.
+    const marqueursEcartes = purgerMarqueursObsoletes();
+    if (marqueursEcartes && isDevMode()) {
+      console.log(`[dashboard] ${marqueursEcartes} marqueur(s) d'appariement obsolète(s) écarté(s) `
+                  + `— l'appariement v${VERSION_APPARIEMENT} sera rejoué.`);
     }
   }
 

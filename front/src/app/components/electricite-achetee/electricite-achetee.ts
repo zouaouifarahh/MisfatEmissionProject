@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
 import {
   Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
-  migrationFaite, marquerMigration, messagePourMigration
+  migrationFaite, marquerMigration, messagePourMigration, marqueurEcran
 } from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
@@ -805,7 +805,7 @@ export class ElectriciteAcheteeComponent implements OnInit {
    * plutôt que d'inventer des champs que la ligne n'a pas.</p>
    */
   private remigrerParReferentiel(): void {
-    const MARQUEUR = 'misfat_ref_matching_v2_electricite_achetee';
+    const MARQUEUR = marqueurEcran('electricite_achetee');
     if (migrationFaite(MARQUEUR)) return;
     if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
 

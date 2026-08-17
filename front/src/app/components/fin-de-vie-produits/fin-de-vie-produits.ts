@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
 import {
   Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
-  migrationFaite, marquerMigration, messagePourMigration
+  migrationFaite, marquerMigration, messagePourMigration, marqueurEcran
 } from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
@@ -761,7 +761,7 @@ export class FinDeVieProduitsComponent implements OnInit {
    * <p>Elle ne s'exécute qu'une fois, et rien n'est écrasé qui ne s'améliore.</p>
    */
   private remigrerParReferentiel(): void {
-    const MARQUEUR = 'misfat_ref_matching_v2_fin_de_vie_produits';
+    const MARQUEUR = marqueurEcran('fin_de_vie_produits');
     if (migrationFaite(MARQUEUR)) return;
     if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
 

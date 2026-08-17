@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
 import {
   Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
-  migrationFaite, marquerMigration, messagePourMigration
+  migrationFaite, marquerMigration, messagePourMigration, marqueurEcran
 } from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
@@ -16,7 +16,7 @@ import { Filiale } from '../../models/organization.model';
 import {
   CategorieCarbone, CATEGORIES, CATEGORIE_REPLI, OrigineFacteur,
   retenirFacteurCapex, classerFacteursCapex, calculerEmissionCapex, enTonnes,
-  tauxCouverture, categorieAppariee, classeBadgeCategorie, emojiCategorie
+  tauxCouverture, categorieAppariee, classeBadgeCategorie, emojiCategorie, definitionCategorie
 } from './investissements-facteur';
 
 import { lireClasseurImmobilisations } from './investissements-excel';
@@ -683,7 +683,7 @@ export class InvestissementsComponent implements OnInit {
    * ici verserait son empreinte dans la mauvaise catégorie du rapport.</p>
    */
   private remigrerParReferentiel(): void {
-    const MARQUEUR = 'misfat_ref_matching_v2_investissements';
+    const MARQUEUR = marqueurEcran('investissements');
     if (migrationFaite(MARQUEUR)) return;
     if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
 
@@ -698,7 +698,15 @@ export class InvestissementsComponent implements OnInit {
         base: 'baseAppliquee',
         uniteFacteur: 'uniteFacteur',
         emission: 'emissionCalculee',
-        rapprochement: 'rapprochement'
+        rapprochement: 'rapprochement',
+
+        // Les familles de cet écran portent des noms maison — « Équipements Ind.
+        // (Fallback #N/A) » — quand la catégorie 15 les nomme en anglais :
+        // « Industrial equipment, default monetary ». Comparer ces libellés à
+        // l'identique échoue toujours ; le motif de la famille, déjà écrit et
+        // éprouvé dans investissements-facteur.ts, les rapproche.
+        motifFamille: (ligne: EmissionInvestissement) =>
+          definitionCategorie(ligne.categorieCarbone)?.signature ?? null
       })
     );
 
