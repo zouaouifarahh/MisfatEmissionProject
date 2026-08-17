@@ -1,0 +1,406 @@
+<div class="emission-container">
+
+  <!-- INDICATEURS DE SYNTHÈSE -->
+  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Déplacements des employés 🚌</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">Note d'information — Scope 3 (Catégorie 7)</p>
+      <p class="note-texte">
+        Note : Cette catégorie comptabilise les émissions générées par les trajets récurrents
+        effectués quotidiennement par les salariés pour se rendre de leur domicile à leur lieu
+        de travail (bus, voiture personnelle, moto, vélo ou train).
+      </p>
+    </div>
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreReplis">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreReplis }} trajet(s) valorisé(s) par un facteur de repli ADEME, faute de facteur
+    correspondant au référentiel MS SQL.
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreSansFacteur">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreSansFacteur }} trajet(s) sans facteur applicable : leurs émissions valent 0.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par matricule, employé, adresse ou mode…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreEtablissement" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les établissements</option>
+        <option *ngFor="let u of usinesDisponibles" [value]="u.nom">{{ u.nom }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes provenances</option>
+        <option value="Réel">Réel</option>
+        <option value="Estimation">Estimation</option>
+        <option value="Excel">Excel</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreStatut" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les statuts</option>
+        <option value="MS SQL">✓ Validé MS SQL</option>
+        <option value="Fallback">⚠ Fallback appliqué ADEME</option>
+      </select>
+
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Nouveau trajet</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortData('matricule')">Matricule</th>
+            <th class="sortable" (click)="sortData('employe')">Employé</th>
+            <th>Adresse domicile</th>
+            <th>Moyen de transport</th>
+            <th>Provenance</th>
+            <th class="sortable ta-right" (click)="sortData('distance')">Distance aller (km)</th>
+            <th class="ta-right">Jours/an</th>
+            <th>Facteur BDD MS SQL</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.origineFacteur === 'Aucun'">
+            <td><span class="ref-badge">{{ item.matricule || '—' }}</span></td>
+            <td class="cell-strong nom-cell" [title]="item.employe">{{ item.employe || '—' }}</td>
+            <td class="adresse-cell" [title]="item.adresseDomicile">{{ item.adresseDomicile || '—' }}</td>
+
+            <td>
+              <span class="mode-badge" [ngClass]="classeBadgeMode(item.mode || '')">
+                <span aria-hidden="true">{{ emojiMode(item.mode || '') }}</span>
+                {{ item.mode || item.modeTexte || '—' }}
+              </span>
+              <span class="duo-second" *ngIf="item.motorisation">{{ item.motorisation }}</span>
+            </td>
+
+            <td>
+              <span class="prov-badge"
+                    [class.prov-reel]="item.provenance === 'Réel'"
+                    [class.prov-estim]="item.provenance === 'Estimation'"
+                    [class.prov-excel]="item.provenance === 'Excel'">
+                <span aria-hidden="true">{{ item.provenance === 'Excel' ? '📄'
+                                          : item.provenance === 'Estimation' ? '≈' : '✓' }}</span>
+                {{ item.provenance }}
+              </span>
+            </td>
+
+            <td class="ta-right num">
+              {{ item.distanceAllerKm !== null ? (item.distanceAllerKm | number:'1.0-2') : '—' }}
+              <span class="duo-second" *ngIf="item.kmAnnuels !== null">
+                {{ item.kmAnnuels | number:'1.0-0' }} km/an
+              </span>
+            </td>
+
+            <td class="ta-right num">
+              {{ item.joursTravailles }}
+              <span class="duo-second" *ngIf="item.covoiturage > 1">÷ {{ item.covoiturage }}</span>
+            </td>
+
+            <td class="facteur-cell" [title]="item.libelleFacteur">
+              <ng-container *ngIf="item.facteur !== null; else sansFacteur">
+                <span class="duo-principal">
+                  {{ item.facteur | number:'1.0-6' }} <span class="unite-facteur">/{{ item.uniteFacteur }}</span>
+                </span>
+                <span class="duo-second">{{ item.baseAppliquee }}</span>
+                <span class="origine-repli" *ngIf="item.origineFacteur === 'Repli ADEME'">repli</span>
+              </ng-container>
+              <ng-template #sansFacteur><span class="alerte-facteur">non résolu</span></ng-template>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="10" class="empty-row">
+              Aucun trajet domicile-travail enregistré sur ce périmètre.
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="5">Total — {{ emissionsFiltrees.length }} salarié(s)</td>
+            <td colspan="3" class="ta-right num-fort">{{ totalKmAnnuels | number:'1.0-0' }} km/an</td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier le trajet' : '🚌 Nouveau trajet domicile-travail' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Déplacements des employés — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="de-matricule">Matricule *</label>
+            <input id="de-matricule" type="text" [(ngModel)]="formModel.matricule" placeholder="Ex : M001">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="de-employe">Nom &amp; Prénom *</label>
+            <input id="de-employe" type="text" [(ngModel)]="formModel.employe"
+                   placeholder="Ex : AHMED BEN ALI">
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Type de donnée</label>
+            <div class="radio-groupe">
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Réel'">
+                <input type="radio" name="prov-depl" value="Réel" [(ngModel)]="formModel.provenance">
+                <span>✓ Réel</span>
+              </label>
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Estimation'">
+                <input type="radio" name="prov-depl" value="Estimation" [(ngModel)]="formModel.provenance">
+                <span>≈ Estimation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="de-etab">Établissement</label>
+            <select id="de-etab" [(ngModel)]="formModel.etablissement">
+              <option [value]="'Site principal'">Site principal</option>
+              <option *ngFor="let u of usinesDisponibles" [value]="u.nom">{{ u.nom }}</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="de-adresse">Adresse domicile</label>
+            <input id="de-adresse" type="text" [(ngModel)]="formModel.adresseDomicile"
+                   placeholder="Ex : Bizerte">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="de-mode">Moyen de transport *</label>
+            <select id="de-mode" [(ngModel)]="formModel.mode" (ngModelChange)="onModeChange()">
+              <option *ngFor="let m of modesDisponibles" [value]="m">{{ emojiMode(m) }} {{ m }}</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="de-motor">Motorisation</label>
+            <input id="de-motor" type="text" [(ngModel)]="formModel.motorisation"
+                   (ngModelChange)="onModeChange()" placeholder="Ex : Diesel, Essence, Électrique">
+            <small class="field-hint">Affine le facteur retenu quand le référentiel le documente.</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="de-dist">Distance aller (km) *</label>
+            <input id="de-dist" type="number" step="any" [(ngModel)]="formModel.distanceAllerKm"
+                   (ngModelChange)="onSaisieChange()" placeholder="Ex : 15">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="de-jours">Jours travaillés / an</label>
+            <input id="de-jours" type="number" step="1" [(ngModel)]="formModel.joursTravailles"
+                   (ngModelChange)="onSaisieChange()" placeholder="220">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="de-covoit">Taux d'occupation (covoiturage)</label>
+            <input id="de-covoit" type="number" min="1" step="1" [(ngModel)]="formModel.covoiturage"
+                   (ngModelChange)="onSaisieChange()" placeholder="1">
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="de-facteur">Facteur BDD MS SQL</label>
+          <select id="de-facteur" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-8' }} / {{ f.unit }})
+            </option>
+          </select>
+        </div>
+
+        <!-- BOX DE CALCUL EN DIRECT -->
+        <div class="formule-box">
+          <div class="formule-titre">
+            <span aria-hidden="true">💡</span> Formule appliquée
+          </div>
+
+          <p class="formule-enonce">
+            Distance Totale/An = (Distance Aller × 2 × Jours travaillés/An) / Covoiturage
+          </p>
+
+          <div class="formule-etape" *ngIf="kmAnnuelsPrevisionnels !== null">
+            <span>
+              {{ formModel.distanceAllerKm | number:'1.0-2' }} km × 2 × {{ formModel.joursTravailles }} jours<span
+                *ngIf="formModel.covoiturage > 1"> ÷ {{ formModel.covoiturage }}</span> =
+            </span>
+            <strong>{{ kmAnnuelsPrevisionnels | number:'1.0-0' }} km/an</strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="kmAnnuelsPrevisionnels !== null && facteurCourant.valeur !== null">
+            <span>
+              {{ kmAnnuelsPrevisionnels | number:'1.0-0' }} km ×
+              {{ facteurCourant.valeur | number:'1.0-6' }}
+              ({{ facteurCourant.origine === 'MS SQL'
+                    ? 'Facteur ' + formModel.mode + ' MS SQL'
+                    : 'repli ADEME ' + formModel.mode }}) =
+            </span>
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <p class="formule-enonce" *ngIf="kmAnnuelsPrevisionnels === null">
+            Renseignez la distance aller et les jours travaillés pour voir le calcul.
+          </p>
+
+          <div class="formule-resultat">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="facteurCourant.origine === 'Repli ADEME'">
+            <span class="origine-repli">Facteur de repli</span>
+            <span>{{ facteurCourant.baseAppliquee }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer les déplacements des employés</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Colonnes obligatoires : <strong>Matricule</strong> (ou <em>ID</em>, <em>Code Salarié</em>),
+          <strong>Nom &amp; Prénom</strong> (ou <em>Nom</em>, <em>Employé</em>),
+          <strong>Moyen de transport</strong> (ou <em>Transport</em>, <em>Mode</em>) et
+          <strong>Distance (KM)</strong> (ou <em>Distance Aller</em>, <em>Km</em>).
+        </p>
+        <p class="import-hint">
+          Colonnes optionnelles et valeurs retenues à défaut : <strong>Établissement</strong>
+          → « Site principal », <strong>Jours Travaillés</strong> → 220,
+          <strong>Taux d'occupation</strong> → 1. La <strong>Motorisation</strong>, quand elle est
+          renseignée, affine le facteur retenu.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION D'IMPORT -->
+  <div class="toast" *ngIf="toastMessage" role="status">
+    <span aria-hidden="true">✅</span>
+    <span>{{ toastMessage }}</span>
+    <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+  </div>
+
+</div>

@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "*") // Autorise Angular à communiquer sans blocage CORS
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -42,7 +42,7 @@ public class UserController {
             Map<String, Object> response = userService.loginUser(username);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            if (e.getMessage().contains("attente")) {
+            if (e.getMessage() != null && e.getMessage().contains("validation")) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
             }
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -51,11 +51,12 @@ public class UserController {
 
     /**
      * 3. Approbation par l'Administrateur (Espace Admin)
+     * CORRECTION : Plus besoin de passer le password en paramètre URL !
      */
     @PutMapping("/{id}/approve")
-    public ResponseEntity<String> approveUser(@PathVariable Long id, @RequestParam String password) {
+    public ResponseEntity<String> approveUser(@PathVariable Long id) {
         try {
-            String message = userService.approveUser(id, password);
+            String message = userService.approveUser(id);
             return ResponseEntity.ok(message);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
@@ -63,7 +64,7 @@ public class UserController {
     }
 
     /**
-     * 4. Récupérer tous les utilisateurs (Ajouté pour Angular getUsers)
+     * 4. Récupérer tous les utilisateurs (Pour Angular getUsers)
      */
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {

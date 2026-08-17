@@ -7,7 +7,7 @@ import { UserService } from '../../user.service';
   selector: 'app-user-approval',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './user-approval.html',
+  templateUrl: './user-approval.component.html', // <-- Modifié pour cibler le bon nom standard
   styleUrls: ['./user-approval.component.css']
 })
 export class UserApprovalComponent implements OnInit {
@@ -38,7 +38,6 @@ export class UserApprovalComponent implements OnInit {
     this.messageSuccess = '';
     this.messageError = '';
 
-    // Cet appel à 1 seul argument ne lèvera plus d'erreur TS2554 !
     this.userService.approveUser(userId).subscribe({
       next: (response: any) => {
         this.messageSuccess = "L'utilisateur a été approuvé avec succès et activé sur Keycloak.";

@@ -1,0 +1,454 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.ref-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  padding: 10px;
+}
+
+.page-title {
+  color: #092c5c;
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 5px 0;
+}
+
+.page-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0 0 15px 0;
+}
+
+/* TOAST — manquait, cause du "échec silencieux" */
+.toast-box {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  color: white;
+  padding: 14px 22px;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px -5px rgba(0,0,0,0.3);
+  font-weight: 600;
+  font-size: 13.5px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+}
+.toast-success { background: #10b981; }
+.toast-danger { background: #ef4444; }
+.toast-info { background: #092c5c; }
+
+/* ONGLETS SCOPES */
+.scope-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tab-btn {
+  background: white;
+  border: 2px solid #e2e8f0;
+  color: #475569;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  border-color: #092c5c;
+}
+
+.tab-btn.active {
+  background: #092c5c !important;
+  color: white !important;
+  border-color: #092c5c !important;
+}
+
+/* CARDS */
+.card-box {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+  border: 1px solid #e2e8f0;
+}
+.card-box.no-padding { padding: 0; overflow: hidden; }
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  color: #092c5c;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Badge "scope actif" — remplace le champ scope redondant du formulaire */
+.active-scope-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  color: white;
+}
+
+/* FORM GRID */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.form-actions {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13.5px;
+  outline: none;
+  background: #f8fafc;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+.custom-input:focus {
+  border-color: #092c5c;
+  background: white;
+}
+
+.btn-submit {
+  background: #092c5c;
+  color: white;
+  border: none;
+  padding: 11px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+  height: 42px;
+  flex: 1;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #f17a22;
+}
+
+.btn-submit:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  background: #94a3b8;
+  color: white;
+  border: none;
+  padding: 11px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  height: 42px;
+}
+
+/* TABLEAU */
+.table-container {
+  overflow-x: auto;
+}
+
+.misfat-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.misfat-table th {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+  padding: 12px 15px;
+  font-weight: 700;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.misfat-table td {
+  padding: 14px 15px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13.5px;
+  color: #334155;
+}
+
+.misfat-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.source-name {
+  font-weight: 700;
+  color: #092c5c;
+}
+
+.code-badge {
+  background: #092c5c;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.unit-tag {
+  background: #e0f2fe;
+  color: #075985;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Badges de scope, colorés comme le reste du dashboard (S1 rouge, S2 ambre, S3 vert) */
+.scope-badge-1, .scope-pill.scope-badge-1 { background: #ef4444; }
+.scope-badge-2, .scope-pill.scope-badge-2 { background: #f59e0b; }
+.scope-badge-3, .scope-pill.scope-badge-3 { background: #10b981; }
+
+.scope-pill {
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.btn-edit {
+  background: #092c5c;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 6px;
+  transition: background 0.2s;
+}
+.btn-edit:hover { background: #f17a22; }
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.btn-delete:hover { background: #b91c1c; }
+
+.text-right { text-align: right; }
+
+.empty-msg {
+  text-align: center;
+  color: #94a3b8;
+  padding: 25px;
+}
+
+/* 🎨 STYLES DE LA MODALE PROFESSIONNELLE DE CONFIRMATION */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  animation: modalAppear 0.2s ease-out;
+}
+
+@keyframes modalAppear {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.modal-title {
+  color: #092c5c;
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+}
+
+.modal-text {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-modal-cancel {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 1;
+}
+.btn-modal-cancel:hover { background: #e2e8f0; }
+
+.btn-modal-confirm {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 1;
+}
+.btn-modal-confirm:hover { background: #dc2626; }
+/* ==========================================================================
+   Barre de filtres, icônes d'action et compacité Soft SaaS
+   ========================================================================== */
+
+.table-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border-bottom: 1px solid #eef2f7;
+    background: #f8fafc;
+}
+
+.tb-search { position: relative; flex: 1; min-width: 220px; }
+.tb-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+.tb-search input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 11px 8px 28px;
+    font-size: 12.5px;
+    color: #0f172a;
+    background: #ffffff;
+}
+.tb-search input:focus { outline: none; border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14); }
+
+.tb-filter { display: flex; flex-direction: column; gap: 4px; }
+.tb-filter > span { font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: #94a3b8; }
+.tb-filter select {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 12.5px;
+    color: #0f172a;
+    background: #ffffff;
+    cursor: pointer;
+    min-width: 220px;
+}
+.tb-filter select:focus { outline: none; border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14); }
+
+.tb-count { font-size: 12px; color: #64748b; padding-bottom: 8px; }
+
+.tb-reset {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 7px 13px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.tb-reset:hover { background: #f1f5f9; }
+
+/* ---------- Icônes d'action ---------- */
+
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+.icon-btn {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.icon-btn:hover { background: #fff7ed; border-color: #f97316; }
+.icon-btn-danger:hover { background: #fef2f2; border-color: #ef4444; }
+
+/* ---------- Compacité, alignée sur Référentiel Facteurs ---------- */
+
+.misfat-table thead th { font-size: 10.5px; padding: 9px 10px; }
+.misfat-table tbody td { font-size: 12.5px; padding: 9px 10px; }
+.code-badge, .unit-tag { font-size: 11.5px; padding: 2px 7px; }
+.scope-pill { font-size: 10.5px; padding: 2px 8px; }
+.source-name { font-size: 12.5px; }
+
+@media (max-width: 760px) {
+    .table-toolbar { flex-direction: column; align-items: stretch; }
+    .tb-filter select { min-width: 0; width: 100%; }
+}

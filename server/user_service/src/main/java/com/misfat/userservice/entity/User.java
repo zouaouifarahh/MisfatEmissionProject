@@ -16,13 +16,17 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     private String username;
+
+    @Column(unique = true, nullable = false)
     private String email;
     private String firstName;
     private String lastName;
 
     @Enumerated(EnumType.STRING) // Sauvegarde en texte ("ADMINISTRATEUR") dans SQL Server
     private Role role;
+    private String password;
 
     private String status; // "EN_ATTENTE", "ACTIF", "REFUSE"
     @Enumerated(EnumType.STRING)

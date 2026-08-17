@@ -8,13 +8,17 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="emission-service" />
+        <module name="organizationservice" />
+        <module name="dataimportservice" />
         <module name="eureka-server" />
+        <module name="api-getway" />
       </profile>
       <profile name="Annotation profile for Misfat Platform - Parent" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.34/lombok-1.18.34.jar" />
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.34/lombok-1.18.34.jar" />
         </processorPath>
         <module name="user-service" />
@@ -23,8 +27,11 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="api-getway" options="-parameters" />
+      <module name="dataimportservice" options="-parameters" />
       <module name="emission-service" options="-parameters" />
       <module name="eureka-server" options="-parameters" />
+      <module name="organizationservice" options="-parameters" />
       <module name="server" options="" />
       <module name="user-service" options="-parameters" />
     </option>

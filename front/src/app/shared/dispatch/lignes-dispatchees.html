@@ -1,0 +1,76 @@
+<div class="bandeau-dispatch" *ngIf="lignes.length">
+
+  <button type="button" class="dispatch-entete" (click)="basculer()"
+          [attr.aria-expanded]="deplie">
+    <span class="dispatch-icone" aria-hidden="true">🔀</span>
+
+    <span class="dispatch-titre">
+      {{ lignes.length }} ligne(s) comptable(s) ventilée(s) automatiquement vers
+      « {{ iconeEcran(ecran) }} {{ libelleEcran(ecran) }} »
+    </span>
+
+    <span class="dispatch-total">
+      {{ totalMontant | number:'1.0-2' }} TND ·
+      <strong>{{ totalEmissions | number:'1.0-2' }} kgCO₂e</strong>
+      ({{ totalTonnes | number:'1.0-3' }} tCO₂e)
+    </span>
+
+    <span class="dispatch-chevron" aria-hidden="true">{{ deplie ? '▲' : '▼' }}</span>
+  </button>
+
+  <div class="dispatch-corps" *ngIf="deplie">
+
+    <p class="dispatch-source">
+      Source : <strong>{{ fichier || 'classeur importé' }}</strong>
+      <span *ngIf="exercice"> — exercice {{ exercice }}</span>
+      <span *ngIf="importeLe"> — réparti le {{ importeLe }}</span>
+      <span class="dispatch-repli" *ngIf="nombreReplis">
+        {{ nombreReplis }} ligne(s) au facteur de repli ADEME
+      </span>
+    </p>
+
+    <div class="dispatch-table-conteneur">
+      <table class="dispatch-table">
+        <thead>
+          <tr>
+            <th>Compte</th>
+            <th>Libellé</th>
+            <th class="ta-right">Montant (TND)</th>
+            <th>Colonne lue</th>
+            <th class="ta-right">Facteur</th>
+            <th>Base</th>
+            <th class="ta-right">kgCO₂e</th>
+            <th>Motif du routage</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let ligne of lignes">
+            <td><span class="compte-badge">{{ ligne.mainAccount || '—' }}</span></td>
+            <td class="libelle-cell" [title]="ligne.nom">{{ ligne.nom }}</td>
+            <td class="ta-right num">{{ ligne.quantite | number:'1.0-2' }}</td>
+            <td><span class="colonne-chip">{{ ligne.colonneValeur }}</span></td>
+            <td class="ta-right num">{{ ligne.facteur | number:'1.0-3' }}</td>
+            <td>
+              <span class="base-chip" [class.base-chip-repli]="ligne.origineFacteur === 'ADEME Fallback'">
+                {{ ligne.baseAppliquee }}
+              </span>
+            </td>
+            <td class="ta-right num num-fort">{{ ligne.emissionKg | number:'1.0-2' }}</td>
+            <td class="motif-cell" [title]="ligne.motif">{{ ligne.motif }}</td>
+          </tr>
+        </tbody>
+
+        <tfoot>
+          <tr>
+            <td colspan="2">Total ventilé — {{ lignes.length }} ligne(s)</td>
+            <td class="ta-right num-fort">{{ totalMontant | number:'1.0-2' }}</td>
+            <td colspan="3"></td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>

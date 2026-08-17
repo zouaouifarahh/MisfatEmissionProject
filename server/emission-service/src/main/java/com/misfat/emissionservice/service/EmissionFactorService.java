@@ -23,6 +23,11 @@ public class EmissionFactorService {
         return repository.findById(id);
     }
 
+    public List<EmissionFactor> searchFactors(String category, String emissionSource, String dataType) {
+        // Adapté au nouveau schéma : recherche flexible par nom de catégorie et type
+        return repository.searchFactorsFlexible(category, dataType);
+    }
+
     @Transactional
     public EmissionFactor createFactor(EmissionFactor factor) {
         if (factor.getGasDetails() != null) {
@@ -34,11 +39,15 @@ public class EmissionFactorService {
     @Transactional
     public Optional<EmissionFactor> updateFactor(Long id, EmissionFactor updatedFactor) {
         return repository.findById(id).map(existingFactor -> {
-            existingFactor.setCropType(updatedFactor.getCropType());
-            existingFactor.setReferenceYear(updatedFactor.getReferenceYear());
+            // Repositionnement sur la relation CarbonReference
+            existingFactor.setCarbonReference(updatedFactor.getCarbonReference());
+
+            existingFactor.setDataType(updatedFactor.getDataType());
+            existingFactor.setDatabaseSource(updatedFactor.getDatabaseSource());
+            existingFactor.setFactorValue(updatedFactor.getFactorValue());
             existingFactor.setUnit(updatedFactor.getUnit());
-            existingFactor.setFactorValueTnd(updatedFactor.getFactorValueTnd());
-            existingFactor.setFactorValueEur(updatedFactor.getFactorValueEur());
+            existingFactor.setCurrency(updatedFactor.getCurrency());
+            existingFactor.setReferenceYear(updatedFactor.getReferenceYear());
             existingFactor.setHasMargins(updatedFactor.getHasMargins());
 
             if (updatedFactor.getGasDetails() != null) {
@@ -58,5 +67,9 @@ public class EmissionFactorService {
             repository.delete(factor);
             return true;
         }).orElse(false);
+    }
+
+    public List<EmissionFactor> getFactorsByCategory(String category) {
+        return repository.findByCategoryNameAndDataType(category, null);
     }
 }

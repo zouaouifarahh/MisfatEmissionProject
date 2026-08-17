@@ -1,0 +1,1549 @@
+<div class="rep-shell">
+
+  <!-- ================= PANNEAU DE CONFIGURATION (hors impression) ================= -->
+  <section class="rep-config" *ngIf="bilan">
+    <header class="cfg-head">
+      <div class="cfg-head-titre">
+        <h2>{{ t('cfg.titre') }}</h2>
+        <p>
+          Périmètre en vigueur : <strong>{{ bilan.libelleSociete }}</strong> ·
+          exercice <strong>{{ bilan.libelleExercice }}</strong>.
+        </p>
+
+        <!-- Le rapport se lit par implantation : c'est le mix électrique
+             national qui commande le facteur d'émission. Un pays réunissant
+             plusieurs sociétés, leurs bilans sont consolidés. -->
+        <div class="cfg-filtres">
+          <label class="cfg-filtre">
+            <span>{{ t('cfg.pays') }}</span>
+            <select [ngModel]="filtres.paysSelectionne()"
+                    (ngModelChange)="filtres.choisirPays($event)"
+                    aria-label="Pays d'implantation du rapport">
+              <option [ngValue]="null">🌍 Toutes implantations</option>
+              <option *ngFor="let p of filtres.paysDisponibles()" [ngValue]="p.nom">
+                {{ p.drapeau }} {{ p.nom }} — {{ p.filiales.length }} société(s)
+              </option>
+            </select>
+          </label>
+
+          <label class="cfg-filtre">
+            <span>{{ t('doc.exercice') }}</span>
+            <select [ngModel]="filtres.anneeSelectionnee()"
+                    (ngModelChange)="filtres.choisirAnnee($event)"
+                    aria-label="Exercice du rapport">
+              <option [ngValue]="null">Tous exercices</option>
+              <option *ngFor="let a of filtres.anneesDisponibles()" [ngValue]="a.valeur">
+                {{ a.valeur }}<ng-container *ngIf="a.statut === 'EN_COURS'"> — en cours</ng-container>
+              </option>
+            </select>
+          </label>
+
+          <span class="cfg-filtre-note" *ngIf="filtres.paysActif() as pays">
+            Consolidation de {{ pays.filiales.length }} société(s) ·
+            devise {{ filtres.devise() }}
+          </span>
+        </div>
+
+        <p class="cfg-erreur" *ngIf="filtres.erreur()">⚠ {{ filtres.erreur() }}</p>
+      </div>
+
+      <div class="cfg-head-actions">
+        <!-- Bascule de langue : seuls les libellés changent, aucun chiffre n'est
+             recalculé — un nombre ne connaît pas de langue. -->
+        <div class="cfg-langue" role="group" aria-label="Langue du rapport">
+          <button type="button" class="cfg-langue-btn"
+                  [class.actif]="langue() === 'FR'"
+                  [attr.aria-pressed]="langue() === 'FR'"
+                  (click)="choisirLangue('FR')">🇫🇷 FR</button>
+          <button type="button" class="cfg-langue-btn"
+                  [class.actif]="langue() === 'EN'"
+                  [attr.aria-pressed]="langue() === 'EN'"
+                  (click)="choisirLangue('EN')">🇬🇧 EN</button>
+        </div>
+
+        <button type="button" class="cfg-lien" (click)="configurationOuverte = !configurationOuverte">
+          {{ configurationOuverte ? t('cfg.replier') : t('cfg.deployer') }}
+        </button>
+        <button type="button" class="cfg-imprimer" (click)="exporterPDF()"
+                [disabled]="chargement">
+          {{ t('cfg.telecharger') }}
+        </button>
+      </div>
+    </header>
+
+    <div class="cfg-corps" *ngIf="configurationOuverte">
+
+      <!-- Actions rapides -->
+      <div class="cfg-barre">
+        <div class="cfg-boutons">
+          <button type="button" class="cfg-btn cfg-btn-primaire" (click)="toutCocher()">
+            ☑ Tout cocher — intégralité du bilan
+          </button>
+          <button type="button" class="cfg-btn" (click)="uniquementActives()">
+            ⚡ Uniquement les catégories actives (&gt; 0 tCO₂e)
+          </button>
+          <button type="button" class="cfg-btn cfg-btn-neutre" (click)="toutDecocher()">
+            ☐ Tout décocher
+          </button>
+        </div>
+        <p class="cfg-compte">
+          <strong>{{ nombreRetenus }}</strong> / {{ nombrePostes }} catégories retenues —
+          {{ formater(couvertureRetenue, 1) }} % du bilan couvert
+        </p>
+      </div>
+
+      <!-- Métadonnées du document -->
+      <div class="cfg-champs">
+        <label>
+          <span>Auteur du rapport</span>
+          <input type="text" [(ngModel)]="auteur" name="auteur" placeholder="Nom et fonction">
+        </label>
+        <label>
+          <span>Sous-titre</span>
+          <input type="text" [(ngModel)]="sousTitre" name="sousTitre" placeholder="Sous-titre du document">
+        </label>
+      </div>
+
+      <!-- Données d'activité et objectif : dénominateurs des ratios d'intensité
+           et cible de décarbonation. Aucun n'est déduit d'une mesure
+           d'émission ; ils sont saisis, et conservés par périmètre. -->
+      <div class="cfg-champs cfg-champs-activite">
+        <p class="cfg-renvoi">{{ t('vide.activite') }}</p>
+        <label>
+          <span>Objectif de réduction (%)</span>
+          <input type="number" name="cfgObj" [(ngModel)]="parametres.objectifPct"
+                 (change)="parametresModifies()" placeholder="ex : 30">
+        </label>
+        <label>
+          <span>Année cible</span>
+          <input type="number" name="cfgCible" [(ngModel)]="parametres.anneeCible"
+                 (change)="parametresModifies()" placeholder="ex : 2030">
+        </label>
+        <label>
+          <span>Année de référence</span>
+          <input type="number" name="cfgRef" [(ngModel)]="parametres.anneeReference"
+                 (change)="anneeReferenceModifiee()" placeholder="ex : 2023">
+        </label>
+      </div>
+
+      <!-- Cases à cocher, groupées par scope -->
+      <div class="cfg-scopes">
+        <article class="cfg-scope" *ngFor="let scope of bilan.scopes"
+                 [style.--scope-couleur]="scope.couleur">
+          <header class="cfg-scope-head">
+            <label class="cfg-case cfg-case-scope">
+              <input type="checkbox"
+                     [checked]="scopeEntierementRetenu(scope.code)"
+                     (change)="basculerScope(scope.code)">
+              <span class="cfg-case-texte">
+                <strong>{{ l(scope.nom) }}</strong>
+                <small>{{ l(scope.soustitre) }}</small>
+              </span>
+            </label>
+            <span class="cfg-scope-total">
+              {{ tonnes(scope.emissionKg) }} tCO₂e ·
+              {{ retenusDuScope(scope.code) }}/{{ scope.postes.length }}
+            </span>
+          </header>
+
+          <ul class="cfg-postes">
+            <li *ngFor="let poste of scope.postes"
+                [class.cfg-poste-actif]="poste.emissionKg > 0"
+                [class.cfg-poste-retenu]="estRetenu(poste.id)">
+              <label class="cfg-case">
+                <input type="checkbox" [checked]="estRetenu(poste.id)" (change)="basculerPoste(poste.id)">
+                <span class="cfg-poste-libelle">
+                  <span class="cfg-poste-icone" aria-hidden="true">{{ poste.icone }}</span>
+                  <span>
+                    <span class="cfg-ghg" *ngIf="poste.numeroGhg">Cat. {{ poste.numeroGhg }} —</span>
+                    {{ l(poste.libelle) }}
+                  </span>
+                </span>
+              </label>
+              <span class="cfg-poste-valeur" [class.cfg-zero]="poste.emissionKg <= 0">
+                {{ tonnes(poste.emissionKg) }} tCO₂e
+              </span>
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <p class="cfg-note" *ngIf="bilan.horsNomenclature.length">
+        {{ bilan.horsNomenclature.length }} intitulé(s) relevé(s) en base ne correspondent à aucune
+        catégorie de la nomenclature : ils comptent dans l'empreinte totale mais n'apparaissent dans
+        aucun tableau détaillé. Rapprochez-les du référentiel pour qu'ils rejoignent leur poste.
+      </p>
+    </div>
+  </section>
+
+  <p class="rep-chargement" *ngIf="chargement">Calcul du bilan sur le périmètre sélectionné…</p>
+
+  <!-- ================= ONGLETS DE MODE ================= -->
+  <nav class="rep-onglets" *ngIf="bilan" role="tablist" aria-label="Mode de consultation">
+    <button type="button" role="tab" [attr.aria-selected]="mode === 'synthese'"
+            [class.actif]="mode === 'synthese'" (click)="changerMode('synthese')">
+      <span aria-hidden="true">📊</span>
+      <span class="onglet-texte">
+        <strong>Mode 1 · Synthèse Exécutive</strong>
+        <small>Document court pour le comité de direction</small>
+      </span>
+    </button>
+
+    <button type="button" role="tab" [attr.aria-selected]="mode === 'norme'"
+            [class.actif]="mode === 'norme'" (click)="changerMode('norme')">
+      <span aria-hidden="true">📄</span>
+      <span class="onglet-texte">
+        <strong>{{ t('syn.mode2') }}</strong>
+        <small>{{ t('syn.inventaire11') }}</small>
+      </span>
+    </button>
+  </nav>
+
+  <!-- ================= DOCUMENT IMPRIMABLE — MODE 1 ================= -->
+  <article class="rep-document" *ngIf="bilan && mode === 'synthese'">
+
+    <!-- ---------- PAGE 1 : COUVERTURE ET SYNTHÈSE ---------- -->
+    <section class="rep-page">
+
+      <header class="doc-entete">
+        <div class="doc-marque">
+          <img class="doc-logo" src="misfat logo.jpg" alt="Groupe MISFAT">
+          <div class="doc-marque-texte">
+            <span class="doc-marque-nom">GROUPE MISFAT</span>
+            <span class="doc-marque-baseline">{{ t('garde.titreDoc') }}</span>
+          </div>
+        </div>
+        <div class="doc-reference">
+          <span class="doc-ref-cle">{{ t('garde.document') }}</span>
+          <span class="doc-ref-valeur">BC-EXE-{{ bilan.libelleExercice }}</span>
+        </div>
+      </header>
+
+      <div class="doc-titre">
+        <h1>Bilan Carbone Exécutif — Exercice {{ bilan.libelleExercice }}</h1>
+        <p class="doc-soustitre">{{ sousTitre }}</p>
+      </div>
+
+      <dl class="doc-meta">
+        <div>
+          <dt>{{ t('garde.perimetreRetenu') }}</dt>
+          <dd>{{ bilan.libelleSociete }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('garde.paysDevise') }}</dt>
+          <dd>{{ bilan.pays }} · {{ bilan.devise }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('doc.exercice') }}</dt>
+          <dd>{{ bilan.libelleExercice }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('garde.dateImpression') }}</dt>
+          <dd>{{ dateImpressionLongue }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('garde.auteur') }}</dt>
+          <dd>{{ auteur }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('garde.methodologie') }}</dt>
+          <dd>GHG Protocol / ADEME</dd>
+        </div>
+      </dl>
+
+      <h2 class="doc-section">{{ t('syn.titre') }}</h2>
+
+      <div class="doc-kpis">
+        <div class="kpi" *ngFor="let carte of cartesKpi" [style.--kpi-couleur]="carte.couleur">
+          <span class="kpi-libelle">{{ carte.libelle }}</span>
+          <span class="kpi-valeur">{{ formater(carte.valeurT) }}</span>
+          <span class="kpi-unite">{{ t('unite.tco2e') }}</span>
+          <span class="kpi-part">{{ formater(carte.pct, 1) }} % du bilan</span>
+          <span class="kpi-note">{{ carte.note }}</span>
+        </div>
+      </div>
+
+      <!-- Ratios d'intensité : l'empreinte rapportée à l'activité -->
+      <div class="doc-ratios">
+        <div class="ratio" *ngFor="let ratio of ratiosSynthese"
+             [class.ratio-vide]="ratio.valeur === null" [title]="ratio.infobulle">
+          <span class="ratio-libelle">{{ l(ratio.libelle) }}</span>
+          <span class="ratio-valeur">{{ ratio.affichage }}</span>
+          <span class="ratio-unite">{{ ratio.unite }}</span>
+        </div>
+      </div>
+
+      <!-- Trajectoire de décarbonation -->
+      <div class="doc-trajectoire" [class.traj-sans-objectif]="!trajectoire">
+        <div class="traj-entete">
+          <span class="traj-titre">{{ t('syn.trajectoire') }}</span>
+          <span class="traj-badge"
+                [class.traj-badge-atteint]="trajectoire?.atteint"
+                [class.traj-badge-ecart]="trajectoire && !trajectoire.atteint"
+                [title]="trajectoire
+                  ? 'Écart entre l\'empreinte constatée et la cible de l\'année de référence.'
+                  : 'Renseignez l\'objectif de réduction dans la configuration du rapport.'">
+            {{ badgeTrajectoire }}
+          </span>
+        </div>
+
+        <ng-container *ngIf="trajectoire as traj">
+          <div class="traj-jauge" role="img"
+               [attr.aria-label]="'Effort de réduction réalisé : ' + formater(traj.progression, 0) + ' %'">
+            <span class="traj-progression" [style.width.%]="traj.progression"></span>
+          </div>
+
+          <div class="traj-reperes">
+            <span>
+              Référence {{ traj.anneeBase ?? '—' }} · <strong>{{ tonnes(traj.baseKg) }} tCO₂e</strong>
+            </span>
+            <span>
+              Exercice {{ bilan.libelleExercice }} · <strong>{{ tonnes(traj.actuelKg) }} tCO₂e</strong>
+            </span>
+            <span>
+              Cible {{ traj.anneeCible ?? '—' }} (−{{ formater(traj.objectifPct, 0) }} %) ·
+              <strong>{{ tonnes(traj.cibleKg) }} tCO₂e</strong>
+            </span>
+          </div>
+
+          <p class="traj-lecture">
+            {{ formater(traj.progression, 0) }} % de l'effort de réduction demandé est réalisé.
+          </p>
+        </ng-container>
+
+        <p class="traj-lecture" *ngIf="!trajectoire">{{ t('vide.objectif') }}</p>
+      </div>
+
+      <div class="doc-graphes">
+
+        <!-- Répartition par scope -->
+        <figure class="graphe graphe-donut">
+          <figcaption>{{ t('syn.repartition') }}</figcaption>
+
+          <div class="donut-bloc" *ngIf="donutRenseigne; else donutVide">
+            <svg class="donut" viewBox="0 0 140 140" role="img"
+                 aria-label="Répartition des émissions par scope">
+              <circle class="donut-fond" cx="70" cy="70" [attr.r]="rayonDonut"></circle>
+              <circle *ngFor="let segment of segmentsDonut"
+                      cx="70" cy="70" [attr.r]="rayonDonut"
+                      [attr.stroke]="segment.couleur"
+                      [attr.stroke-dasharray]="segment.longueur + ' ' + (circonference - segment.longueur)"
+                      [attr.stroke-dashoffset]="segment.decalage"
+                      class="donut-arc"></circle>
+              <text x="70" y="66" class="donut-total">{{ tonnes(totalRetenuKg) }}</text>
+              <text x="70" y="80" class="donut-unite">{{ t('syn.tco2eRetenues') }}</text>
+            </svg>
+
+            <ul class="donut-legende">
+              <li *ngFor="let segment of segmentsDonut">
+                <span class="pastille" [style.background]="segment.couleur"></span>
+                <span class="legende-nom">{{ segment.libelle }}</span>
+                <span class="legende-valeur">{{ tonnes(segment.valeurKg) }} tCO₂e</span>
+                <span class="legende-pct">{{ formater(segment.pct, 1) }} %</span>
+              </li>
+            </ul>
+          </div>
+
+          <ng-template #donutVide>
+            <p class="graphe-vide">{{ t('vide.graphique') }}</p>
+          </ng-template>
+        </figure>
+
+        <!-- Principaux contributeurs -->
+        <figure class="graphe graphe-batons">
+          <figcaption>{{ t('syn.contributeurs') }}</figcaption>
+
+          <ul class="batons" *ngIf="batonsContributeurs.length; else batonsVides">
+            <li *ngFor="let baton of batonsContributeurs">
+              <span class="baton-nom">{{ baton.libelle }}</span>
+              <span class="baton-piste">
+                <span class="baton-jauge"
+                      [style.width.%]="baton.largeur"
+                      [style.background]="baton.couleur"
+                      [style.border-color]="baton.couleur"></span>
+              </span>
+              <span class="baton-valeur">{{ formater(baton.valeurT) }} t</span>
+              <span class="baton-pct">{{ formater(baton.pct, 1) }} %</span>
+            </li>
+          </ul>
+
+          <ng-template #batonsVides>
+            <p class="graphe-vide">{{ t('syn.aucunChiffre') }}</p>
+          </ng-template>
+        </figure>
+      </div>
+
+      <div class="doc-analyse">
+        <h2 class="doc-section">{{ t('syn.lecture') }}</h2>
+        <p *ngFor="let paragraphe of analyse">{{ paragraphe }}</p>
+      </div>
+
+      <footer class="doc-pied">
+        <span>Groupe MISFAT — Bilan Carbone Exécutif {{ bilan.libelleExercice }}</span>
+        <span>{{ bilan.libelleSociete }}</span>
+      </footer>
+    </section>
+
+    <!-- ---------- PAGES SUIVANTES : DÉTAIL DES CATÉGORIES RETENUES ---------- -->
+    <section class="rep-page rep-page-suite" *ngIf="scopesRetenus.length">
+
+      <h2 class="doc-section doc-section-page">{{ t('sec4.detail') }}</h2>
+      <p class="doc-chapeau">
+        Ce détail ne porte que sur les {{ nombreRetenus }} catégorie(s) cochée(s) au panneau de
+        configuration, sur le périmètre {{ bilan.libelleSociete }} — exercice
+        {{ bilan.libelleExercice }}. Les catégories non retenues restent hors de ce document sans
+        être retirées du bilan.
+      </p>
+
+      <div class="doc-tableau" *ngFor="let scope of scopesRetenus" [style.--scope-couleur]="scope.couleur">
+        <h3 class="tableau-titre">
+          <span class="tableau-puce"></span>
+          {{ l(scope.nom) }} — {{ l(scope.soustitre) }}
+          <span class="tableau-total">{{ tonnes(scope.emissionKg) }} tCO₂e</span>
+        </h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="col-cat">{{ t('th.categorie') }}</th>
+              <th class="col-src">{{ t('syn.origineDonnee') }}</th>
+              <th class="col-num">{{ t('th.lignes') }}</th>
+              <th class="col-num">{{ t('syn.emissions') }}</th>
+              <th class="col-num">% du scope</th>
+              <th class="col-num">% du bilan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let poste of scope.postes" [class.ligne-vide]="poste.emissionKg <= 0">
+              <td class="col-cat">
+                <span class="cell-icone" aria-hidden="true">{{ poste.icone }}</span>
+                <span class="cell-ghg" *ngIf="poste.numeroGhg">Cat. {{ poste.numeroGhg }}</span>
+                {{ l(poste.libelle) }}
+              </td>
+              <td class="col-src">{{ originesTraduites(poste) }}</td>
+              <td class="col-num">{{ poste.lignes || '—' }}</td>
+              <td class="col-num cell-forte">{{ tonnes(poste.emissionKg) }}</td>
+              <td class="col-num">{{ formater(poste.pctScope, 1) }} %</td>
+              <td class="col-num">{{ formater(poste.pctTotal, 1) }} %</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3">Sous-total {{ l(scope.nom) }}</td>
+              <td class="col-num cell-forte">{{ tonnes(scope.emissionKg) }}</td>
+              <td class="col-num">100,0 %</td>
+              <td class="col-num">
+                {{ formater(bilan.totalKg ? (scope.emissionKg / bilan.totalKg) * 100 : 0, 1) }} %
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <table class="doc-total">
+        <tbody>
+          <tr>
+            <td>{{ t('syn.totalRetenu') }}</td>
+            <td class="col-num cell-forte">{{ tonnes(totalRetenuKg) }} tCO₂e</td>
+            <td class="col-num">{{ formater(couvertureRetenue, 1) }} % du bilan</td>
+          </tr>
+          <tr>
+            <td>{{ t('syn.empreinteTotale') }}</td>
+            <td class="col-num cell-forte">{{ tonnes(bilan.totalKg) }} tCO₂e</td>
+            <td class="col-num">100,0 %</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Rapprochement avec l'exercice précédent -->
+      <div class="doc-variation" *ngIf="comparaison">
+        <h3 class="tableau-titre">
+          <span class="tableau-puce"></span>
+          Variation par rapport à l'exercice {{ comparaison.annee }}
+          <span class="tableau-total" [class.var-hausse]="comparaison.deltaKg > 0"
+                [class.var-baisse]="comparaison.deltaKg < 0">
+            {{ comparaison.deltaKg > 0 ? '+' : '' }}{{ tonnes(comparaison.deltaKg) }} tCO₂e
+          </span>
+        </h3>
+
+        <div class="variation-colonnes">
+          <div>
+            <h4>{{ t('syn.hausses') }}</h4>
+            <ul>
+              <li *ngFor="let ecart of comparaison.hausses">
+                {{ ecart.libelle }}
+                <strong class="var-hausse">+{{ tonnes(ecart.deltaKg) }} t</strong>
+              </li>
+              <li class="var-neutre" *ngIf="!comparaison.hausses.length">{{ t('syn.aucuneHausse') }}</li>
+            </ul>
+          </div>
+          <div>
+            <h4>{{ t('syn.baisses') }}</h4>
+            <ul>
+              <li *ngFor="let ecart of comparaison.baisses">
+                {{ ecart.libelle }}
+                <strong class="var-baisse">{{ tonnes(ecart.deltaKg) }} t</strong>
+              </li>
+              <li class="var-neutre" *ngIf="!comparaison.baisses.length">{{ t('syn.aucuneBaisse') }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <p class="doc-mentions">
+        Émissions exprimées en tonnes de CO₂ équivalent, méthodologie GHG Protocol / base ADEME.
+        Trois sources alimentent ce bilan : les mesures enregistrées en base, la ventilation de la
+        balance comptable et les saisies conservées dans les écrans de catégorie ; l'origine de
+        chaque poste est indiquée en regard. Document établi le
+        {{ dateImpressionCourte }} par {{ auteur }}.
+      </p>
+
+      <footer class="doc-pied">
+        <span>Groupe MISFAT — Bilan Carbone Exécutif {{ bilan.libelleExercice }}</span>
+        <span>{{ bilan.libelleSociete }}</span>
+      </footer>
+    </section>
+
+    <section class="rep-page rep-page-suite" *ngIf="!scopesRetenus.length">
+      <p class="doc-vide">{{ t('vide.aucuneCategorie') }}</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 1 bis — ANALYSE CONTEXTUELLE ET TOP 5                     -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('sec1.contexte') }}</h2>
+
+      <h3 class="tableau-titre">{{ t('sec1.performance') }}</h3>
+      <p class="doc-para">
+        Sur le périmètre <strong>{{ bilan.libelleSociete }}</strong> et l'exercice
+        <strong>{{ bilan.libelleExercice }}</strong>, l'empreinte retenue au rapport s'élève à
+        <strong>{{ tonnes(totalRetenuKg) }} tCO₂e</strong>, établie sur
+        {{ bilan.mesures | number }} ligne(s) de mesure et {{ nombreRetenus }} poste(s) de la
+        nomenclature sur {{ nombrePostes }}. La couverture de
+        <strong>{{ formater(couvertureRetenue, 1) }} %</strong> qualifie la portée de ce chiffre :
+        ce qui n'est pas collecté n'est pas nul, il est simplement hors de l'inventaire.
+      </p>
+      <p class="doc-para">{{ t('p.s1.perf2') }}</p>
+      <p class="doc-para" *ngIf="postesPourQuatreVingts as concentration">
+        <strong>Concentration :</strong> {{ concentration }} poste(s) suffisent à porter 80 % de
+        l'empreinte. Plus ce nombre est faible, plus la décarbonation se joue sur un petit nombre
+        de décisions — et plus la fiabilité de ces quelques données d'entrée devient critique.
+      </p>
+
+      <h3 class="tableau-titre">{{ t('sec1.top5') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th class="ta-right">{{ t('th.rang') }}</th><th>{{ t('th.poste') }}</th><th>{{ t('th.scope') }}</th>
+              <th class="ta-right">tCO₂e</th><th class="ta-right">{{ t('th.part') }}</th>
+              <th class="ta-right">{{ t('th.cumul') }}</th><th class="ta-right">{{ t('th.lignes') }}</th>
+              <th>{{ t('th.provenance') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let poste of topEmetteurs">
+            <td class="ta-right cell-strong">{{ poste.rang }}</td>
+            <td class="cell-strong">{{ l(poste.libelle) }}</td>
+            <td>{{ l(poste.scopeNom) }}</td>
+            <td class="ta-right">{{ formater(poste.valeurT) }}</td>
+            <td class="ta-right">{{ formater(poste.pct, 1) }} %</td>
+            <td class="ta-right">{{ formater(poste.pctCumule, 1) }} %</td>
+            <td class="ta-right">{{ poste.lignes | number }}</td>
+            <td class="cell-note">{{ poste.origines }}</td>
+          </tr>
+          <tr *ngIf="!topEmetteurs.length">
+            <td colspan="8" class="cell-empty">{{ t('val.aucunPoste') }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="tableau-titre">{{ t('sec1.ecarts') }}</h3>
+      <div class="doc-encadre" *ngIf="comparaison as comp">
+        <p>
+          Par rapport à l'exercice {{ comp.annee }}, l'empreinte varie de
+          <strong>{{ tonnes(comp.deltaKg) }} tCO₂e</strong>
+          <span *ngIf="comp.deltaPct !== null">({{ formater(comp.deltaPct, 1) }} %)</span>.
+        </p>
+        <p *ngIf="comp.hausses.length">
+          <strong>Principales hausses :</strong>
+          <span *ngFor="let ecart of comp.hausses; let dernier = last">
+            {{ ecart.libelle }} (+{{ tonnes(ecart.deltaKg) }} tCO₂e){{ dernier ? '.' : ' · ' }}
+          </span>
+        </p>
+        <p *ngIf="comp.baisses.length">
+          <strong>Principales baisses :</strong>
+          <span *ngFor="let ecart of comp.baisses; let dernier = last">
+            {{ ecart.libelle }} ({{ tonnes(ecart.deltaKg) }} tCO₂e){{ dernier ? '.' : ' · ' }}
+          </span>
+        </p>
+        <p class="doc-note">{{ t('p.s1.ecartNote') }}</p>
+      </div>
+      <p class="doc-vide" *ngIf="!comparaison">{{ t('p.s1.aucunAnterieur') }}</p>
+
+      <div class="doc-encadre" *ngIf="analyse.length">
+        <p *ngFor="let ligne of analyse">{{ ligne }}</p>
+      </div>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.sec1') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 2 — CADRE MÉTHODOLOGIQUE ET PÉRIMÈTRE                     -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('sec2.titre') }}</h2>
+
+      <h3 class="tableau-titre">{{ t('sec2.principes') }}</h3>
+      <p class="doc-para">{{ t('p.s2.principes') }}</p>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.approche') }}</th><th>Règle de consolidation</th><th>{{ t('th.consequence') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="cell-strong">Contrôle opérationnel</td>
+            <td>{{ t('p.s2.operationnel') }}</td>
+            <td class="cell-note">{{ t('p.s2.operationnelC') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">Contrôle financier</td>
+            <td>{{ t('p.s2.financier') }}</td>
+            <td class="cell-note">{{ t('p.s2.financierC') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">Part du capital</td>
+            <td>{{ t('p.s2.capital') }}</td>
+            <td class="cell-note">{{ t('p.s2.capitalC') }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="doc-note">{{ t('p.s2.stabilite') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec2.referentiels') }}</h3>
+      <table class="doc-tableau-simple">
+        <tbody>
+          <tr><th>Standard d'inventaire</th>
+              <td>GHG Protocol Corporate Accounting and Reporting Standard (WRI / WBCSD)</td></tr>
+          <tr><th>Chaîne de valeur</th>
+              <td>GHG Protocol Corporate Value Chain (Scope 3) Standard</td></tr>
+          <tr><th>Norme de quantification</th>
+              <td>ISO 14064-1:2018 — quantification et déclaration des émissions de GES</td></tr>
+          <tr><th>Potentiels de réchauffement</th>
+              <td>GIEC AR5, horizon 100 ans (voir section 3)</td></tr>
+          <tr><th>Unité de compte</th>
+              <td>tonne d'équivalent CO₂ (tCO₂e)</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="tableau-titre">{{ t('sec2.organisationnel') }}</h3>
+      <table class="doc-tableau-simple">
+        <tbody>
+          <tr><th>Approche de consolidation</th>
+              <td>{{ t('p.s2.controleOp') }}</td></tr>
+          <tr><th>{{ t('garde.perimetreRetenu') }}</th><td>{{ bilan.libelleSociete }}</td></tr>
+          <tr><th>Pays d'implantation</th><td>{{ bilan.pays }}</td></tr>
+          <tr><th>{{ t('doc.exercice') }}</th><td>{{ bilan.libelleExercice }}</td></tr>
+          <tr><th>Devise de restitution</th><td>{{ bilan.devise }}</td></tr>
+          <tr><th>Lignes de mesure retenues</th><td>{{ bilan.mesures | number }}</td></tr>
+          <tr><th>Postes de la nomenclature</th>
+              <td>{{ nombreRetenus }} retenus sur {{ nombrePostes }}
+                  — couverture {{ formater(couvertureRetenue, 1) }} %</td></tr>
+        </tbody>
+      </table>
+
+      <!-- La règle de consolidation est le point qu'un auditeur vérifie en
+           premier sur un périmètre multi-sociétés. -->
+      <h3 class="tableau-titre">{{ t('sec2.consolidation') }}</h3>
+      <div class="doc-encadre" *ngIf="filtres.paysActif() as pays">
+        <p>
+          Le périmètre <strong>{{ pays.drapeau }} {{ pays.nom }}</strong> réunit
+          <strong>{{ pays.filiales.length }} société(s)</strong> :
+          {{ nomsFiliales(pays) }}. Le serveur n'agrégeant les mesures que par société, leurs
+          bilans sont chargés séparément puis fusionnés.
+        </p>
+        <p>{{ t('p.s2.consolidation2') }}</p>
+        <p *ngIf="!bilan.serveurJoignable" class="doc-alerte">{{ t('p.s2.serveurMuet') }}</p>
+      </div>
+      <p class="doc-note" *ngIf="!filtres.paysActif()">{{ t('p.s2.aucunPays') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec2.maturite') }}</h3>
+      <p class="doc-para">{{ t('p.s2.maturite1') }}</p>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.provenance') }}</th><th class="ta-right">Postes</th><th class="ta-right">tCO₂e</th>
+              <th class="ta-right">{{ t('th.part') }}</th><th>{{ t('th.maturite') }}</th><th>{{ t('th.verifiabilite') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ligne of maturiteDonnees">
+            <td class="cell-strong">{{ ligne.provenance }}</td>
+            <td class="ta-right">{{ ligne.postes }}</td>
+            <td class="ta-right">{{ formater(ligne.tonnes) }}</td>
+            <td class="ta-right">{{ formater(ligne.pct, 1) }} %</td>
+            <td><span class="doc-jauge" [attr.data-niveau]="ligne.maturite">{{ ligne.maturite }}</span></td>
+            <td class="cell-note">{{ ligne.verifiable }}</td>
+          </tr>
+          <tr *ngIf="!maturiteDonnees.length">
+            <td colspan="6" class="cell-empty">Aucun poste retenu : la maturité n'est pas
+                évaluable.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="doc-note">{{ t('p.s2.maturite2') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec2.qualite') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.poste') }}</th><th>{{ t('th.scope') }}</th><th>{{ t('th.provenance') }}</th>
+              <th class="ta-right">{{ t('th.lignes') }}</th><th class="ta-right">tCO₂e</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let poste of postesRetenus">
+            <td class="cell-strong">{{ l(poste.libelle) }}</td>
+            <td>{{ l(poste.scopeNom) }}</td>
+            <td class="cell-note">{{ originesTraduites(poste) }}</td>
+            <td class="ta-right">{{ poste.lignes | number }}</td>
+            <td class="ta-right">{{ tonnes(poste.emissionKg) }}</td>
+          </tr>
+          <tr *ngIf="!postesRetenus.length">
+            <td colspan="5" class="cell-empty">{{ t('val.aucunRetenu') }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="doc-note">{{ t('p.s2.provenance') }}</p>
+
+      <h3 class="tableau-titre" *ngIf="postesEnAttente.length">
+        2.6 Postes de la nomenclature restés sans mesure
+      </h3>
+      <table class="doc-tableau" *ngIf="postesEnAttente.length">
+        <thead><tr><th>{{ t('th.poste') }}</th><th>{{ t('th.scope') }}</th><th>Conséquence sur l'inventaire</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let poste of postesEnAttente">
+            <td class="cell-strong">{{ l(poste.libelle) }}</td>
+            <td>{{ l(poste.scopeNom) }}</td>
+            <td class="cell-note">{{ t('p.s2.nonCollecte') }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.sec2') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 3 — GAZ À EFFET DE SERRE ET FACTEURS LOCAUX               -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('sec3.titre') }}</h2>
+
+      <h3 class="tableau-titre">{{ t('sec3.prgQuoi') }}</h3>
+      <p class="doc-para">{{ t('p.s3.prg1') }}</p>
+      <p class="doc-para">{{ t('p.s3.prg2') }}</p>
+      <p class="doc-para">{{ t('p.s3.prg3') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec3.prgTable') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.gaz') }}</th><th>{{ t('th.formule') }}</th><th class="ta-right">{{ t('th.prg') }}</th>
+              <th>{{ t('th.sources') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let gaz of gazReference">
+            <td class="cell-strong">{{ gaz.nom }}</td>
+            <td>{{ gaz.formule }}</td>
+            <td class="ta-right">{{ gaz.prg100 | number }}</td>
+            <td class="cell-note">{{ gaz.sources }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="doc-note">{{ t('p.s3.prgNote') }}</p>
+
+      <!-- La ventilation par gaz n'est pas inventée : elle attend que le
+           référentiel renseigne GasEmissionDetail. -->
+      <h3 class="tableau-titre">{{ t('sec3.ventilation') }}</h3>
+      <table class="doc-tableau" *ngIf="ventilationGazRenseignee">
+        <thead><tr><th>{{ t('th.gaz') }}</th><th class="ta-right">tCO₂e</th><th class="ta-right">{{ t('th.part') }}</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let ligne of ventilationGaz">
+            <td class="cell-strong">{{ ligne.formule }}</td>
+            <td class="ta-right">{{ tonnes(ligne.contributionKg) }}</td>
+            <td class="ta-right">{{ formater(ligne.pct, 1) }} %</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="doc-encadre" *ngIf="!ventilationGazRenseignee">
+        <p>
+          <strong>Ventilation par gaz non disponible.</strong> Le référentiel expose le champ
+          <code>gasDetails</code> pour chaque facteur, mais aucun des
+          {{ facteurs.length | number }} facteurs chargés ne le renseigne à ce jour.
+        </p>
+        <p>{{ t('p.s3.gazAbsent2') }}</p>
+      </div>
+
+      <h3 class="tableau-titre">{{ t('sec3.mix') }}</h3>
+      <p class="doc-para">{{ t('p.s3.mix1') }}</p>
+      <p class="doc-para">{{ t('p.s3.mix2') }}</p>
+      <p class="doc-para">{{ t('p.s3.mix3') }}</p>
+      <p class="doc-para">{{ t('p.s3.mix4') }}</p>
+
+      <h3 class="tableau-titre">3.4 Facteurs du mix énergétique appliqués</h3>
+      <table class="doc-tableau" *ngIf="facteursEnergie.length">
+        <thead>
+          <tr><th>{{ t('th.reference') }}</th><th>{{ t('th.sourceEmission') }}</th><th class="ta-right">{{ t('th.facteur') }}</th>
+              <th>{{ t('th.unite') }}</th><th>{{ t('th.base') }}</th><th class="ta-right">{{ t('th.annee') }}</th>
+              <th class="ta-right">{{ t('th.incertitude') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let f of facteursEnergie">
+            <td>{{ f.referenceCode }}</td>
+            <td class="cell-strong">{{ f.typeName }}</td>
+            <td class="ta-right">{{ formater(f.defaultFactorValue ?? 0, 6) }}</td>
+            <td>kgCO₂e / {{ f.unit }}</td>
+            <td class="cell-note">{{ f.databaseSource || '—' }}</td>
+            <td class="ta-right">{{ f.referenceYear ?? '—' }}</td>
+            <td class="ta-right">
+              {{ f.uncertaintyPercent !== null ? '± ' + formater(f.uncertaintyPercent, 1) + ' %' : 'n.d.' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="doc-vide" *ngIf="!facteursEnergie.length">{{ t('p.s3.aucunFacteur') }}</p>
+
+      <p class="doc-note">{{ t('p.s3.mixNote') }}</p>
+
+      <h3 class="tableau-titre" *ngIf="facteursAutres.length">
+        3.5 Principaux facteurs de combustion et de matière
+      </h3>
+      <table class="doc-tableau" *ngIf="facteursAutres.length">
+        <thead>
+          <tr><th>{{ t('th.reference') }}</th><th>{{ t('th.sourceEmission') }}</th><th class="ta-right">{{ t('th.facteur') }}</th>
+              <th>{{ t('th.unite') }}</th><th>{{ t('th.base') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let f of facteursAutres">
+            <td>{{ f.referenceCode }}</td>
+            <td class="cell-strong">{{ f.typeName }}</td>
+            <td class="ta-right">{{ formater(f.defaultFactorValue ?? 0, 4) }}</td>
+            <td>kgCO₂e / {{ f.unit }}</td>
+            <td class="cell-note">{{ f.databaseSource || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.sec3') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 4 — ANALYSE QUALITATIVE DES TROIS SCOPES                  -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('sec4.titre') }}</h2>
+
+      <p class="doc-para">{{ t('p.s4.intro') }}</p>
+
+      <!-- SCOPE 1 -->
+      <h3 class="tableau-titre">{{ t('sec4.scope1') }}</h3>
+      <p class="doc-para">{{ t('p.s4.s1a') }}</p>
+      <p class="doc-para">{{ t('p.s4.s1b') }}</p>
+      <div class="doc-encadre">
+        <p *ngFor="let ligne of analyseScope('SCOPE_1')">{{ ligne }}</p>
+      </div>
+
+      <!-- SCOPE 2 -->
+      <h3 class="tableau-titre">{{ t('sec4.scope2') }}</h3>
+      <p class="doc-para">{{ t('p.s4.s2a') }}</p>
+      <p class="doc-para">{{ t('p.s4.s2b') }}</p>
+      <div class="doc-encadre">
+        <p *ngFor="let ligne of analyseScope('SCOPE_2')">{{ ligne }}</p>
+      </div>
+
+      <!-- SCOPE 3 -->
+      <h3 class="tableau-titre">{{ t('sec4.scope3') }}</h3>
+      <p class="doc-para">{{ t('p.s4.s3a') }}</p>
+      <table class="doc-tableau">
+        <thead><tr><th>{{ t('th.categorie') }}</th><th>Ce qu'elle recouvre</th><th>Difficulté propre</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="cell-strong">{{ t('p.s4.cat.achats') }}</td>
+            <td>{{ t('p.s4.cat.achatsQ') }}</td>
+            <td class="cell-note">{{ t('p.s4.cat.achatsD') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s4.cat.amont') }}</td>
+            <td>{{ t('p.s4.cat.amontQ') }}</td>
+            <td class="cell-note">{{ t('p.s4.cat.amontD') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s4.cat.aval') }}</td>
+            <td>{{ t('p.s4.cat.avalQ') }}</td>
+            <td class="cell-note">{{ t('p.s4.cat.avalD') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s4.cat.voyages') }}</td>
+            <td>{{ t('p.s4.cat.voyagesQ') }}</td>
+            <td class="cell-note">{{ t('p.s4.cat.voyagesD') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s4.cat.dechets') }}</td>
+            <td>{{ t('p.s4.cat.dechetsQ') }}</td>
+            <td class="cell-note">{{ t('p.s4.cat.dechetsD') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s4.cat.finVie') }}</td>
+            <td>{{ t('p.s4.cat.finVieQ') }}</td>
+            <td class="cell-note">{{ t('p.s4.cat.finVieD') }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="doc-encadre">
+        <p *ngFor="let ligne of analyseScope('SCOPE_3')">{{ ligne }}</p>
+      </div>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.sec4') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 5 — RATIOS, BENCHMARKING ET VULNÉRABILITÉ                 -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('sec5.titre') }}</h2>
+
+      <p class="doc-para">{{ t('p.s5.intro') }}</p>
+      <table class="doc-tableau">
+        <thead><tr><th>{{ t('th.ratio') }}</th><th>Question à laquelle il répond</th><th>Limite</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="cell-strong">{{ t('p.s5.parUnite') }}</td>
+            <td>{{ t('p.s5.parUniteQ') }}</td>
+            <td class="cell-note">{{ t('p.s5.parUniteL') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s5.parCa') }}</td>
+            <td>{{ t('p.s5.parCaQ') }}</td>
+            <td class="cell-note">{{ t('p.s5.parCaL') }}</td>
+          </tr>
+          <tr>
+            <td class="cell-strong">{{ t('p.s5.parFte') }}</td>
+            <td>{{ t('p.s5.parFteQ') }}</td>
+            <td class="cell-note">{{ t('p.s5.parFteL') }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="tableau-titre">{{ t('sec5.ratios') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.ratio') }}</th><th class="ta-right">{{ t('th.valeur') }}</th><th>{{ t('th.unite') }}</th>
+              <th>{{ t('th.denominateur') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ratio of ratios">
+            <td class="cell-strong">{{ l(ratio.libelle) }}</td>
+            <td class="ta-right">{{ formaterRatio(ratio) }}</td>
+            <td>{{ formaterUniteRatio(ratio) }}</td>
+            <td class="cell-note">{{ ratio.manque || 'Renseigné dans l\'écran de pilotage' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="doc-encadre" *ngIf="!ratiosRenseignes">
+        <p>{{ t('p.s5.ratiosPartiels') }}</p>
+      </div>
+
+      <h3 class="tableau-titre">{{ t('sec5.positionnement') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>Indicateur</th><th class="ta-right">Périmètre</th>
+              <th>Ordre de grandeur industriel indicatif</th><th>Lecture</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ratio of ratios">
+            <td class="cell-strong">{{ l(ratio.libelle) }}</td>
+            <td class="ta-right">{{ formaterRatio(ratio) }}</td>
+            <td class="cell-note">{{ fourchetteIndicative(ratio) }}</td>
+            <td class="cell-note">{{ lectureRatio(ratio) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="doc-note">{{ t('p.s5.benchNote') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec5.cbam') }}</h3>
+      <p class="doc-para">{{ t('p.s5.cbam1') }}</p>
+      <p class="doc-para">{{ t('p.s5.cbam2') }}</p>
+      <table class="doc-tableau-simple" *ngIf="expositionCarbone as expo">
+        <tbody>
+          <tr><th>{{ t('p.s5.assiette') }}</th><td>Scopes 1 et 2 — {{ formater(expo.tonnes) }} tCO₂e</td></tr>
+          <tr><th>{{ t('p.s5.prixApplique') }}</th><td>{{ expo.prix }} € / tCO₂e</td></tr>
+          <tr><th>{{ t('p.s5.expoTheorique') }}</th>
+              <td class="cell-strong">{{ formater(expo.montant, 0) }} €</td></tr>
+        </tbody>
+      </table>
+      <p class="doc-note">{{ t('p.s5.cbamNote') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec5.vulnerabilite') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.risque') }}</th><th>{{ t('th.nature') }}</th><th class="ta-right">{{ t('th.exposition') }}</th>
+              <th>{{ t('th.probabilite') }}</th><th>{{ t('th.impact') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let risque of vulnerabilites">
+            <td class="cell-strong">{{ risque.intitule }}</td>
+            <td>{{ risque.nature }}</td>
+            <td class="ta-right">{{ risque.exposition }}</td>
+            <td><span class="doc-jauge" [attr.data-niveau]="risque.probabilite">{{ risque.probabilite }}</span></td>
+            <td><span class="doc-jauge" [attr.data-niveau]="risque.impact">{{ risque.impact }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.sec5') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 6 — PLAN D'ACTION ET TRAJECTOIRE                          -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('sec6.titre') }}</h2>
+
+      <p class="doc-para">{{ t('p.s6.intro') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec6.trajectoire') }}</h3>
+      <table class="doc-tableau-simple" *ngIf="trajectoire as traj">
+        <tbody>
+          <tr><th>{{ t('p.s6.objectifRetenu') }}</th><td>−{{ formater(traj.objectifPct, 0) }} %
+              {{ traj.anneeCible ? t('p.s6.horizonDe') + ' ' + traj.anneeCible : '' }}</td></tr>
+          <tr><th>{{ t('p.s6.anneeBase') }}</th><td>{{ traj.anneeBase ?? 'à établir' }}
+              — {{ tonnes(traj.baseKg) }} tCO₂e</td></tr>
+          <tr><th>{{ t('p.s6.cible') }}</th><td>{{ tonnes(traj.cibleKg) }} tCO₂e</td></tr>
+          <tr><th>{{ t('p.s6.exerciceConsulte') }}</th><td>{{ tonnes(traj.actuelKg) }} tCO₂e</td></tr>
+          <tr><th>{{ t('p.s6.ecartCible') }}</th>
+              <td [class.doc-hausse]="!traj.atteint" [class.doc-baisse]="traj.atteint">
+                {{ tonnes(traj.ecartKg) }} tCO₂e
+                <span *ngIf="traj.ecartPct !== null">({{ formater(traj.ecartPct, 1) }} %)</span>
+              </td></tr>
+          <tr><th>{{ t('p.s6.effortRealise') }}</th><td>{{ formater(traj.progression, 1) }} %</td></tr>
+          <tr><th>{{ t('th.statut') }}</th><td>{{ badgeTrajectoire }}</td></tr>
+        </tbody>
+      </table>
+      <p class="doc-vide" *ngIf="!trajectoire">{{ t('p.s6.pasTrajectoire') }}</p>
+
+      <h3 class="tableau-titre">{{ t('sec6.jalons') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th class="ta-right">{{ t('th.horizon') }}</th><th>Périmètre</th><th class="ta-right">{{ t('th.reduction') }}</th>
+              <th>{{ t('th.referentiel') }}</th><th>{{ t('th.statut') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let jalon of jalonsTrajectoire">
+            <td class="ta-right cell-strong">{{ jalon.horizon }}</td>
+            <td>{{ jalon.perimetre }}</td>
+            <td class="ta-right">−{{ jalon.reductionPct }} %</td>
+            <td class="cell-note">{{ jalon.referentiel }}</td>
+            <td>{{ jalon.statut }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="tableau-titre">{{ t('sec6.leviers') }}</h3>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.levier') }}</th><th>Poste visé</th><th>{{ t('th.action') }}</th>
+              <th class="ta-right">Impact attendu</th><th>{{ t('th.priorite') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let levier of leviers">
+            <td class="cell-strong">{{ levier.titre }}</td>
+            <td>{{ levier.poste }}</td>
+            <td class="cell-note">{{ levier.action }}</td>
+            <td class="ta-right">{{ levier.impact }}</td>
+            <td><span class="doc-jauge" [attr.data-niveau]="levier.priorite">{{ levier.priorite }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="doc-encadre">
+        <p>{{ t('p.s6.condition1') }}</p>
+        <p *ngIf="bilan.postes.length">
+          Sur ce périmètre, {{ nombreRetenus }} poste(s) sur {{ nombrePostes }} sont chiffrés :
+          la couverture de {{ formater(couvertureRetenue, 1) }} % conditionne l'éligibilité au
+          dépôt d'une cible court terme, qui exige 95 % des Scopes 1 et 2 et 67 % du Scope 3.
+        </p>
+      </div>
+
+      <h3 class="tableau-titre">{{ t('sec6.fiches') }}</h3>
+
+      <div class="doc-fiche">
+        <h4>{{ t('p.s6.l1.titre') }}</h4>
+        <p><strong>{{ t('p.s6.posteVise') }} :</strong> {{ t('p.s6.l1.poste') }}</p>
+        <p><strong>{{ t('p.s6.actions2028') }} :</strong> audit énergétique réglementaire des trois sites ;
+          comptage divisionnaire par atelier, sans lequel aucune économie n'est attribuable ;
+          variation de vitesse sur les moteurs de ventilation et de pompage ; chasse aux fuites
+          d'air comprimé ; relamping LED des halls de production.</p>
+        <p><strong>{{ t('p.s6.actions2030') }} :</strong> récupération de chaleur sur les compresseurs et les
+          groupes froids ; pilotage centralisé des utilités ; renouvellement des équipements les
+          moins performants au fil des amortissements.</p>
+        <p><strong>{{ t('p.s6.impactAttendu') }} :</strong> −10 à −20 % du Scope 2.
+          <strong>{{ t('p.s6.investissement') }} :</strong> modéré, retour généralement inférieur à trois ans sur la
+          part comptage et air comprimé.</p>
+        <p class="doc-note">{{ t('p.s6.l1.note') }}</p>
+      </div>
+
+      <div class="doc-fiche">
+        <h4>{{ t('p.s6.l2.titre') }}</h4>
+        <p><strong>{{ t('p.s6.posteVise') }} :</strong> {{ t('p.s6.l2.poste') }}</p>
+        <p><strong>{{ t('p.s6.actions2028') }} :</strong> étude de portance des toitures et dimensionnement
+          photovoltaïque en autoconsommation ; première tranche sur le site à la plus forte
+          consommation diurne, l'autoconsommation valant d'autant plus que la production coïncide
+          avec la charge.</p>
+        <p><strong>{{ t('p.s6.actions2030') }} :</strong> extension aux autres sites ; contractualisation d'un
+          approvisionnement renouvelable (contrat d'achat direct ou garanties d'origine), qui ouvre
+          la publication <em>market-based</em> exigée par le GHG Protocol dès lors que de tels
+          instruments existent.</p>
+        <p><strong>{{ t('p.s6.impactAttendu') }} :</strong> −15 à −30 % du Scope 2 par l'autoproduction, jusqu'à
+          −70 % du Scope 2 <em>market-based</em> par la contractualisation.</p>
+        <p class="doc-note">{{ t('p.s6.l2.note') }}</p>
+      </div>
+
+      <div class="doc-fiche">
+        <h4>{{ t('p.s6.l3.titre') }}</h4>
+        <p><strong>{{ t('p.s6.posteVise') }} :</strong> {{ t('p.s6.l3.poste') }}</p>
+        <p><strong>{{ t('p.s6.actions2028') }} :</strong> cartographie carbone du panel fournisseurs ;
+          substitution des facteurs monétaires par des facteurs physiques, puis par des données
+          primaires ; introduction d'un critère carbone dans les appels d'offres ; recours à l'acier
+          et aux plastiques recyclés là où les spécifications de filtration l'autorisent.</p>
+        <p><strong>{{ t('p.s6.actions2030') }} :</strong> engagement des fournisseurs représentant 80 % des
+          achats sur une trajectoire propre ; éco-conception des références à plus fort volume,
+          seul levier qui agisse simultanément sur les achats et sur la fin de vie.</p>
+        <p><strong>{{ t('p.s6.impactAttendu') }} :</strong> −10 à −25 % de la catégorie 1, avec un effet
+          d'entraînement sur les catégories aval.</p>
+        <p class="doc-note">{{ t('p.s6.l3.note') }}</p>
+      </div>
+
+      <div class="doc-fiche">
+        <h4>{{ t('p.s6.l4.titre') }}</h4>
+        <p><strong>{{ t('p.s6.posteVise') }} :</strong> {{ t('p.s6.l4.poste') }}</p>
+        <p><strong>{{ t('p.s6.actions2028') }} :</strong> mesure des tonnes·kilomètres par mode, préalable à
+          toute optimisation ; amélioration du taux de remplissage ; massification des expéditions ;
+          réduction du fret aérien, dont le facteur dépasse d'un ordre de grandeur celui du
+          maritime.</p>
+        <p><strong>{{ t('p.s6.actions2030') }} :</strong> report modal du routier vers le ferroviaire et le
+          maritime sur les flux longs ; sourcing régional sur les familles où le coût logistique
+          carbone dépasse l'écart de prix ; exigence progressive de carburants alternatifs auprès
+          des transporteurs.</p>
+        <p><strong>{{ t('p.s6.impactAttendu') }} :</strong> −15 à −25 % des catégories de transport.</p>
+        <p class="doc-note">{{ t('p.s6.l4.note') }}</p>
+      </div>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.sec6') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- ANNEXE A — FICHES DE COLLECTE ET RÈGLES D'EXCLUSION               -->
+    <!-- ================================================================== -->
+    <section class="report-page report-section">
+      <h2 class="doc-section doc-section-page">{{ t('annexeA.titre') }}</h2>
+
+      <h3 class="tableau-titre">{{ t('annexeA.fiches') }}</h3>
+      <p class="doc-para">{{ t('p.aA.fiches') }}</p>
+      <table class="doc-tableau">
+        <thead>
+          <tr><th>{{ t('th.poste') }}</th><th>{{ t('th.donnee') }}</th><th>{{ t('th.justificatif') }}</th>
+              <th>{{ t('th.frequence') }}</th><th>{{ t('th.controle') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let fiche of fichesCollecte">
+            <td class="cell-strong">{{ fiche.poste }}</td>
+            <td>{{ fiche.donnee }}</td>
+            <td>{{ fiche.source }}</td>
+            <td>{{ fiche.frequence }}</td>
+            <td class="cell-note">{{ fiche.controle }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="tableau-titre">{{ t('annexeA.exclusions') }}</h3>
+      <p class="doc-para">{{ t('p.aA.exclusions') }}</p>
+      <table class="doc-tableau">
+        <thead><tr><th>{{ t('th.regle') }}</th><th>{{ t('th.portee') }}</th><th>{{ t('th.justification') }}</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let regle of reglesExclusion">
+            <td class="cell-strong">{{ regle.regle }}</td>
+            <td>{{ regle.portee }}</td>
+            <td class="cell-note">{{ regle.justification }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="tableau-titre">{{ t('annexeA.tracabilite') }}</h3>
+      <p class="doc-para">{{ t('p.aA.tracabilite1') }}</p>
+      <p class="doc-para">
+        Le présent document a été établi le <strong>{{ dateImpressionLongue }}</strong> par
+        {{ auteur }}, sur le périmètre {{ bilan.libelleSociete }} et l'exercice
+        {{ bilan.libelleExercice }}. Les chiffres proviennent de l'inventaire calculé et
+        d'aucune saisie manuelle : les commentaires sont amendables, les nombres ne le sont pas.
+      </p>
+
+      <footer class="doc-pied">
+        <span>{{ t('pied.annexeA') }}</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+  </article>
+
+  <!-- ================= DOCUMENT IMPRIMABLE — MODE 2 : RAPPORT NORMÉ ================= -->
+  <div class="norme-shell" *ngIf="bilan && mode === 'norme'">
+
+    <!-- SOMMAIRE INTERACTIF -->
+    <aside class="norme-sommaire">
+      <h3>Sommaire</h3>
+      <ol>
+        <li *ngFor="let chapitre of chapitres">
+          <button type="button" [class.actif]="estDeplie(chapitre.id)"
+                  (click)="allerAuChapitre(chapitre)">
+            <span class="som-num">{{ chapitre.numero }}</span>
+            <span class="som-titre">{{ chapitre.titre }}</span>
+          </button>
+        </li>
+      </ol>
+      <div class="som-actions">
+        <button type="button" (click)="toutDeplier()">Tout déplier</button>
+        <button type="button" (click)="toutReplier()">Tout replier</button>
+      </div>
+    </aside>
+
+    <!-- CHAPITRES -->
+    <article class="norme-document">
+      <section class="rep-page norme-page" *ngFor="let chapitre of chapitres"
+               [id]="'chapitre-' + chapitre.id" [class.chapitre-replie]="!estDeplie(chapitre.id)">
+
+        <header class="chapitre-entete" (click)="basculerChapitre(chapitre.id)">
+          <span class="chapitre-num">{{ chapitre.numero }}</span>
+          <span class="chapitre-titres">
+            <strong>{{ chapitre.icone }} {{ chapitre.titre }}</strong>
+            <small>{{ chapitre.titreNorme }}</small>
+          </span>
+          <span class="chapitre-caret" [class.ouvert]="estDeplie(chapitre.id)" aria-hidden="true">▾</span>
+        </header>
+
+        <div class="chapitre-corps">
+
+          <!-- ---------- 1. COUVERTURE ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'couverture'">
+            <div class="doc-entete">
+              <div class="doc-marque">
+                <img class="doc-logo" src="misfat logo.jpg" alt="Groupe MISFAT">
+                <div class="doc-marque-texte">
+                  <span class="doc-marque-nom">GROUPE MISFAT</span>
+                  <span class="doc-marque-baseline">Inventaire GES — GHG Protocol</span>
+                </div>
+              </div>
+              <div class="doc-reference">
+                <span class="doc-ref-cle">{{ t('garde.document') }}</span>
+                <span class="doc-ref-valeur">GHG-{{ bilan.libelleExercice }}</span>
+              </div>
+            </div>
+
+            <div class="doc-titre">
+              <h1>Rapport d'inventaire des émissions de GES — Exercice {{ bilan.libelleExercice }}</h1>
+              <p class="doc-soustitre">{{ bilan.libelleSociete }} · Corporate Accounting and Reporting Standard</p>
+            </div>
+
+            <dl class="doc-meta doc-meta-norme">
+              <div><dt>Société déclarante</dt><dd>{{ bilan.libelleSociete }}</dd></div>
+              <div><dt>Exercice couvert</dt><dd>{{ bilan.libelleExercice }}</dd></div>
+              <div><dt>{{ t('garde.paysDevise') }}</dt><dd>{{ bilan.pays }} · {{ bilan.devise }}</dd></div>
+              <div><dt>Auteur du rapport</dt><dd>{{ auteur }}</dd></div>
+              <div><dt>Date d'édition</dt><dd>{{ dateImpressionLongue }}</dd></div>
+              <div><dt>{{ t('garde.methodologie') }}</dt><dd>GHG Protocol / Base ADEME</dd></div>
+              <div><dt>Unité de restitution</dt><dd>tCO₂e</dd></div>
+              <div><dt>Empreinte totale</dt><dd>{{ tonnes(bilan.totalKg) }} tCO₂e</dd></div>
+              <div><dt>Statut de vérification</dt><dd>{{ parametres.statutVerification }}</dd></div>
+            </dl>
+          </ng-container>
+
+          <!-- ---------- 3. DONNÉES D'ÉMISSIONS ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'donnees'">
+            <p class="doc-chapeau">
+              L'inventaire normé est exhaustif : les {{ nombrePostes }} postes de la nomenclature y
+              figurent, y compris ceux à zéro. Il ne suit donc pas la sélection du panneau de
+              configuration, qui ne commande que la synthèse exécutive.
+            </p>
+
+            <div class="doc-tableau" *ngFor="let scope of bilan.scopes"
+                 [style.--scope-couleur]="scope.couleur">
+              <h3 class="tableau-titre">
+                <span class="tableau-puce"></span>
+                {{ l(scope.nom) }} — {{ l(scope.soustitre) }}
+                <span class="tableau-total">{{ tonnes(scope.emissionKg) }} tCO₂e</span>
+              </h3>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th class="col-cat">{{ t('th.categorie') }}</th>
+                    <th class="col-src">{{ t('syn.origineDonnee') }}</th>
+                    <th class="col-num">{{ t('th.lignes') }}</th>
+                    <th class="col-num">{{ t('syn.emissions') }}</th>
+                    <th class="col-num">% du scope</th>
+                    <th class="col-num">% du bilan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let poste of scope.postes" [class.ligne-vide]="poste.emissionKg <= 0">
+                    <td class="col-cat">
+                      <span class="cell-icone" aria-hidden="true">{{ poste.icone }}</span>
+                      <span class="cell-ghg" *ngIf="poste.numeroGhg">Cat. {{ poste.numeroGhg }}</span>
+                      {{ l(poste.libelle) }}
+                    </td>
+                    <td class="col-src">{{ originesTraduites(poste) }}</td>
+                    <td class="col-num">{{ poste.lignes || '—' }}</td>
+                    <td class="col-num cell-forte">{{ tonnes(poste.emissionKg) }}</td>
+                    <td class="col-num">{{ formater(poste.pctScope, 1) }} %</td>
+                    <td class="col-num">{{ formater(poste.pctTotal, 1) }} %</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3">Sous-total {{ l(scope.nom) }}</td>
+                    <td class="col-num cell-forte">{{ tonnes(scope.emissionKg) }}</td>
+                    <td class="col-num">100,0 %</td>
+                    <td class="col-num">{{ formater(scope.pct, 1) }} %</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <table class="doc-total">
+              <tbody>
+                <tr>
+                  <td>Total des émissions déclarées</td>
+                  <td class="col-num cell-forte">{{ tonnes(bilan.totalKg) }} tCO₂e</td>
+                  <td class="col-num">{{ bilan.mesures }} ligne(s)</td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+
+          <!-- ---------- 4. ANNÉE DE RÉFÉRENCE ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'historique'">
+            <div class="norme-saisie">
+              <label>
+                <span>Année de référence</span>
+                <input type="number" name="anneeRef" [(ngModel)]="parametres.anneeReference"
+                       (change)="anneeReferenceModifiee()" placeholder="ex : 2023">
+              </label>
+            </div>
+
+            <table class="doc-total" *ngIf="ecartReference as ecart">
+              <tbody>
+                <tr>
+                  <td>Empreinte de l'année de référence ({{ parametres.anneeReference }})</td>
+                  <td class="col-num cell-forte">{{ tonnes(ecart.totalKg) }} tCO₂e</td>
+                  <td class="col-num">100,0 %</td>
+                </tr>
+                <tr>
+                  <td>Empreinte de l'exercice {{ bilan.libelleExercice }}</td>
+                  <td class="col-num cell-forte">{{ tonnes(bilan.totalKg) }} tCO₂e</td>
+                  <td class="col-num" [class.var-hausse]="ecart.deltaKg > 0"
+                      [class.var-baisse]="ecart.deltaKg < 0">
+                    {{ ecart.deltaKg > 0 ? '+' : '' }}{{ formater(ecart.deltaPct ?? 0, 1) }} %
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p class="norme-avis" *ngIf="!ecartReference">{{ t('vide.anneeReference') }}</p>
+          </ng-container>
+
+          <!-- ---------- 5. MÉTHODOLOGIE ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'methodologie'">
+            <table class="doc-tableau-simple">
+              <thead>
+                <tr><th>Élément</th><th>Valeur retenue</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Formule de calcul</td><td>Émissions (kgCO₂e) = Donnée d'activité × Facteur d'émission</td></tr>
+                <tr><td>Référentiel des facteurs</td><td>Base carbone ADEME, via le référentiel interne</td></tr>
+                <tr><td>Repli en l'absence de facteur</td><td>Ratio monétaire moyen (approche spend-based), signalé à l'écran</td></tr>
+                <tr><td>Facteur électricité réseau</td><td>0,420 kgCO₂e / kWh</td></tr>
+                <tr><td>Gaz couverts</td><td>CO₂, CH₄, N₂O, HFC, PFC, SF₆, NF₃ — exprimés en CO₂ équivalent</td></tr>
+                <tr><td>Consolidation</td><td>Contrôle opérationnel</td></tr>
+              </tbody>
+            </table>
+          </ng-container>
+
+          <!-- ---------- 8. OBJECTIFS ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'objectifs'">
+            <div class="norme-saisie">
+              <label>
+                <span>Objectif de réduction (%)</span>
+                <input type="number" name="objPct" [(ngModel)]="parametres.objectifPct"
+                       (change)="parametresModifies()" placeholder="ex : 30">
+              </label>
+              <label>
+                <span>Année cible</span>
+                <input type="number" name="objAnnee" [(ngModel)]="parametres.anneeCible"
+                       (change)="parametresModifies()" placeholder="ex : 2030">
+              </label>
+            </div>
+
+            <table class="doc-total" *ngIf="objectif as cible">
+              <tbody>
+                <tr>
+                  <td>Empreinte de base ({{ parametres.anneeReference ?? bilan.libelleExercice }})</td>
+                  <td class="col-num cell-forte">{{ tonnes(cible.baseKg) }} tCO₂e</td>
+                  <td class="col-num">référence</td>
+                </tr>
+                <tr>
+                  <td>Empreinte visée en {{ parametres.anneeCible ?? '—' }} (−{{ formater(parametres.objectifPct ?? 0, 0) }} %)</td>
+                  <td class="col-num cell-forte">{{ tonnes(cible.cibleKg) }} tCO₂e</td>
+                  <td class="col-num">cible</td>
+                </tr>
+                <tr>
+                  <td>{{ cible.atteint ? 'Marge au-delà de la cible' : 'Réduction restant à réaliser' }}</td>
+                  <td class="col-num cell-forte">{{ tonnes(cible.resteKg < 0 ? -cible.resteKg : cible.resteKg) }} tCO₂e</td>
+                  <td class="col-num" [class.var-baisse]="cible.atteint" [class.var-hausse]="!cible.atteint">
+                    {{ cible.atteint ? 'Objectif atteint' : 'En cours' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p class="norme-avis" *ngIf="!objectif">{{ t('vide.ecartCombler') }}</p>
+          </ng-container>
+
+          <!-- ---------- 9. RATIOS ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'ratios'">
+            <p class="norme-avis">
+              Les dénominateurs — production, chiffre d'affaires, effectif — proviennent de
+              l'écran « Données d'Activité &amp; KPI » pour l'exercice
+              {{ bilan.libelleExercice }}. Aucun n'est estimé ici : un ratio dont l'activité
+              n'est pas renseignée reste vide.
+            </p>
+
+            <div class="doc-kpis doc-kpis-ratios">
+              <div class="kpi" *ngFor="let ratio of ratios" [style.--kpi-couleur]="'#0284c7'">
+                <span class="kpi-libelle">{{ l(ratio.libelle) }}</span>
+                <span class="kpi-valeur">{{ formaterRatio(ratio) }}</span>
+                <span class="kpi-unite">{{ formaterUniteRatio(ratio) }}</span>
+                <span class="kpi-note" *ngIf="ratio.valeur === null">{{ ratio.manque }}</span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- ---------- BLOCS DE TEXTE ÉDITABLES ---------- -->
+          <div class="bloc-texte" *ngFor="let bloc of chapitre.blocs">
+            <div class="bloc-entete">
+              <h4>{{ bloc.intitule }}</h4>
+              <span class="bloc-amende" *ngIf="estAmende(bloc.id)">amendé</span>
+
+              <button type="button" class="bloc-crayon" *ngIf="blocEnEdition !== bloc.id"
+                      (click)="modifierBloc(bloc.id)"
+                      [attr.aria-label]="'Modifier — ' + bloc.intitule" title="Modifier ce texte">
+                ✏️
+              </button>
+
+              <button type="button" class="bloc-crayon bloc-reinit"
+                      *ngIf="blocEnEdition !== bloc.id && estAmende(bloc.id)"
+                      (click)="reinitialiserBloc(bloc.id)" title="Rétablir le texte proposé">
+                ↺
+              </button>
+            </div>
+
+            <p class="bloc-contenu" *ngIf="blocEnEdition !== bloc.id">{{ texte(bloc.id) }}</p>
+
+            <div class="bloc-edition" *ngIf="blocEnEdition === bloc.id">
+              <textarea [(ngModel)]="brouillon" name="brouillon" rows="7"
+                        [attr.aria-label]="bloc.intitule"></textarea>
+              <div class="bloc-actions">
+                <button type="button" class="bloc-annuler" (click)="annulerBloc()">Annuler</button>
+                <button type="button" class="bloc-valider" (click)="enregistrerBloc()">Enregistrer</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------- 11. VALIDATION ---------- -->
+          <ng-container *ngIf="chapitre.gabarit === 'signature'">
+            <div class="norme-saisie">
+              <label>
+                <span>Responsable</span>
+                <input type="text" name="resp" [(ngModel)]="parametres.responsable"
+                       (change)="parametresModifies()" placeholder="Nom et prénom">
+              </label>
+              <label>
+                <span>Fonction</span>
+                <input type="text" name="fonc" [(ngModel)]="parametres.fonction"
+                       (change)="parametresModifies()" placeholder="Responsable RSE">
+              </label>
+            </div>
+
+            <div class="norme-signature">
+              <div class="sig-bloc">
+                <span class="sig-role">Établi par</span>
+                <span class="sig-nom">{{ parametres.responsable || auteur }}</span>
+                <span class="sig-fonction">{{ parametres.fonction || 'Responsable RSE' }}</span>
+                <span class="sig-date">Le {{ dateImpressionCourte }}</span>
+                <span class="sig-ligne"></span>
+                <span class="sig-mention">Signature</span>
+              </div>
+
+              <div class="sig-bloc">
+                <span class="sig-role">Vérifié par</span>
+                <span class="sig-nom">{{ parametres.verificateur || '—' }}</span>
+                <span class="sig-fonction">Tiers indépendant</span>
+                <span class="sig-date">{{ parametres.statutVerification }}</span>
+                <span class="sig-ligne"></span>
+                <span class="sig-mention">Signature</span>
+              </div>
+            </div>
+
+            <p class="norme-contact">
+              Contact — Groupe MISFAT, Direction QHSE · {{ bilan.pays }} ·
+              Document établi le {{ dateImpressionCourte }} pour l'exercice {{ bilan.libelleExercice }}.
+            </p>
+          </ng-container>
+
+          <!-- ---------- 7. STATUT DE VÉRIFICATION ---------- -->
+          <div class="norme-saisie" *ngIf="chapitre.id === 'verification'">
+            <label>
+              <span>Statut de vérification</span>
+              <select name="statutVerif" [(ngModel)]="parametres.statutVerification"
+                      (change)="parametresModifies()">
+                <option *ngFor="let statut of statutsVerification" [value]="statut">{{ statut }}</option>
+              </select>
+            </label>
+            <label>
+              <span>Organisme vérificateur</span>
+              <input type="text" name="verif" [(ngModel)]="parametres.verificateur"
+                     (change)="parametresModifies()" placeholder="Nom de l'organisme">
+            </label>
+          </div>
+
+          <footer class="doc-pied">
+            <span>Chapitre {{ chapitre.numero }} — {{ chapitre.titreNorme }}</span>
+            <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+          </footer>
+        </div>
+      </section>
+    </article>
+  </div>
+</div>

@@ -10,23 +10,45 @@
       <input type="file" id="fileInput" (change)="onFileSelected($event)" accept="image/*" style="display: none;">
     </div>
 
-    <h2 class="user-name">{{ user.firstName }} {{ user.lastName }}</h2>
-    <span class="user-badge">{{ user.role }}</span>
+    <h2 class="user-name">{{ formulaire.firstName }} {{ formulaire.lastName }}</h2>
+    <span class="user-badge">{{ role }}</span>
 
-    <div class="user-details">
+    <button type="button" class="btn-retirer-photo" *ngIf="compte?.avatar" (click)="supprimerPhoto()">
+      Retirer la photo
+    </button>
+
+    <div *ngIf="messageSucces" class="profil-succes">{{ messageSucces }}</div>
+    <div *ngIf="messageErreur" class="profil-erreur">{{ messageErreur }}</div>
+
+    <p class="profil-sans-session" *ngIf="!compte">
+      Aucune session n'est ouverte : reconnectez-vous depuis l'écran de connexion pour modifier
+      votre profil.
+    </p>
+
+    <form class="profil-form" *ngIf="compte" (ngSubmit)="sauvegarderProfil()">
       <div class="detail-item">
-        <label>Identifiant</label>
-        <p>{{ user.username }}</p>
+        <label for="p-prenom">Prénom</label>
+        <input id="p-prenom" name="prenom" type="text" [(ngModel)]="formulaire.firstName" placeholder="Votre prénom">
       </div>
       <div class="detail-item">
-        <label>Adresse E-mail</label>
-        <p>{{ user.email }}</p>
+        <label for="p-nom">Nom</label>
+        <input id="p-nom" name="nom" type="text" [(ngModel)]="formulaire.lastName" placeholder="Votre nom">
       </div>
       <div class="detail-item">
-        <label>Affectation d'usine</label>
-        <p>{{ user.usine }}</p>
+        <label for="p-email">Adresse E-mail</label>
+        <input id="p-email" name="email" type="email" [(ngModel)]="formulaire.email" placeholder="prenom.nom@misfat.com">
       </div>
-    </div>
+      <div class="detail-item">
+        <label for="p-tel">Téléphone</label>
+        <input id="p-tel" name="telephone" type="tel" [(ngModel)]="formulaire.telephone" placeholder="+216 00 000 000">
+      </div>
+      <div class="detail-item">
+        <label>Affectation</label>
+        <p class="detail-lecture">{{ affectation }}</p>
+      </div>
+
+      <button type="submit" class="btn-enregistrer-profil">Enregistrer mon profil</button>
+    </form>
   </div>
 
   <!-- Bloc Notes et Rappels -->

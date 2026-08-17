@@ -1,0 +1,537 @@
+/* ==========================================================================
+   THÈME SCOPE 1 — RÉFÉRENCE VISUELLE COMMUNE
+   Extrait de l'écran « Émissions de réfrigérants », qui fait référence.
+   Importé par les trois catégories du Scope 1 pour qu'un ajustement de charte
+   se fasse en un seul endroit.
+
+   Les sélecteurs sont préfixés par `.emission-card` ou `.emission-container`
+   afin de l'emporter sur les règles historiques de chaque composant, plus
+   génériques, sans avoir à les supprimer une par une.
+   ========================================================================== */
+
+:host {
+    /* Vert forêt Scope 1 : fond des en-têtes de tableau, texte blanc. */
+    --sc1: #155d3b;
+    --sc1-vif: #3FA96B;
+    --sc1-pale: #EEF7F2;
+    --sc1-bord: #CBEBD8;
+
+    /* Bleu nuit de la ligne de total. */
+    --sc1-total: #1b364a;
+
+    --sc1-texte: #1E293B;
+    --sc1-texte-2: #475569;
+    --sc1-texte-3: #94A3B8;
+    --sc1-ligne: #E2E8F0;
+    --sc1-ligne-douce: #EEF2F7;
+}
+
+/* ---------- En-tête de page ---------- */
+
+.emission-container .emission-header {
+    border-left: 4px solid var(--sc1-vif);
+    padding-left: 14px;
+}
+
+.emission-container .emission-header h2 {
+    margin: 0 0 4px;
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--sc1-texte);
+}
+
+.emission-container .section-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--sc1-texte-2);
+    max-width: 760px;
+}
+
+/* ---------- Barre d'actions ---------- */
+
+.emission-card .table-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--sc1-ligne-douce);
+    background: #F8FAFC;
+}
+
+.emission-card .search-input,
+.emission-card .filter-dropdown {
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 8px;
+    padding: 8px 11px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--sc1-texte);
+    background: #ffffff;
+}
+
+.emission-card .search-input { flex: 1; min-width: 230px; }
+
+.emission-card .search-input:focus,
+.emission-card .filter-dropdown:focus {
+    outline: 2px solid var(--sc1-vif);
+    outline-offset: 1px;
+}
+
+/* Badge de la filiale active, au-dessus de la table. */
+.emission-card .perimetre-chip {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: #2F7D50;
+    background: var(--sc1-pale);
+    border: 1px solid var(--sc1-bord);
+    white-space: nowrap;
+}
+
+.emission-card .right-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.emission-card .btn-new,
+.emission-card .btn-import,
+.emission-card .btn-export,
+.emission-card .btn-model,
+.emission-card .btn-ghost {
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s ease, filter 0.18s ease;
+}
+
+.emission-card .btn-new {
+    background: var(--sc1);
+    color: #ffffff;
+    border: none;
+}
+
+.emission-card .btn-new:hover { filter: brightness(1.25); }
+
+.emission-card .btn-import,
+.emission-card .btn-export,
+.emission-card .btn-model,
+.emission-card .btn-ghost {
+    background: #ffffff;
+    color: var(--sc1-texte-2);
+    border: 1px solid var(--sc1-ligne);
+}
+
+.emission-card .btn-import:hover,
+.emission-card .btn-export:hover,
+.emission-card .btn-model:hover,
+.emission-card .btn-ghost:hover {
+    background: var(--sc1-pale);
+    border-color: var(--sc1-bord);
+    color: #2F7D50;
+}
+
+.emission-card .btn-export:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- Tableau ---------- */
+
+.emission-card .data-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: #ffffff;
+    background: var(--sc1);
+    padding: 11px 12px;
+    white-space: nowrap;
+    border-bottom: none;
+}
+
+.emission-card .data-table thead th.sortable-header,
+.emission-card .data-table thead th.sortable { cursor: pointer; }
+
+.emission-card .data-table thead th.sortable-header:hover,
+.emission-card .data-table thead th.sortable:hover { background: #1a7549; }
+
+.emission-card .data-table tbody td {
+    font-size: 12.5px;
+    color: var(--sc1-texte-2);
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--sc1-ligne-douce);
+}
+
+.emission-card .data-table tbody tr:nth-child(even) { background: #FBFCFE; }
+.emission-card .data-table tbody tr:hover { background: var(--sc1-pale); }
+
+/* Ligne de total en bleu nuit, texte blanc. */
+.emission-card .data-table tfoot td {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #ffffff;
+    background: var(--sc1-total);
+    padding: 11px 12px;
+    border: none;
+}
+
+.emission-card .ta-right { text-align: right; }
+.emission-card .ta-center { text-align: center; }
+.emission-card .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.emission-card .num-fort { font-weight: 800; color: var(--sc1-texte); }
+
+/* ---------- Pastilles ---------- */
+
+.emission-card .ref-badge,
+.emission-card .base-badge,
+.emission-card .badge-source,
+.emission-card .unit-badge,
+.emission-card .hyp-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+}
+
+.emission-card .ref-badge {
+    color: #3D7CA3;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+}
+
+/* « Base appliquée » : pilule verte douce, quelle que soit la base. */
+.emission-card .base-badge,
+.emission-card .badge-source {
+    color: #2F7D50;
+    background: var(--sc1-pale);
+    border: 1px solid var(--sc1-bord);
+}
+
+.emission-card .unit-badge {
+    color: var(--sc1-texte-2);
+    background: #F8FAFC;
+    border: 1px solid var(--sc1-ligne);
+}
+
+/* Hypothèse : vert pour une donnée réelle, orange pour une estimation.
+   Deux balisages coexistent — `.hyp-badge` sur l'écran de référence,
+   `.badge-status` sur les deux catégories historiques, dont la classe est
+   dérivée du libellé (« réelle » / « estimation »). Les deux sont traités
+   ici pour que le rendu soit strictement identique. */
+.emission-card .hyp-badge,
+.emission-card .badge-status {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    color: #2F7D50;
+    background: var(--sc1-pale);
+    border: 1px solid var(--sc1-bord);
+}
+
+.emission-card .hyp-badge.hyp-estim,
+.emission-card .badge-status.estimation {
+    color: #B4652F;
+    background: #FCF4EE;
+    border-color: #F5DCC2;
+}
+
+.emission-card .empty-row {
+    text-align: center;
+    color: var(--sc1-texte-3);
+    padding: 28px 12px;
+    font-size: 12.5px;
+}
+
+/* ---------- Actions de ligne ---------- */
+
+.emission-card .action-buttons { display: inline-flex; gap: 6px; }
+
+.emission-card .btn-edit,
+.emission-card .btn-delete {
+    border: 1px solid var(--sc1-ligne);
+    background: #ffffff;
+    border-radius: 7px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.emission-card .btn-edit:hover { background: var(--sc1-pale); border-color: var(--sc1-vif); }
+.emission-card .btn-delete:hover { background: #FEF2F2; border-color: #EF4444; }
+
+@media (max-width: 700px) {
+    .emission-card .right-actions { width: 100%; margin-left: 0; }
+    .emission-card .search-input { min-width: 0; }
+}
+
+/* ==========================================================================
+   MODALE DE SAISIE — RÉFÉRENCE « ÉMISSIONS DE RÉFRIGÉRANTS »
+   Les trois catégories partagent déjà le même balisage (.modal-overlay,
+   .modal-card, .form-group…). Il suffit donc de porter le style ici pour que
+   les trois popups soient rigoureusement identiques, sans toucher au HTML.
+   Le préfixe .emission-container donne priorité sur les règles locales
+   historiques, plus génériques.
+   ========================================================================== */
+
+.emission-container .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 18px;
+}
+
+.emission-container .modal-card {
+    background: #ffffff;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+}
+
+.emission-container .wide-modal { max-width: 860px; }
+
+/* ---------- En-tête vert forêt ---------- */
+
+.emission-container .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 15px 20px;
+    background: var(--sc1);
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+}
+
+.emission-container .modal-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+/* Deux noms de classe coexistent selon les composants ; les deux sont traités. */
+.emission-container .modal-close,
+.emission-container .close-modal {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: #ffffff;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.emission-container .modal-close:hover,
+.emission-container .close-modal:hover { background: rgba(255, 255, 255, 0.32); }
+
+/* ---------- Corps ---------- */
+
+.emission-container .modal-body {
+    padding: 18px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.emission-container .validation-alert {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 13px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #B91C1C;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+}
+
+.emission-container .validation-alert p { margin: 2px 0 0; font-weight: 500; }
+.emission-container .close-alert {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #B91C1C;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* Cartouche vert clair : Scope 1 et société active. */
+.emission-container .scope-box-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 9px 13px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #2F7D50;
+    background: var(--sc1-pale);
+    border: 1px solid var(--sc1-bord);
+}
+
+.emission-container .scope-tag {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    color: #ffffff;
+    background: var(--sc1);
+}
+
+/* ---------- Champs ---------- */
+
+.emission-container .form-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.emission-container .flex-1 { flex: 1; min-width: 190px; }
+.emission-container .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+/* Labels en majuscules, gris neutre. */
+.emission-container .form-group > label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--sc1-texte-3);
+}
+
+.emission-container .required { color: #DC2626; }
+
+/* Hauteur d'input identique partout, quel que soit le type de champ. */
+.emission-container .form-group input,
+.emission-container .form-group select,
+.emission-container .form-group textarea,
+.emission-container .form-control {
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--sc1-texte);
+    background: #ffffff;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.emission-container .form-group input:focus,
+.emission-container .form-group select:focus,
+.emission-container .form-control:focus {
+    outline: 2px solid var(--sc1-vif);
+    outline-offset: 1px;
+}
+
+.emission-container .form-group select:disabled,
+.emission-container .readonly-field {
+    background: #F8FAFC;
+    color: var(--sc1-texte-2);
+    cursor: default;
+}
+
+.emission-container .field-hint { font-size: 10.5px; color: var(--sc1-texte-3); }
+
+/* ---------- Pilules : type de données et hypothèse ---------- */
+
+.emission-container .toggle-buttons,
+.emission-container .hypothesis-badges {
+    display: inline-flex;
+    background: #F1F5F9;
+    border-radius: 9px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.emission-container .btn-toggle,
+.emission-container .hypothesis-badges .badge {
+    background: none;
+    border: none;
+    border-radius: 7px;
+    padding: 7px 15px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--sc1-texte-2);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.emission-container .btn-toggle.active,
+.emission-container .hypothesis-badges .badge.active {
+    background: var(--sc1);
+    color: #ffffff;
+}
+
+/* ---------- Récapitulatif du facteur ---------- */
+
+.emission-container .live-preview-box {
+    border: 1px dashed var(--sc1-bord);
+    background: var(--sc1-pale);
+    border-radius: 10px;
+    padding: 13px 15px;
+}
+
+/* ---------- Pied de modale ---------- */
+
+.emission-container .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--sc1-ligne);
+    background: #F8FAFC;
+    border-radius: 0 0 14px 14px;
+}
+
+.emission-container .btn-cancel,
+.emission-container .btn-submit {
+    border-radius: 8px;
+    padding: 9px 17px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.emission-container .btn-cancel {
+    background: #ffffff;
+    color: var(--sc1-texte);
+    border: 1px solid var(--sc1-ligne);
+}
+
+.emission-container .btn-cancel:hover { background: #F1F5F9; }
+
+.emission-container .btn-submit {
+    background: var(--sc1);
+    color: #ffffff;
+    border: none;
+}
+
+.emission-container .btn-submit:hover:not(:disabled) { filter: brightness(1.25); }
+.emission-container .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }

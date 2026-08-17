@@ -1,0 +1,409 @@
+<div class="emission-container">
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Franchises 🏬</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">
+        Note d'information — Scope 3 (Catégorie 14 : Franchises)
+      </p>
+      <p class="note-texte">
+        Note : Cette catégorie comptabilise les émissions des Scopes 1 et 2 des franchisés
+        exploitant sous l'enseigne de l'entreprise, lorsque celle-ci agit en tant que franchiseur.
+      </p>
+      <p class="note-regle">
+        <span aria-hidden="true">🔧</span>
+        Cas MISFAT : catégorie généralement non applicable en l'absence de réseau franchisé. À
+        défaut de relevé transmis par les franchisés, un site est valorisé au ratio de
+        {{ emissionsParSite | number:'1.0-0' }} kgCO₂e par site et par an.
+      </p>
+    </div>
+  </div>
+
+  <!-- DÉCLARATION D'ABSENCE DE RÉSEAU -->
+  <div class="declaration-box" [class.declaration-active]="sansReseau">
+    <label class="declaration-toggle">
+      <input type="checkbox" [checked]="sansReseau" (change)="basculerSansReseau()">
+      <span class="declaration-piste" aria-hidden="true"><span class="declaration-pouce"></span></span>
+      <span class="declaration-texte">
+        Aucun réseau de franchise sous enseigne (Marquer le total à 0 kgCO₂e)
+      </span>
+    </label>
+
+    <p class="declaration-aide" *ngIf="sansReseau">
+      Position consignée : la catégorie 14 est déclarée non applicable et son total est arrêté à
+      0 kgCO₂e. Un tableau simplement vide se confondrait avec une collecte non faite.
+    </p>
+  </div>
+
+  <div class="ref-warning ref-warning-contradiction" *ngIf="contradictionDeclaration">
+    <span aria-hidden="true">⚠️</span>
+    {{ listeEmissions.length }} ligne(s) sont enregistrées alors que la catégorie est déclarée
+    non applicable : levez la déclaration ou supprimez ces lignes.
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreReplis">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreReplis }} ligne(s) valorisée(s) par un facteur de repli ADEME, faute de facteur
+    correspondant au référentiel MS SQL.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par référence, franchisé, localisation ou base…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreApproche" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes les approches</option>
+        <option *ngFor="let a of approches" [value]="a">{{ emojiApproche(a) }} {{ a }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes provenances</option>
+        <option value="Réel">Réel</option>
+        <option value="Estimation">Estimation</option>
+        <option value="Excel">Excel</option>
+      </select>
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Ajouter une franchise</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Réf / ID</th>
+            <th class="sortable" (click)="sortData('franchise')">Nom du franchisé / Site</th>
+            <th>Localisation</th>
+            <th>Type d'approche</th>
+            <th class="sortable ta-right" (click)="sortData('quantite')">Nombre de sites / CA</th>
+            <th class="ta-right">Consommation est.</th>
+            <th>Facteur MS SQL</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émiss. (kgCO₂e)</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.origineFacteur === 'Aucun'">
+            <td>
+              <span class="ref-badge">{{ item.reference }}</span>
+              <span class="duo-second">
+                <span class="prov-badge prov-compacte"
+                      [class.prov-reel]="item.provenance === 'Réel'"
+                      [class.prov-estim]="item.provenance === 'Estimation'"
+                      [class.prov-excel]="item.provenance === 'Excel'">
+                  {{ item.provenance === 'Excel' ? '📄' : item.provenance === 'Estimation' ? '≈' : '✓' }}
+                  {{ item.provenance }}
+                </span>
+              </span>
+            </td>
+
+            <td class="cell-strong franchise-cell" [title]="item.franchise">{{ item.franchise }}</td>
+
+            <td class="localisation-cell" [title]="item.localisation">{{ item.localisation || '—' }}</td>
+
+            <td>
+              <span class="approche-badge" [ngClass]="classeBadgeApproche(item.approche)"
+                    [title]="libelleApproche(item.approche)">
+                <span aria-hidden="true">{{ emojiApproche(item.approche) }}</span>
+                {{ item.approche }}
+              </span>
+            </td>
+
+            <td class="ta-right num">
+              <span class="duo-principal">{{ item.quantite | number:'1.0-2' }}</span>
+              <span class="duo-second">{{ item.unite }}</span>
+            </td>
+
+            <td class="ta-right num">
+              <ng-container *ngIf="item.consommationEstimee !== null; else sansConso">
+                <span class="duo-principal">{{ item.consommationEstimee | number:'1.0-0' }}</span>
+                <span class="duo-second">{{ item.unite }}</span>
+              </ng-container>
+              <ng-template #sansConso><span class="duo-second">—</span></ng-template>
+            </td>
+
+            <td class="facteur-cell" [title]="item.libelleFacteur">
+              <ng-container *ngIf="item.facteur !== null; else sansFacteur">
+                <span class="duo-principal">
+                  {{ item.facteur | number:'1.0-6' }} <span class="unite-facteur">/{{ item.uniteFacteur }}</span>
+                </span>
+                <span class="duo-second">
+                  {{ item.baseAppliquee }}
+                  <span class="origine-repli" *ngIf="item.origineFacteur === 'ADEME'">repli</span>
+                </span>
+              </ng-container>
+              <ng-template #sansFacteur><span class="alerte-facteur">non résolu</span></ng-template>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="9" class="empty-row">
+              {{ sansReseau
+                  ? 'Catégorie déclarée non applicable : aucun réseau franchisé, total arrêté à 0 kgCO₂e.'
+                  : 'Aucune franchise enregistrée sur ce périmètre.' }}
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="4">Total — {{ emissionsFiltrees.length }} franchise(s)</td>
+            <td class="ta-right num-fort">{{ totalSites | number:'1.0-0' }} sites</td>
+            <td colspan="2"></td>
+            <td class="ta-right num-fort">{{ (sansReseau ? 0 : totalEmissions) | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier la franchise' : '🏬 Ajouter une franchise' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Franchises — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="fr-nom">Nom du franchisé / Site *</label>
+            <input id="fr-nom" type="text" [(ngModel)]="formModel.franchise"
+                   placeholder="Ex : Réseau MISFAT Auto Nord">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="fr-ref">Référence / Code</label>
+            <input id="fr-ref" type="text" [(ngModel)]="formModel.reference"
+                   placeholder="Engendrée si vide">
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Type de donnée</label>
+            <div class="radio-groupe">
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Réel'">
+                <input type="radio" name="prov-fra" value="Réel" [(ngModel)]="formModel.provenance">
+                <span>✓ Réel</span>
+              </label>
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Estimation'">
+                <input type="radio" name="prov-fra" value="Estimation" [(ngModel)]="formModel.provenance">
+                <span>≈ Estimation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="fr-localisation">Localisation</label>
+            <input id="fr-localisation" type="text" [(ngModel)]="formModel.localisation"
+                   placeholder="Ex : Bizerte, Tunisie">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="fr-approche">Type d'approche *</label>
+            <select id="fr-approche" [(ngModel)]="formModel.approche" (ngModelChange)="onApprocheChange()">
+              <option *ngFor="let a of approches" [value]="a">
+                {{ emojiApproche(a) }} {{ libelleApproche(a) }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="fr-quantite">
+              {{ formModel.approche === 'Par site' ? 'Nombre de sites franchisés *'
+                 : formModel.approche === 'Monétaire' ? 'Chiffre d\'affaires / redevances *'
+                 : 'Consommation du réseau *' }}
+            </label>
+            <input id="fr-quantite" type="number" step="any" [(ngModel)]="formModel.quantite"
+                   (ngModelChange)="onSaisieChange()" placeholder="Ex : 12">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="fr-unite">Unité</label>
+            <input id="fr-unite" type="text" [value]="uniteCourante" readonly class="readonly-field">
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="fr-facteur">Facteur MS SQL</label>
+          <select id="fr-facteur" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-6' }} / {{ f.unit }})
+            </option>
+          </select>
+        </div>
+
+        <!-- CALCULATRICE EN DIRECT -->
+        <div class="formule-box">
+          <div class="formule-titre">
+            <span aria-hidden="true">💡</span> Formule appliquée &amp; calcul live
+          </div>
+
+          <p class="formule-enonce">
+            Émissions (kgCO₂e) = Nombre de sites × Consommation/Émissions moyennes par site
+          </p>
+
+          <div class="formule-etape"
+               *ngIf="grandeurPrevisionnelle !== null && facteurCourant.valeur !== null">
+            <span>
+              {{ grandeurPrevisionnelle | number:'1.0-2' }} {{ uniteCourante }} ×
+              {{ facteurCourant.valeur | number:'1.0-6' }} kgCO₂e/{{ facteurCourant.unite }}
+              ({{ facteurCourant.origine === 'MS SQL BDD' ? 'MS SQL' : 'repli ADEME' }}) =
+            </span>
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <p class="formule-enonce" *ngIf="grandeurPrevisionnelle === null">
+            {{ formModel.approche === 'Par site'
+                ? 'Renseignez le nombre de sites franchisés pour voir le calcul.'
+                : formModel.approche === 'Monétaire'
+                  ? 'Renseignez le chiffre d\'affaires ou les redevances pour voir le calcul.'
+                  : 'Renseignez la consommation du réseau pour voir le calcul.' }}
+          </p>
+
+          <div class="formule-resultat">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="facteurCourant.origine === 'ADEME'">
+            <span class="origine-repli">Facteur de repli</span>
+            <span>{{ facteurCourant.libelle }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer le réseau franchisé</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Colonnes obligatoires : <strong>Franchisé</strong> (ou <em>Nom</em>, <em>Site</em>,
+          <em>Enseigne</em>) et <strong>Quantité</strong> (ou <em>Nombre de sites</em>, <em>CA</em>).
+        </p>
+        <p class="import-hint">
+          <strong>Référence</strong>, <strong>Localisation</strong> et <strong>Approche</strong>
+          sont facultatifs : à défaut de mention, l'approche par site est retenue et la référence
+          est engendrée.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS D'IMPORT -->
+  <div class="toast-pile" *ngIf="toastMessage">
+    <div class="toast" role="status">
+      <span aria-hidden="true">✅</span>
+      <span>{{ toastMessage }}</span>
+      <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="toast toast-repli" *ngIf="toastSecondaire" role="status">
+      <span aria-hidden="true">⚠️</span>
+      <span>{{ toastSecondaire }}</span>
+    </div>
+  </div>
+
+</div>

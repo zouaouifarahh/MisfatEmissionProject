@@ -1,0 +1,238 @@
+@import "../../shared/styles/scope1-theme.css";
+
+/* ==========================================================================
+   Biens d'équipement — Scope 3, catégorie 2
+   Le thème partagé est piloté par variables : les redéfinir suffit à basculer
+   l'écran en bleu Scope 3. Aucune règle n'est recopiée.
+   ========================================================================== */
+
+:host {
+    display: block;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+    /* Bleu Scope 3, aux teintes du tableau de bord. */
+    --sc1: #1E3A52;          /* bandeaux pleins, boutons d'action */
+    --sc1-vif: #1E92CD;      /* survols, contours de focus */
+    --sc1-pale: #EFF6FA;     /* fonds doux : cartouche, pastilles */
+    --sc1-bord: #CFE4F0;
+
+    --sc1-total: #1B364A;
+
+    --sc1-texte: #1E293B;
+    --sc1-texte-2: #475569;
+    --sc1-texte-3: #94A3B8;
+    --sc1-ligne: #E2E8F0;
+    --sc1-ligne-douce: #EEF2F7;
+}
+
+.emission-container { display: flex; flex-direction: column; gap: 14px; }
+
+.ref-warning {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+}
+
+.emission-card {
+    background: #ffffff;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+}
+
+/* Les libellés de catégorie d'équipement sont longs : le tableau défile dans
+   son cadre plutôt que d'élargir la page. */
+.table-container { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 1300px; }
+
+.cell-strong { font-weight: 600; color: var(--sc1-texte); }
+.periode { white-space: nowrap; font-size: 11.5px; }
+
+/* Deux colonnes textuelles longues : on borne leur largeur et on tronque. */
+.cat-cell, .etiquette-cell {
+    max-width: 230px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.etiquette-cell { color: var(--sc1-texte-2); font-style: italic; }
+
+/* Base du facteur : les intitulés vont de « Ecoinvent » à
+   « derived from UN 2024 and IPCC 2019 ». On borne la largeur et on tronque,
+   l'intitulé complet restant accessible en infobulle. */
+.base-cell { max-width: 170px; }
+
+.base-badge {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sc1);
+    background: var(--sc1-pale);
+    border: 1px solid var(--sc1-bord);
+}
+
+/* ---------- Sélecteur de catégorie d'équipement ---------- */
+
+/* Le panneau est en position absolue : le champ lui sert de repère. */
+.form-group-cat { position: relative; }
+
+.cat-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--sc1-texte);
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.cat-trigger:hover { border-color: var(--sc1-vif); }
+.cat-caret { color: var(--sc1-texte-3); font-size: 10px; }
+
+.cat-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: #ffffff;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    padding: 8px;
+}
+
+.cat-search {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 12.5px;
+    font-family: inherit;
+    margin-bottom: 6px;
+    color: var(--sc1-texte);
+}
+
+.cat-search:focus { outline: 2px solid var(--sc1-vif); outline-offset: 1px; }
+
+/* La liste défile plutôt que de couvrir l'écran. */
+.cat-list { max-height: 240px; overflow-y: auto; }
+.cat-list::-webkit-scrollbar { width: 5px; }
+.cat-list::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+
+.cat-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--sc1-texte);
+    cursor: pointer;
+}
+
+.cat-option:hover { background: #F8FAFC; }
+.cat-option-active { background: var(--sc1-pale); font-weight: 600; }
+.cat-empty { margin: 0; padding: 14px; text-align: center; font-size: 12px; color: var(--sc1-texte-3); }
+
+/* Mode de valorisation non documenté pour la catégorie retenue. */
+.mode-warning {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 600;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+}
+
+/* ---------- Récapitulatif du facteur ---------- */
+
+.preview-title {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--sc1); margin-bottom: 9px;
+}
+
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.preview-grid > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.preview-grid span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--sc1-texte-3); }
+
+.preview-grid strong {
+    font-size: 12.5px; font-weight: 700; color: var(--sc1-texte);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.preview-total {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--sc1-bord);
+    font-size: 12px; font-weight: 600; color: var(--sc1-texte-2);
+}
+
+.preview-total strong {
+    font-size: 19px; font-weight: 800; color: var(--sc1-vif);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Hypothèse ---------- */
+
+.hypothesis-section { display: flex; flex-direction: column; gap: 8px; }
+
+.hypothesis-section > label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.7px;
+    text-transform: uppercase; color: var(--sc1-texte-3);
+}
+
+/* ---------- Import ---------- */
+
+.import-hint { margin: 0; font-size: 12.5px; color: var(--sc1-texte-2); line-height: 1.55; }
+
+.file-input {
+    border: 1px dashed var(--sc1-ligne); border-radius: 9px; padding: 14px;
+    font-size: 12.5px; width: 100%; background: #F8FAFC;
+}
+
+.import-ok, .import-ko { padding: 10px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 600; }
+.import-ok { color: #2F7D50; background: #EEF7F2; border: 1px solid #CBEBD8; }
+.import-ko { color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2; }
+
+/* ---------- Identifiants ERP et qualité du rapprochement ---------- */
+
+/* Code article de l'ERP : identifiant de gestion, en chasse fixe pour que
+   « 29.55.498G » se relise sans ambiguïté. */
+.erp-cell {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 11.5px;
+    color: #475569;
+    white-space: nowrap;
+}
+
+/* Référence obtenue par rapprochement de libellé : c'est une interprétation,
+   et elle se distingue d'une référence lue telle quelle dans le registre. */
+.ref-approx {
+    border-style: dashed !important;
+    opacity: 0.85;
+}
+
+/* Compte rendu du re-rapprochement : il informe d'une correction déjà faite,
+   il n'avertit de rien — d'où une teinte distincte de l'avertissement. */
+.ref-migration {
+    color: #0F6E56 !important;
+    background: #E1F5EE !important;
+    border-color: #C7EBD9 !important;
+}

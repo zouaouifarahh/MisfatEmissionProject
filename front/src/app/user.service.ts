@@ -23,22 +23,17 @@ export class UserService {
     }
   }
 
-  // 1. Inscription (Soumission de la demande - Nom mis en accord avec signup.ts)
-  signUp(user: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/signup`, user);
-  }
-
-  // 2. Connexion 
+  // 1. Connexion
   signIn(credentials: { username: string }): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/signin`, credentials);
   }
 
-  // 3. Récupérer tous les utilisateurs (pour le filtrage EN_ATTENTE)
+  // 2. Récupérer tous les utilisateurs (pour le filtrage EN_ATTENTE)
   getUsers(): Observable<any[]> {
     return this.http.get<any[]>(this.apiUrl);
   }
 
-  // 4. Approbation (1 seul argument attendu)
+  // 3. Approbation (1 seul argument attendu)
   approveUser(id: number): Observable<string> {
     return this.http.put(`${this.apiUrl}/${id}/approve`, {}, { responseType: 'text' });
   }

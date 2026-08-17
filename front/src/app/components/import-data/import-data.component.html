@@ -1,0 +1,306 @@
+<div class="import-page">
+
+  <div class="page-title">
+    <h1>Import du référentiel carbone</h1>
+    <p>Déposez le classeur MISFAT : les facteurs et sources d'émission sont mis à jour automatiquement.</p>
+  </div>
+
+  <!-- ============ BLOC 1 : GABARIT ============ -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step">1</span>
+      <div>
+        <h2>Gabarit officiel</h2>
+        <p>Structure attendue par le moteur d'import.</p>
+      </div>
+      <div class="entity-badge">
+        <app-flag-icon *ngIf="entite" [code]="entite.flag" [size]="20"></app-flag-icon>
+        <span>{{ entite?.label }}</span>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="colonnes">
+        <span class="colonne-chip" *ngFor="let c of colonnesGabarit">{{ c }}</span>
+      </div>
+
+      <button type="button" class="btn-outline" (click)="telechargerGabarit()">
+        📥 Télécharger le gabarit Excel (.xlsx)
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ BLOC 2 : DÉPÔT ============ -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step">2</span>
+      <div>
+        <h2>Dépôt du fichier</h2>
+        <p>Glissez le classeur ou parcourez votre poste.</p>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="dropzone"
+           [class.dropzone-active]="survol"
+           [class.dropzone-filled]="fichier"
+           (dragover)="onDragOver($event)"
+           (dragleave)="onDragLeave($event)"
+           (drop)="onDrop($event)">
+
+        <ng-container *ngIf="!fichier">
+          <svg class="dz-icon" viewBox="0 0 64 48" aria-hidden="true">
+            <path d="M50 44H16C8.8 44 3 38.2 3 31c0-6.5 4.8-11.9 11-12.8C15.6 9.9 23 3.5 32 3.5c9.6 0 17.6 7.2 18.8 16.6C57.2 21.2 61 25.7 61 31c0 7.2-5.8 13-11 13z"
+                  fill="#eef2f7" stroke="#cbd5e1" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M32 38V22M32 22l-6 6M32 22l6 6" fill="none" stroke="#F97316" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="dz-title">Glissez le classeur Excel ici</p>
+          <p class="dz-sub">ou</p>
+          <label class="btn-primary">
+            Parcourir
+            <input type="file" hidden [accept]="extensionsAcceptees.join(',')" (change)="onFileSelected($event)">
+          </label>
+          <p class="dz-formats">{{ extensionsAcceptees.join(' · ') }} — {{ tailleMaxMo }} Mo maximum</p>
+        </ng-container>
+
+        <ng-container *ngIf="fichier">
+          <div class="file-line">
+            <span class="file-icon">📄</span>
+            <div class="file-meta">
+              <span class="file-name">{{ fichier.name }}</span>
+              <span class="file-size">{{ formaterTaille(fichier.size) }}</span>
+            </div>
+            <button type="button" class="btn-link" (click)="retirerFichier()" [disabled]="etat === 'upload'">Retirer</button>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="progress-block" *ngIf="etat === 'upload' || etat === 'traitement'">
+        <div class="progress-track">
+          <div class="progress-fill" [class.indeterminate]="etat === 'traitement'"
+               [style.width.%]="etat === 'traitement' ? 100 : progression"></div>
+        </div>
+        <span class="progress-label">
+          {{ etat === 'traitement' ? 'Lecture du classeur et mise à jour de la base…' : 'Envoi ' + progression + ' %' }}
+        </span>
+      </div>
+
+      <div class="alert alert-success" *ngIf="etat === 'succes'"><strong>Import terminé.</strong> {{ message }}</div>
+      <div class="alert alert-error" *ngIf="etat === 'erreur'"><strong>Import non abouti.</strong> {{ message }}</div>
+
+      <!-- VENTILATION AUTOMATIQUE VERS LES CATÉGORIES -->
+      <div class="ventilation-attente" *ngIf="ventilationEnCours">
+        <span aria-hidden="true">🔀</span> Ventilation des lignes comptables en cours…
+      </div>
+
+      <div class="ventilation-bloc" *ngIf="resumeVentilation">
+        <div class="ventilation-entete">
+          <span class="ventilation-icone" aria-hidden="true">🔀</span>
+          <div class="ventilation-titres">
+            <p class="ventilation-resume">{{ resumeVentilation }}</p>
+            <p class="ventilation-detail">
+              {{ detailVentilation }}
+              <span *ngIf="ventilation?.exclues">
+                · {{ ventilation!.exclues }} poste(s) écarté(s) du bilan
+              </span>
+              <span *ngIf="ventilation?.nonVentilees">
+                · {{ ventilation!.nonVentilees }} à qualifier
+              </span>
+            </p>
+          </div>
+          <span class="ventilation-total">{{ totalEmissionsVentilees | number:'1.0-0' }} kgCO₂e</span>
+        </div>
+
+        <div class="ventilation-tuiles">
+          <div class="ventilation-tuile" *ngFor="let s of syntheseVentilation">
+            <span class="tuile-icone" aria-hidden="true">{{ s.icone }}</span>
+            <div class="tuile-corps">
+              <span class="tuile-nom">{{ s.libelle }}</span>
+              <span class="tuile-chiffres">
+                {{ s.lignes }} ligne(s) · {{ s.montant | number:'1.0-0' }} TND
+              </span>
+              <strong class="tuile-emission">{{ s.emissionKg | number:'1.0-0' }} kgCO₂e</strong>
+            </div>
+          </div>
+        </div>
+
+        <p class="ventilation-aide">
+          Ces lignes sont désormais visibles en tête de chaque catégorie du menu « Mesure »,
+          sans nouvel import.
+          <button type="button" class="btn-link" (click)="viderVentilation()">Vider la ventilation</button>
+        </p>
+      </div>
+
+      <div class="alert alert-warning" *ngIf="diagnosticVentilation">
+        <strong>Ventilation :</strong> {{ diagnosticVentilation }}
+      </div>
+
+      <div class="alert alert-warning" *ngIf="avertissementPersistance">
+        <strong>Mémorisation :</strong> {{ avertissementPersistance }}
+      </div>
+
+      <div class="result-detail" *ngIf="dernierLog?.errorDetail">
+        <p class="result-detail-title">Lignes écartées</p>
+        <p class="result-detail-body">{{ dernierLog!.errorDetail }}</p>
+      </div>
+
+      <div class="actions-row">
+        <button type="button" class="btn-primary" [disabled]="!pretAEnvoyer" (click)="envoyer()">
+          {{ etat === 'upload' || etat === 'traitement' ? 'Import en cours…' : "Lancer l'import" }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BLOC 3 : HISTORIQUE ============ -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step">3</span>
+      <div>
+        <h2>Historique des imports</h2>
+        <p>{{ historiqueComplet.length }} dépôt(s) enregistré(s).</p>
+      </div>
+      <button type="button" class="btn-ghost" (click)="chargerHistorique()">Actualiser</button>
+      <button type="button" class="btn-ghost" *ngIf="historiqueVentilation.length"
+              (click)="viderHistoriqueLocal()">Effacer les ventilations</button>
+    </div>
+
+    <div class="card-body">
+      <div class="state" *ngIf="chargementHistorique">Chargement de l'historique…</div>
+
+      <div class="table-wrap" *ngIf="!chargementHistorique">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date &amp; Heure</th>
+              <th>Nom du fichier</th>
+              <th class="ta-center">Nb lignes traitées</th>
+              <th>Statut</th>
+              <th class="ta-center">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of historiqueComplet" [class.ligne-locale]="estEntreeLocale(log)">
+              <td class="nowrap">{{ log.importDate | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+              <td class="cell-strong" [title]="log.fileName">
+                {{ log.fileName }}
+                <small class="origine-locale" *ngIf="estEntreeLocale(log)">ventilation locale</small>
+              </td>
+              <td class="ta-center nowrap">
+                <span class="count-ok">{{ lignesTraitees(log) }}</span>
+                <small class="count-total">{{ estEntreeLocale(log) ? "ligne(s) ventilée(s)" : log.createdFactors + " facteur(s) créé(s)" }}</small>
+              </td>
+              <td><span class="pill" [ngClass]="classeStatut(log.status)">{{ libelleStatut(log.status) }}</span></td>
+              <td class="ta-center">
+                <button type="button" class="icon-btn" (click)="voirDetails(log)"
+                        title="Voir les détails du dépôt">👁️</button>
+                <button type="button" class="icon-btn icon-btn-danger"
+                        (click)="supprimerDepot(log)"
+                        title="Supprimer ce dépôt et les lignes qu'il a produites">🗑️</button>
+              </td>
+            </tr>
+            <tr *ngIf="!historiqueComplet.length">
+              <td colspan="5" class="cell-empty">Aucun import enregistré.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Détail d'un import -->
+<div class="modal-overlay" *ngIf="logDetaille" (click)="fermerDetails()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header class="modal-head">
+      <h3>Détail de l'import</h3>
+      <button type="button" class="btn-close" (click)="fermerDetails()">✕</button>
+    </header>
+    <div class="modal-body">
+      <dl class="detail-list">
+        <div><dt>Fichier</dt><dd>{{ logDetaille.fileName }}</dd></div>
+        <div><dt>Date</dt><dd>{{ logDetaille.importDate | date:'dd/MM/yyyy HH:mm:ss' }}</dd></div>
+        <div><dt>Statut</dt><dd><span class="pill" [ngClass]="classeStatut(logDetaille.status)">{{ libelleStatut(logDetaille.status) }}</span></dd></div>
+        <div><dt>Lignes lues</dt><dd>{{ logDetaille.totalRows }}</dd></div>
+
+        <!-- Une ventilation ne crée ni référence ni facteur : afficher ces
+             compteurs à zéro ferait croire à un import raté. -->
+        <ng-container *ngIf="!estEntreeLocale(logDetaille)">
+          <div><dt>Références créées</dt><dd>{{ logDetaille.createdReferences }}</dd></div>
+          <div><dt>Sources créées</dt><dd>{{ logDetaille.createdSources }}</dd></div>
+          <div><dt>Facteurs créés</dt><dd>{{ logDetaille.createdFactors }}</dd></div>
+          <div><dt>Erreurs</dt><dd>{{ logDetaille.errorCount }}</dd></div>
+        </ng-container>
+
+        <ng-container *ngIf="estEntreeLocale(logDetaille)">
+          <div><dt>Lignes ventilées</dt><dd>{{ lignesTraitees(logDetaille) }}</dd></div>
+          <div><dt>Écartées du bilan</dt><dd>{{ ecarteesDe(logDetaille) }}</dd></div>
+          <div><dt>À qualifier</dt><dd>{{ logDetaille.errorCount }}</dd></div>
+          <div><dt>Exercice</dt><dd>{{ exerciceDe(logDetaille) || '—' }}</dd></div>
+          <div><dt>Total</dt><dd><strong>{{ totalDetaille / 1000 | number:'1.0-3' }} tCO₂e</strong></dd></div>
+        </ng-container>
+      </dl>
+      <!-- Répartition produite par le dépôt -->
+      <div class="detail-repartition" *ngIf="repartitionDetaillee.length">
+        <p class="detail-section-title">Répartition par scope et catégorie</p>
+
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th>Scope</th>
+              <th>Catégorie</th>
+              <th class="ta-center">Lignes</th>
+              <th class="ta-right">tCO₂e</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let poste of repartitionDetaillee">
+              <td><span class="pill-scope">{{ poste.scope.replace('_', ' ') }}</span></td>
+              <td>{{ poste.icone }} {{ poste.categorie }}</td>
+              <td class="ta-center">{{ poste.lignes }}</td>
+              <td class="ta-right">{{ poste.emissionKg / 1000 | number:'1.0-3' }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">Total du dépôt</td>
+              <td class="ta-center">{{ lignesTraitees(logDetaille) }}</td>
+              <td class="ta-right">{{ totalDetaille / 1000 | number:'1.0-3' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Un dépôt de référentiel n'a pas vocation à être ventilé : le dire
+           plutôt que d'afficher un tableau vide. -->
+      <p class="detail-vide" *ngIf="estEntreeLocale(logDetaille) && !repartitionDetaillee.length">
+        La répartition de ce dépôt n'a pas été mémorisée et le magasin détient
+        désormais un autre classeur. Relancez l'import pour la reconstituer.
+      </p>
+
+      <!-- Avertissements & qualification : ce qui reste à compléter -->
+      <div class="detail-qualification" *ngIf="avertissementsDetailles.length">
+        <p class="detail-section-title">Avertissements &amp; qualification</p>
+
+        <div class="qualif-ligne" *ngFor="let avertissement of avertissementsDetailles">
+          <span class="qualif-icone" aria-hidden="true">⚠️</span>
+          <span class="qualif-texte">{{ avertissement }}</span>
+        </div>
+      </div>
+
+      <div class="detail-errors" *ngIf="logDetaille.errorDetail">
+        <p class="detail-errors-title">
+          {{ logDetaille.status === 'FAILED' ? 'Motifs de rejet' : 'Lignes non traitées' }}
+        </p>
+        <p class="detail-errors-body">{{ logDetaille.errorDetail }}</p>
+      </div>
+
+      <div class="detail-actions" *ngIf="estEntreeLocale(logDetaille)">
+        <button type="button" class="btn-danger" (click)="supprimerDepot(logDetaille)">
+          🗑️ Supprimer ce dépôt et ses lignes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

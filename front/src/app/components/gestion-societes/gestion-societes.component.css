@@ -1,0 +1,397 @@
+/* Gestion des sociétés — style Soft SaaS, aligné sur la charte MISFAT. */
+
+.gs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px;
+}
+
+.gs-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.gs-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #64748B;
+  max-width: 720px;
+}
+
+/* ---------- Cartes ---------- */
+
+.gs-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.gs-card-flush { padding: 0; overflow: hidden; }
+
+.gs-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.gs-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.gs-hint { font-size: 11.5px; color: #94A3B8; }
+
+.gs-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: #C2410C;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+}
+
+/* ---------- Formulaire ---------- */
+
+.gs-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.gs-field { display: flex; flex-direction: column; gap: 5px; }
+
+.gs-field label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+
+.gs-field input,
+.gs-field select {
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: #1E293B;
+  background: #FFFFFF;
+  font-family: inherit;
+}
+
+.gs-field input:focus,
+.gs-field select:focus {
+  outline: 2px solid #FDBA74;
+  outline-offset: 1px;
+  border-color: #F97316;
+}
+
+.gs-actions { flex-direction: row; gap: 8px; }
+
+.gs-btn-submit,
+.gs-btn-cancel,
+.gs-btn-danger {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.15s ease;
+}
+
+.gs-btn-submit { background: #F97316; color: #FFFFFF; }
+.gs-btn-cancel { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
+.gs-btn-danger { background: #DC2626; color: #FFFFFF; }
+.gs-btn-submit:hover,
+.gs-btn-danger:hover { filter: brightness(1.07); }
+.gs-btn-cancel:hover { background: #E2E8F0; }
+
+/* ---------- Sélecteur de pays ---------- */
+
+/* Le panneau est en position absolue : le champ doit servir de repère. */
+.gs-field-pays { position: relative; }
+
+.gs-pays-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: #1E293B;
+  background: #FFFFFF;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.gs-pays-trigger:hover { border-color: #FDBA74; }
+.gs-pays-caret { color: #94A3B8; font-size: 10px; }
+
+.gs-pays-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  padding: 8px;
+  min-width: 250px;
+}
+
+.gs-pays-search {
+  width: 100%;
+  border: 1px solid #E2E8F0;
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  margin-bottom: 6px;
+  color: #1E293B;
+}
+
+.gs-pays-search:focus { outline: 2px solid #FDBA74; outline-offset: 1px; }
+
+.gs-pays-list { max-height: 240px; overflow-y: auto; }
+.gs-pays-list::-webkit-scrollbar { width: 5px; }
+.gs-pays-list::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+
+.gs-pays-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: #1E293B;
+  cursor: pointer;
+  text-align: left;
+}
+
+.gs-pays-option:hover { background: #F8FAFC; }
+.gs-pays-option-active { background: #FFF7ED; font-weight: 600; }
+.gs-pays-name { flex: 1; }
+.gs-pays-code { font-size: 10px; font-weight: 700; color: #94A3B8; }
+.gs-pays-empty { margin: 0; padding: 14px; text-align: center; font-size: 12px; color: #94A3B8; }
+
+/* ---------- Usines ---------- */
+
+.gs-usine-count {
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  border-radius: 7px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #475569;
+  cursor: pointer;
+}
+
+.gs-usine-count:hover { background: #FFF7ED; border-color: #F97316; color: #C2410C; }
+
+.gs-usines { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+
+.gs-usine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 9px;
+  background: #F8FAFC;
+}
+
+.gs-usine-info { display: flex; flex-direction: column; gap: 2px; }
+.gs-usine-nom { font-size: 12.5px; font-weight: 600; color: #1E293B; }
+.gs-usine-lieu { font-size: 11px; color: #94A3B8; }
+
+/* ---------- Tableau ---------- */
+
+.gs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #E2E8F0;
+  background: #F8FAFC;
+}
+
+.gs-toolbar-title { font-size: 13px; font-weight: 700; color: #1E293B; }
+.gs-count { font-size: 11.5px; color: #64748B; }
+
+/* Le tableau défile dans son propre conteneur : la page ne part jamais
+   en défilement horizontal sur petit écran. */
+.gs-table-wrap { overflow-x: auto; }
+
+.gs-table { width: 100%; border-collapse: collapse; }
+
+.gs-table thead th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94A3B8;
+  padding: 9px 12px;
+  border-bottom: 1px solid #E2E8F0;
+  white-space: nowrap;
+}
+
+.gs-table tbody td {
+  font-size: 12.5px;
+  color: #475569;
+  padding: 9px 12px;
+  border-bottom: 1px solid #F1F5F9;
+  white-space: nowrap;
+}
+
+.gs-table tbody tr:hover { background: #F8FAFC; }
+.gs-table tbody tr:last-child td { border-bottom: none; }
+
+.gs-name { font-weight: 600; color: #1E293B; }
+.gs-right { text-align: right; }
+.gs-num { text-align: center; font-variant-numeric: tabular-nums; }
+
+.gs-code,
+.gs-currency {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.gs-code { color: #0369A1; background: #F0F9FF; border: 1px solid #BAE6FD; }
+.gs-currency { color: #15803D; background: #F0FDF4; border: 1px solid #BBF7D0; }
+
+.gs-empty {
+  text-align: center;
+  color: #94A3B8;
+  font-size: 12.5px;
+  padding: 22px 12px;
+}
+
+/* ---------- Icônes d'action ---------- */
+
+.gs-row-actions,
+.gs-year-actions { display: inline-flex; gap: 6px; }
+
+.gs-icon {
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.gs-icon:hover { background: #FFF7ED; border-color: #F97316; }
+.gs-icon-danger:hover { background: #FEF2F2; border-color: #EF4444; }
+
+/* ---------- Exercices ---------- */
+
+.gs-year-add { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+
+.gs-year-add input {
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  width: 120px;
+  font-family: inherit;
+  color: #1E293B;
+}
+
+.gs-years { display: flex; flex-wrap: wrap; gap: 9px; }
+
+.gs-year {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #F8FAFC;
+}
+
+.gs-year-active { border-color: #FDBA74; background: #FFF7ED; }
+
+.gs-year-value { font-size: 14px; font-weight: 700; color: #1E293B; font-variant-numeric: tabular-nums; }
+.gs-year-status { font-size: 10.5px; font-weight: 600; color: #64748B; }
+.gs-year-active .gs-year-status { color: #C2410C; }
+
+/* ---------- Toast ---------- */
+
+.gs-toast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.gs-toast-success { color: #15803D; background: #F0FDF4; border-color: #BBF7D0; }
+.gs-toast-danger  { color: #B91C1C; background: #FEF2F2; border-color: #FECACA; }
+.gs-toast-info    { color: #0369A1; background: #F0F9FF; border-color: #BAE6FD; }
+
+/* ---------- Modale ---------- */
+
+.gs-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.gs-modal {
+  background: #FFFFFF;
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22);
+}
+
+.gs-modal-icon { font-size: 32px; }
+.gs-modal-title { margin: 10px 0 6px; font-size: 16px; font-weight: 700; color: #1E293B; }
+.gs-modal-text { margin: 0 0 18px; font-size: 13px; color: #64748B; }
+.gs-modal-actions { display: flex; gap: 9px; justify-content: center; }

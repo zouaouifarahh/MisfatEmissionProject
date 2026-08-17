@@ -1,0 +1,1662 @@
+/**
+ * Rapport carbone exécutif.
+ *
+ * <p>Deux mises en page cohabitent : celle de l'écran, où le panneau de
+ * configuration précède le document, et celle du papier, où seul le document
+ * subsiste. Les dimensions du document sont données en millimètres pour que la
+ * page à l'écran annonce fidèlement la page imprimée.</p>
+ */
+
+:host {
+  --misfat-encre: #1E3A52;
+  --misfat-orange: #EF8B44;
+  --misfat-orange-fonce: #C35014;
+  --misfat-vert: #218746;
+  --misfat-sable: #FCF4EE;
+  --misfat-azur: #EFF6FA;
+  --bordure: #CFE4F0;
+  --gris: #64748B;
+  --gris-clair: #E2E8F0;
+
+  display: block;
+  padding: 8px 4px 40px;
+}
+
+/* ============================= PANNEAU DE CONFIGURATION ============================= */
+
+.rep-config {
+  background: #ffffff;
+  border: 1px solid var(--bordure);
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(30, 58, 82, .08);
+  margin-bottom: 26px;
+  overflow: hidden;
+}
+
+.cfg-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, var(--misfat-encre), #2C5578);
+  color: #ffffff;
+}
+
+.cfg-head h2 {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.cfg-head-titre p {
+  margin: 0;
+  font-size: .85rem;
+  color: #CFE4F0;
+  max-width: 70ch;
+}
+
+.cfg-head-titre strong { color: #ffffff; }
+
+.cfg-head-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cfg-lien {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .45);
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: .8rem;
+  cursor: pointer;
+}
+
+.cfg-lien:hover { background: rgba(255, 255, 255, .12); }
+
+.cfg-imprimer {
+  background: var(--misfat-orange);
+  border: none;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(239, 139, 68, .4);
+}
+
+.cfg-imprimer:hover { background: var(--misfat-orange-fonce); }
+.cfg-imprimer:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- Bascule de langue ----------
+   Segmented control : les deux langues sont visibles en permanence, celle en
+   vigueur est enfoncée. Un menu déroulant aurait caché l'état courant. */
+.cfg-langue {
+    display: inline-flex;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.cfg-langue-btn {
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #475569;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cfg-langue-btn:hover { color: #0f172a; background: rgba(255, 255, 255, 0.7); }
+
+.cfg-langue-btn.actif {
+    color: #0f172a;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16);
+}
+
+.cfg-langue-btn:focus-visible { outline: 2px solid #EF8B44; outline-offset: 1px; }
+
+/* La bascule est une commande d'écran : elle ne s'imprime pas. */
+@media print { .cfg-langue { display: none !important; } }
+
+/* ---------- Filtres du rapport : pays et exercice ---------- */
+
+.cfg-filtres {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.cfg-filtre { display: flex; flex-direction: column; gap: 4px; }
+
+.cfg-filtre > span {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #475569;
+}
+
+.cfg-filtre select {
+    min-width: 210px;
+    padding: 6px 9px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: #0f172a;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+
+.cfg-filtre-note { font-size: 11.5px; color: #64748b; padding-bottom: 7px; }
+
+.cfg-erreur { color: #A32B21; font-size: 12px; font-weight: 600; margin: 8px 0 0; }
+
+/* ==========================================================================
+   FEUILLES A4 DU RAPPORT EXHAUSTIF
+   Les sections longues sont posées sur des feuilles distinctes, pour que le
+   document se lise à l'écran comme il sortira de l'imprimante.
+   ========================================================================== */
+
+.report-page {
+    background: #fff;
+    padding: 40px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    min-height: 1000px;
+    /* La largeur d'une A4 : au-delà, les tableaux s'étireraient au point de
+       ne plus correspondre à la page imprimée. */
+    max-width: 210mm;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 4px;
+}
+
+/* Un tableau coupé entre deux pages perd son en-tête : les lignes et les
+   blocs d'analyse restent solidaires. */
+.report-page .doc-tableau,
+.report-page .doc-tableau-simple,
+.report-page .doc-encadre { break-inside: avoid; }
+
+.report-page .doc-alerte { color: #A32B21; font-weight: 600; }
+
+.report-page .doc-note {
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #64748b;
+    border-left: 3px solid #e2e8f0;
+    padding-left: 12px;
+    margin: 14px 0 0;
+}
+
+/* Une section majeure occupe une feuille A4 pleine, pour que le défilement à
+   l'écran corresponde au découpage du PDF. */
+.report-section { min-height: 297mm; }
+
+.report-page .doc-para {
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: #1f2937;
+    margin: 0 0 12px;
+    text-align: justify;
+}
+
+/* Fiche descriptive d'un levier : bloc qui ne doit jamais être coupé. */
+.doc-fiche {
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid var(--misfat-orange, #EF8B44);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 0 0 14px;
+    background: #fcfdfe;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.doc-fiche h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.doc-fiche p {
+    margin: 0 0 7px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.doc-fiche .doc-note { margin-top: 9px; }
+
+.report-page code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 11.5px;
+    background: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+@media print {
+    .report-page {
+        page-break-after: always;
+        break-after: page;
+        box-shadow: none;
+        margin: 0;
+        padding: 20mm;
+        min-height: auto;
+        max-width: none;
+        border-radius: 0;
+    }
+
+    .report-section {
+        page-break-after: always;
+        break-after: page;
+        /* La hauteur d'écran ne s'impose plus à l'impression : le contenu
+           décide du nombre de feuilles, et une section courte n'entraîne pas
+           de page blanche. */
+        min-height: auto;
+    }
+
+    /* La dernière feuille n'entraîne pas de page blanche derrière elle. */
+    .report-page:last-child,
+    .report-section:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    .doc-fiche {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        background: #fff;
+    }
+
+    .report-page .doc-tableau tr,
+    .report-page .doc-tableau-simple tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .report-page .tableau-titre {
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+}
+
+.cfg-corps { padding: 20px 24px 24px; }
+
+.cfg-barre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--gris-clair);
+}
+
+.cfg-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.cfg-btn {
+  border: 1px solid var(--bordure);
+  background: var(--misfat-azur);
+  color: var(--misfat-encre);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cfg-btn:hover { border-color: var(--misfat-encre); }
+
+.cfg-btn-primaire {
+  background: var(--misfat-vert);
+  border-color: var(--misfat-vert);
+  color: #ffffff;
+}
+
+.cfg-btn-primaire:hover { background: #1a6d38; }
+
+.cfg-btn-neutre { background: #ffffff; color: var(--gris); }
+
+.cfg-compte {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--gris);
+}
+
+.cfg-compte strong { color: var(--misfat-encre); font-size: 1rem; }
+
+.cfg-champs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 18px 0 4px;
+}
+
+.cfg-champs label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 260px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--gris);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.cfg-champs input {
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: .9rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--misfat-encre);
+}
+
+.cfg-champs input:focus {
+  outline: none;
+  border-color: var(--misfat-orange);
+  box-shadow: 0 0 0 3px rgba(239, 139, 68, .18);
+}
+
+/* Données d'activité : champs plus courts, six par ligne sur écran large. */
+.cfg-champs-activite {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--gris-clair);
+}
+
+.cfg-champs-activite label { flex: 1 1 150px; }
+
+.cfg-scopes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.cfg-scope {
+  border: 1px solid var(--gris-clair);
+  border-top: 4px solid var(--scope-couleur, var(--misfat-encre));
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cfg-scope-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--misfat-azur);
+  border-bottom: 1px solid var(--gris-clair);
+}
+
+.cfg-scope-total {
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--scope-couleur, var(--misfat-encre));
+  white-space: nowrap;
+}
+
+.cfg-case {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.cfg-case input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--scope-couleur, var(--misfat-vert));
+  cursor: pointer;
+  flex: none;
+}
+
+.cfg-case-texte { display: flex; flex-direction: column; }
+.cfg-case-texte strong { font-size: .92rem; color: var(--misfat-encre); }
+.cfg-case-texte small { font-size: .7rem; color: var(--gris); }
+
+.cfg-postes {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.cfg-postes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: .82rem;
+  color: var(--gris);
+}
+
+.cfg-postes li + li { margin-top: 2px; }
+.cfg-poste-actif { color: var(--misfat-encre); }
+.cfg-poste-retenu { background: var(--misfat-sable); }
+
+.cfg-poste-libelle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1.25;
+}
+
+.cfg-poste-icone { font-size: .95rem; }
+
+.cfg-ghg {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--misfat-orange-fonce);
+}
+
+.cfg-poste-valeur {
+  font-size: .76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--misfat-encre);
+}
+
+.cfg-zero { color: #94A3B8; font-weight: 500; }
+
+.cfg-note {
+  margin: 18px 0 0;
+  padding: 11px 14px;
+  border-left: 3px solid var(--misfat-orange);
+  background: var(--misfat-sable);
+  border-radius: 0 8px 8px 0;
+  font-size: .8rem;
+  color: var(--misfat-encre);
+}
+
+.rep-chargement {
+  margin: 12px 4px;
+  font-size: .85rem;
+  color: var(--gris);
+}
+
+/* ================================== DOCUMENT ================================== */
+
+.rep-document {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: center;
+}
+
+.rep-page {
+  width: 100%;
+  max-width: 210mm;
+  min-height: 250mm;
+  padding: 16mm 15mm 12mm;
+  background: #ffffff;
+  border: 1px solid var(--gris-clair);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, .10);
+  color: var(--misfat-encre);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- En-tête officiel ---------- */
+
+.doc-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--misfat-orange);
+}
+
+.doc-marque { display: flex; align-items: center; gap: 12px; }
+
+.doc-logo {
+  height: 42px;
+  width: auto;
+  border-radius: 4px;
+}
+
+.doc-marque-texte { display: flex; flex-direction: column; line-height: 1.2; }
+
+.doc-marque-nom {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  color: var(--misfat-encre);
+}
+
+.doc-marque-baseline {
+  font-size: .72rem;
+  color: var(--gris);
+  letter-spacing: .03em;
+}
+
+.doc-reference {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
+}
+
+.doc-ref-cle {
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--gris);
+}
+
+.doc-ref-valeur {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--misfat-orange-fonce);
+}
+
+.doc-titre { margin: 20px 0 16px; }
+
+.doc-titre h1 {
+  margin: 0;
+  font-size: 1.62rem;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -.01em;
+}
+
+.doc-soustitre {
+  margin: 6px 0 0;
+  font-size: .88rem;
+  color: var(--gris);
+}
+
+.doc-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 0 0 22px;
+  background: var(--gris-clair);
+  border: 1px solid var(--gris-clair);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.doc-meta > div { background: var(--misfat-azur); padding: 9px 12px; }
+
+.doc-meta dt {
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--gris);
+  margin-bottom: 3px;
+}
+
+.doc-meta dd {
+  margin: 0;
+  font-size: .84rem;
+  font-weight: 600;
+  color: var(--misfat-encre);
+}
+
+.doc-section {
+  margin: 0 0 12px;
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--misfat-orange-fonce);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.doc-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--bordure);
+}
+
+.doc-section-page { margin-top: 0; }
+
+/* ---------- Bandeau de cartes KPI ---------- */
+
+.doc-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.kpi {
+  border: 1px solid var(--gris-clair);
+  border-left: 4px solid var(--kpi-couleur, var(--misfat-encre));
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.kpi-libelle {
+  font-size: .64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris);
+  line-height: 1.3;
+  min-height: 2.2em;
+}
+
+.kpi-valeur {
+  font-size: 1.42rem;
+  font-weight: 800;
+  color: var(--kpi-couleur, var(--misfat-encre));
+  line-height: 1.1;
+}
+
+.kpi-unite { font-size: .68rem; color: var(--gris); }
+
+.kpi-part {
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--misfat-encre);
+  margin-top: 4px;
+}
+
+.kpi-note { font-size: .62rem; color: var(--gris); }
+
+/* ---------- Ratios d'intensité ---------- */
+
+.doc-ratios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ratio {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--gris-clair);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--misfat-azur);
+}
+
+.ratio-libelle {
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris);
+}
+
+.ratio-valeur {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--misfat-encre);
+  line-height: 1.15;
+}
+
+.ratio-unite { font-size: .64rem; color: var(--gris); }
+
+/* Un dénominateur absent se lit comme une donnée manquante, jamais comme un
+   zéro : le tiret cadratin est grisé et l'infobulle dit quoi renseigner. */
+.ratio-vide { background: #ffffff; border-style: dashed; cursor: help; }
+.ratio-vide .ratio-valeur { color: #94A3B8; }
+
+/* ---------- Trajectoire de décarbonation ---------- */
+
+.doc-trajectoire {
+  border: 1px solid var(--gris-clair);
+  border-left: 4px solid var(--misfat-orange);
+  border-radius: 0 8px 8px 0;
+  padding: 11px 14px 12px;
+  margin-bottom: 20px;
+  background: #ffffff;
+}
+
+.traj-sans-objectif { border-left-color: var(--gris-clair); }
+
+.traj-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.traj-titre {
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--misfat-orange-fonce);
+}
+
+.traj-badge {
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: .72rem;
+  font-weight: 700;
+  background: var(--gris-clair);
+  color: #475569;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.traj-badge-atteint { background: #ECFDF5; color: #065F46; border: 1px solid #6EE7B7; }
+.traj-badge-ecart { background: var(--misfat-sable); color: var(--misfat-orange-fonce); border: 1px solid #F5DCC2; }
+
+.traj-jauge {
+  height: 9px;
+  background: #F1F5F9;
+  border: 1px solid var(--gris-clair);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 7px;
+}
+
+.traj-progression {
+  display: block;
+  height: 100%;
+  background: var(--misfat-vert);
+  border-radius: 999px;
+}
+
+.traj-reperes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .68rem;
+  color: var(--gris);
+}
+
+.traj-reperes strong { color: var(--misfat-encre); }
+
+.traj-lecture {
+  margin: 7px 0 0;
+  font-size: .72rem;
+  line-height: 1.5;
+  color: var(--gris);
+}
+
+/* ---------- Graphiques ---------- */
+
+.doc-graphes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.graphe {
+  margin: 0;
+  border: 1px solid var(--gris-clair);
+  border-radius: 8px;
+  padding: 12px 14px 14px;
+  background: #ffffff;
+}
+
+.graphe figcaption {
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--gris);
+  margin-bottom: 10px;
+}
+
+.graphe-vide {
+  margin: 0;
+  font-size: .78rem;
+  color: var(--gris);
+  line-height: 1.5;
+}
+
+.donut-bloc { display: flex; align-items: center; gap: 12px; }
+
+.donut { width: 120px; height: 120px; flex: none; transform: rotate(-90deg); }
+
+.donut-fond {
+  fill: none;
+  stroke: var(--gris-clair);
+  stroke-width: 16;
+}
+
+.donut-arc {
+  fill: none;
+  stroke-width: 16;
+}
+
+.donut-total,
+.donut-unite {
+  transform: rotate(90deg);
+  transform-origin: 70px 70px;
+  text-anchor: middle;
+  fill: var(--misfat-encre);
+}
+
+.donut-total { font-size: 15px; font-weight: 800; }
+.donut-unite { font-size: 7px; fill: #64748B; letter-spacing: .04em; }
+
+.donut-legende {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.donut-legende li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: .72rem;
+  border-bottom: 1px dotted var(--gris-clair);
+}
+
+.donut-legende li:last-child { border-bottom: none; }
+
+.pastille {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.legende-nom { color: var(--misfat-encre); }
+.legende-valeur { font-weight: 700; white-space: nowrap; }
+.legende-pct { color: var(--gris); white-space: nowrap; min-width: 3.4em; text-align: right; }
+
+.batons { list-style: none; margin: 0; padding: 0; }
+
+.batons li {
+  display: grid;
+  grid-template-columns: minmax(90px, 1.25fr) minmax(0, 2fr) auto auto;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+  font-size: .71rem;
+}
+
+.baton-nom {
+  color: var(--misfat-encre);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.baton-piste {
+  height: 11px;
+  background: #F1F5F9;
+  border-radius: 3px;
+  overflow: hidden;
+  display: block;
+}
+
+.baton-jauge {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.baton-valeur { font-weight: 700; white-space: nowrap; }
+.baton-pct { color: var(--gris); white-space: nowrap; min-width: 3.4em; text-align: right; }
+
+/* ---------- Analyse rédigée ---------- */
+
+.doc-analyse { margin-top: 4px; }
+
+.doc-analyse p {
+  margin: 0 0 9px;
+  font-size: .82rem;
+  line-height: 1.62;
+  color: #334155;
+  text-align: justify;
+}
+
+.doc-chapeau {
+  margin: 0 0 16px;
+  font-size: .8rem;
+  line-height: 1.6;
+  color: var(--gris);
+}
+
+/* ---------- Tableaux détaillés ---------- */
+
+.doc-tableau { margin-bottom: 18px; }
+
+.tableau-titre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: .84rem;
+  font-weight: 800;
+  color: var(--misfat-encre);
+}
+
+.tableau-puce {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--scope-couleur, var(--misfat-encre));
+  flex: none;
+}
+
+.tableau-total {
+  margin-left: auto;
+  font-size: .8rem;
+  color: var(--scope-couleur, var(--misfat-encre));
+}
+
+.doc-tableau table,
+.doc-total {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .73rem;
+}
+
+.doc-tableau thead th {
+  background: var(--misfat-azur);
+  color: var(--misfat-encre);
+  font-size: .64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 7px 8px;
+  text-align: left;
+  border-bottom: 2px solid var(--scope-couleur, var(--misfat-encre));
+}
+
+.doc-tableau tbody td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #EEF2F6;
+  color: #334155;
+  vertical-align: top;
+}
+
+.doc-tableau tfoot td {
+  padding: 7px 8px;
+  background: var(--misfat-sable);
+  font-weight: 700;
+  color: var(--misfat-encre);
+  border-top: 1px solid var(--gris-clair);
+}
+
+.col-num { text-align: right; white-space: nowrap; }
+.col-cat { width: 34%; }
+.col-src { color: var(--gris); }
+.cell-forte { font-weight: 800; color: var(--misfat-encre); }
+.cell-icone { margin-right: 4px; }
+
+.cell-ghg {
+  display: inline-block;
+  font-size: .6rem;
+  font-weight: 800;
+  color: var(--misfat-orange-fonce);
+  margin-right: 4px;
+}
+
+.ligne-vide td { color: #94A3B8; }
+
+.doc-total {
+  margin-top: 6px;
+  border: 1px solid var(--misfat-encre);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.doc-total td {
+  padding: 9px 10px;
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--misfat-encre);
+  background: var(--misfat-azur);
+  border-bottom: 1px solid var(--bordure);
+}
+
+.doc-total tr:last-child td { border-bottom: none; background: var(--misfat-encre); color: #ffffff; }
+.doc-total tr:last-child .cell-forte { color: #ffffff; }
+
+/* ---------- Variation ---------- */
+
+.doc-variation { margin-top: 16px; }
+
+.variation-colonnes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.variation-colonnes h4 {
+  margin: 0 0 6px;
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--gris);
+}
+
+.variation-colonnes ul { list-style: none; margin: 0; padding: 0; }
+
+.variation-colonnes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: .75rem;
+  border-bottom: 1px dotted var(--gris-clair);
+}
+
+.var-hausse { color: #C35014; }
+.var-baisse { color: var(--misfat-vert); }
+.var-neutre { color: var(--gris); font-style: italic; }
+
+.doc-mentions {
+  margin: 16px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--gris-clair);
+  font-size: .66rem;
+  line-height: 1.55;
+  color: var(--gris);
+  text-align: justify;
+}
+
+.doc-vide {
+  margin: auto;
+  font-size: .9rem;
+  color: var(--gris);
+  text-align: center;
+  max-width: 46ch;
+}
+
+.doc-pied {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--gris-clair);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: .62rem;
+  color: var(--gris);
+  letter-spacing: .03em;
+}
+
+/* ============================ ONGLETS DE MODE ============================ */
+
+.rep-onglets {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.rep-onglets button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1 1 280px;
+  background: var(--misfat-azur);
+  border: 1px solid var(--bordure);
+  border-bottom: 3px solid transparent;
+  border-radius: 12px;
+  padding: 13px 18px;
+  font: inherit;
+  text-align: left;
+  color: var(--gris);
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.rep-onglets button:hover { border-color: var(--misfat-encre); color: var(--misfat-encre); }
+
+/* L'onglet actif se détache sur fond blanc, souligné d'orange MISFAT. */
+.rep-onglets button.actif {
+  background: #ffffff;
+  border-color: var(--bordure);
+  border-bottom-color: var(--misfat-orange);
+  color: var(--misfat-encre);
+  box-shadow: 0 4px 16px rgba(30, 58, 82, .09);
+}
+
+.rep-onglets button > span[aria-hidden] { font-size: 1.25rem; }
+
+.onglet-texte { display: flex; flex-direction: column; line-height: 1.3; }
+.onglet-texte strong { font-size: .92rem; font-weight: 700; }
+.onglet-texte small { font-size: .72rem; color: var(--gris); }
+
+/* ========================= MODE 2 : RAPPORT NORMÉ ========================= */
+
+.norme-shell {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+/* ---------- Sommaire interactif ---------- */
+
+.norme-sommaire {
+  position: sticky;
+  top: 12px;
+  background: #ffffff;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  padding: 16px 14px;
+  box-shadow: 0 6px 24px rgba(30, 58, 82, .07);
+}
+
+.norme-sommaire h3 {
+  margin: 0 0 10px;
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--misfat-orange-fonce);
+}
+
+.norme-sommaire ol { list-style: none; margin: 0; padding: 0; counter-reset: none; }
+
+.norme-sommaire button {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  padding: 6px 6px 6px 8px;
+  font: inherit;
+  font-size: .76rem;
+  text-align: left;
+  color: var(--gris);
+  cursor: pointer;
+  border-radius: 0 6px 6px 0;
+}
+
+.norme-sommaire button:hover { background: var(--misfat-azur); color: var(--misfat-encre); }
+
+.norme-sommaire button.actif {
+  background: var(--misfat-sable);
+  border-left-color: var(--misfat-orange);
+  color: var(--misfat-encre);
+  font-weight: 600;
+}
+
+.som-num {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--misfat-azur);
+  border: 1px solid var(--bordure);
+  font-size: .64rem;
+  font-weight: 800;
+  color: var(--misfat-encre);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.som-titre { line-height: 1.32; }
+
+.som-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gris-clair);
+}
+
+.som-actions button {
+  flex: 1;
+  background: var(--misfat-azur);
+  border: 1px solid var(--bordure);
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--misfat-encre);
+  cursor: pointer;
+}
+
+.som-actions button:hover { border-color: var(--misfat-encre); }
+
+/* ---------- Chapitres ---------- */
+
+.norme-document { display: flex; flex-direction: column; gap: 16px; }
+
+.norme-page {
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.chapitre-entete {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 18px;
+  cursor: pointer;
+  background: var(--misfat-azur);
+  border-bottom: 1px solid var(--bordure);
+  user-select: none;
+}
+
+.chapitre-replie .chapitre-entete { border-bottom-color: transparent; }
+.chapitre-entete:hover { background: #E4F0F8; }
+
+.chapitre-num {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--misfat-encre);
+  color: #ffffff;
+  font-size: .82rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chapitre-titres { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.chapitre-titres strong { font-size: .95rem; font-weight: 700; color: var(--misfat-encre); }
+.chapitre-titres small { font-size: .7rem; color: var(--gris); letter-spacing: .02em; }
+
+.chapitre-caret {
+  margin-left: auto;
+  font-size: 1rem;
+  color: var(--gris);
+  transition: transform .2s ease;
+}
+
+.chapitre-caret.ouvert { transform: rotate(180deg); color: var(--misfat-orange-fonce); }
+
+.chapitre-corps { padding: 18px 20px 14px; }
+.chapitre-replie .chapitre-corps { display: none; }
+
+.doc-meta-norme { grid-template-columns: repeat(3, 1fr); }
+
+/* ---------- Champs de saisie du rapport normé ---------- */
+
+.norme-saisie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 13px 15px;
+  background: var(--misfat-azur);
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+}
+
+.norme-saisie label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 190px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris);
+}
+
+.norme-saisie input,
+.norme-saisie select {
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: .85rem;
+  color: var(--misfat-encre);
+  text-transform: none;
+  letter-spacing: normal;
+  background: #ffffff;
+}
+
+.norme-saisie input:focus,
+.norme-saisie select:focus {
+  outline: none;
+  border-color: var(--misfat-orange);
+  box-shadow: 0 0 0 3px rgba(239, 139, 68, .18);
+}
+
+.norme-avis {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--misfat-orange);
+  background: var(--misfat-sable);
+  border-radius: 0 8px 8px 0;
+  font-size: .79rem;
+  line-height: 1.55;
+  color: var(--misfat-encre);
+}
+
+.doc-tableau-simple {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .76rem;
+  margin-bottom: 16px;
+}
+
+.doc-tableau-simple thead th {
+  background: var(--misfat-azur);
+  color: var(--misfat-encre);
+  font-size: .64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 7px 9px;
+  text-align: left;
+  border-bottom: 2px solid var(--misfat-encre);
+}
+
+.doc-tableau-simple tbody td {
+  padding: 7px 9px;
+  border-bottom: 1px solid #EEF2F6;
+  color: #334155;
+}
+
+.doc-tableau-simple tbody td:first-child {
+  font-weight: 700;
+  color: var(--misfat-encre);
+  width: 32%;
+}
+
+.doc-kpis-ratios { grid-template-columns: repeat(3, 1fr); }
+
+/* ---------- Blocs de texte éditables ---------- */
+
+.bloc-texte {
+  margin-bottom: 15px;
+  padding: 13px 15px;
+  border: 1px solid var(--gris-clair);
+  border-left: 3px solid var(--bordure);
+  border-radius: 0 10px 10px 0;
+  background: #ffffff;
+}
+
+.bloc-entete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.bloc-entete h4 {
+  margin: 0;
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--misfat-orange-fonce);
+}
+
+.bloc-amende {
+  background: var(--misfat-sable);
+  border: 1px solid #F5DCC2;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: .6rem;
+  font-weight: 700;
+  color: var(--misfat-orange-fonce);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Le crayon reste discret : il ne doit pas concurrencer le texte du rapport. */
+.bloc-crayon {
+  margin-left: auto;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: .82rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .45;
+  transition: opacity .18s ease, border-color .18s ease;
+}
+
+.bloc-texte:hover .bloc-crayon { opacity: 1; }
+.bloc-crayon:hover { border-color: var(--bordure); background: var(--misfat-azur); }
+.bloc-reinit { margin-left: 0; color: var(--gris); }
+
+.bloc-contenu {
+  margin: 0;
+  font-size: .82rem;
+  line-height: 1.62;
+  color: #334155;
+  text-align: justify;
+  white-space: pre-wrap;
+}
+
+.bloc-edition { display: flex; flex-direction: column; gap: 9px; }
+
+.bloc-edition textarea {
+  width: 100%;
+  border: 1px solid var(--misfat-orange);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: .82rem;
+  line-height: 1.6;
+  color: #334155;
+  resize: vertical;
+  box-shadow: 0 0 0 3px rgba(239, 139, 68, .14);
+}
+
+.bloc-edition textarea:focus { outline: none; }
+
+.bloc-actions { display: flex; justify-content: flex-end; gap: 9px; }
+
+.bloc-valider,
+.bloc-annuler {
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bloc-valider { background: var(--misfat-encre); border: none; color: #ffffff; }
+.bloc-valider:hover { background: #2C5578; }
+
+.bloc-annuler { background: #ffffff; border: 1px solid var(--bordure); color: var(--gris); }
+.bloc-annuler:hover { border-color: var(--misfat-encre); color: var(--misfat-encre); }
+
+/* ---------- Bloc de signature ---------- */
+
+.norme-signature {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 16px 0;
+}
+
+.sig-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid var(--gris-clair);
+  border-radius: 10px;
+  padding: 14px 16px 12px;
+  background: #ffffff;
+}
+
+.sig-role {
+  font-size: .62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--gris);
+}
+
+.sig-nom { font-size: .95rem; font-weight: 800; color: var(--misfat-encre); }
+.sig-fonction { font-size: .74rem; color: var(--gris); }
+.sig-date { font-size: .72rem; color: var(--gris); margin-bottom: 26px; }
+
+.sig-ligne { border-bottom: 1px solid var(--misfat-encre); margin-bottom: 4px; }
+
+.sig-mention {
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--gris);
+}
+
+.norme-contact {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--gris-clair);
+  font-size: .7rem;
+  line-height: 1.55;
+  color: var(--gris);
+}
+
+/* ================================== ÉCRANS ÉTROITS ================================== */
+
+@media (max-width: 900px) {
+  .doc-kpis { grid-template-columns: repeat(2, 1fr); }
+  .doc-ratios { grid-template-columns: 1fr; }
+  .doc-graphes { grid-template-columns: 1fr; }
+  .doc-meta { grid-template-columns: repeat(2, 1fr); }
+  .rep-page { padding: 18px 16px; min-height: 0; }
+  .donut-bloc { flex-direction: column; align-items: flex-start; }
+  .variation-colonnes { grid-template-columns: 1fr; }
+
+  .norme-shell { grid-template-columns: 1fr; }
+  .norme-sommaire { position: static; }
+  .norme-page { padding: 0; }
+  .doc-meta-norme { grid-template-columns: repeat(2, 1fr); }
+  .doc-kpis-ratios { grid-template-columns: 1fr; }
+  .norme-signature { grid-template-columns: 1fr; }
+}
+
+/* ================================== IMPRESSION ================================== */
+
+@media print {
+  :host { padding: 0; display: block; }
+
+  /* Les commandes ne s'impriment pas : onglets, sommaire, panneau de
+     configuration et champs de saisie sont des outils d'écran. */
+  .rep-config,
+  .rep-chargement,
+  .rep-onglets,
+  .norme-sommaire,
+  .norme-saisie,
+  .bloc-crayon,
+  .bloc-actions,
+  .som-actions { display: none !important; }
+
+  /* Le rapport normé s'imprime en entier : aucun chapitre replié ne doit
+     échapper au document remis, quel que soit l'état de l'écran. */
+  .norme-shell { display: block; }
+  .norme-document { display: block; gap: 0; }
+
+  .norme-page {
+    break-before: page;
+    page-break-before: always;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .norme-page:first-child { break-before: auto; page-break-before: auto; }
+
+  .chapitre-corps,
+  .chapitre-replie .chapitre-corps { display: block !important; padding: 0; }
+
+  .chapitre-entete {
+    padding: 0 0 8px;
+    background: transparent !important;
+    border-bottom: 2px solid var(--misfat-orange);
+    margin-bottom: 12px;
+  }
+
+  .chapitre-caret { display: none; }
+
+  .bloc-texte,
+  .norme-signature,
+  .doc-tableau-simple { break-inside: avoid; page-break-inside: avoid; }
+
+  .bloc-edition textarea {
+    border-color: var(--gris-clair);
+    box-shadow: none;
+  }
+
+  .rep-document { display: block; gap: 0; }
+
+  .rep-page {
+    max-width: none;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: block;
+  }
+
+  /* Chaque section commence sur une nouvelle feuille ; un tableau ne se coupe
+     pas au milieu d'une catégorie. */
+  .rep-page-suite { break-before: page; page-break-before: always; }
+  .doc-tableau,
+  .graphe,
+  .doc-variation { break-inside: avoid; page-break-inside: avoid; }
+  .doc-tableau tr { break-inside: avoid; page-break-inside: avoid; }
+  .doc-analyse p { orphans: 3; widows: 3; }
+
+  /* Les aplats de couleur portent l'information : ils doivent survivre au
+     réglage « graphiques d'arrière-plan » que le navigateur désactive par
+     défaut. */
+  .kpi, .doc-meta > div, .doc-tableau thead th, .doc-tableau tfoot td,
+  .doc-total td, .pastille, .baton-jauge, .baton-piste, .tableau-puce,
+  .cfg-poste-retenu, .doc-entete, .ratio, .traj-badge, .traj-jauge,
+  .traj-progression, .doc-trajectoire {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .doc-pied { position: relative; }
+  .doc-analyse p { font-size: 9.5pt; }
+  .doc-tableau table, .doc-total { font-size: 8.5pt; }
+}

@@ -18,13 +18,25 @@
 	<name>Misfat Platform - Parent</name>
 	<description>Multi-module project for Misfat Carbon and Water Engineering Platform</description>
 
+	<!--
+		organizationservice et dataimportservice héritent directement de
+		spring-boot-starter-parent : les déclarer ici ne change pas leur build,
+		mais les fait entrer dans le réacteur. Sans cela, un `mvn compile` à la
+		racine laissait deux microservices sur six hors de toute vérification.
+	-->
 	<modules>
 		<module>eureka-server</module>
 		<module>user_service</module>
+		<module>emission-service</module>
+		<module>organizationservice</module>
+		<module>dataimportservice</module>
+		<module>api-getway</module>
 	</modules>
 
 	<properties>
 		<java.version>17</java.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<spring-cloud.version>2023.0.3</spring-cloud.version>
 		<lombok.version>1.18.34</lombok.version>
 		<keycloak.version>24.0.5</keycloak.version>

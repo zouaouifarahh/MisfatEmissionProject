@@ -1,0 +1,430 @@
+<div class="emission-container">
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Utilisation des produits vendus 🛒</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">
+        Note d'information — Scope 3 (Catégorie 11 : Utilisation des produits vendus)
+      </p>
+      <p class="note-texte">
+        Note : Cette catégorie comptabilise les émissions générées pendant la phase d'utilisation
+        et la durée de vie des produits vendus par l'entreprise (consommation d'énergie, carburant
+        ou impact indirect des véhicules).
+      </p>
+      <p class="note-regle">
+        <span aria-hidden="true">🚗</span>
+        Application aux consommables automobiles : Le calcul prend en compte le volume de filtres
+        vendus et leur durée de vie moyenne en kilométrage (ex: 15 000 km) appliquée au parc
+        automobile.
+      </p>
+    </div>
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreReplis">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreReplis }} ligne(s) valorisée(s) par un facteur de repli ADEME, faute de facteur
+    correspondant au référentiel MS SQL.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par référence, gamme, établissement ou base…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreGamme" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes les gammes</option>
+        <option *ngFor="let g of gammes" [value]="g">{{ emojiGamme(g) }} {{ g }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes provenances</option>
+        <option value="Réel">Réel</option>
+        <option value="Estimation">Estimation</option>
+        <option value="Excel">Excel</option>
+      </select>
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Ajouter un produit en utilisation</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortData('reference')">Réf / ID</th>
+            <th>Gamme / Type de filtre</th>
+            <th>Établissement</th>
+            <th class="sortable ta-right" (click)="sortData('duree')">Durée de vie (km)</th>
+            <th>Type saisie</th>
+            <th class="sortable ta-right" (click)="sortData('quantite')">Quantité vendue</th>
+            <th>Facteur MS SQL</th>
+            <th>Base appliquée</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.origineFacteur === 'Aucun'">
+            <td>
+              <span class="ref-badge">{{ item.reference }}</span>
+              <span class="duo-second">
+                <span class="prov-badge prov-compacte"
+                      [class.prov-reel]="item.provenance === 'Réel'"
+                      [class.prov-estim]="item.provenance === 'Estimation'"
+                      [class.prov-excel]="item.provenance === 'Excel'">
+                  {{ item.provenance === 'Excel' ? '📄' : item.provenance === 'Estimation' ? '≈' : '✓' }}
+                  {{ item.provenance }}
+                </span>
+              </span>
+            </td>
+
+            <td>
+              <span class="gamme-badge" [ngClass]="classeBadgeGamme(item.gamme || '')">
+                <span aria-hidden="true">{{ emojiGamme(item.gamme || '') }}</span>
+                {{ item.gamme || item.gammeTexte || '—' }}
+              </span>
+            </td>
+
+            <td class="etab-cell" [title]="item.etablissement">{{ item.etablissement }}</td>
+
+            <td class="ta-right num">
+              <ng-container *ngIf="item.typeSaisie === 'Kilométrage'; else sansDuree">
+                {{ item.dureeVieKm | number:'1.0-0' }}
+              </ng-container>
+              <ng-template #sansDuree>—</ng-template>
+            </td>
+
+            <td><span class="saisie-chip">{{ item.typeSaisie }}</span></td>
+
+            <td class="ta-right num">
+              <ng-container *ngIf="item.quantiteVendue !== null; else montantCell">
+                {{ item.quantiteVendue | number:'1.0-0' }}
+                <span class="duo-second" *ngIf="item.grandeur !== null">
+                  {{ item.grandeur | number:'1.0-0' }} {{ item.uniteGrandeur }}
+                </span>
+              </ng-container>
+              <ng-template #montantCell>
+                <span class="montant-chip">{{ item.montant | number:'1.0-2' }} {{ item.devise }}</span>
+              </ng-template>
+            </td>
+
+            <td class="facteur-cell" [title]="item.libelleFacteur">
+              <ng-container *ngIf="item.facteur !== null; else sansFacteur">
+                <span class="duo-principal">
+                  {{ item.facteur | number:'1.0-6' }} <span class="unite-facteur">/{{ item.uniteFacteur }}</span>
+                </span>
+                <span class="duo-second">{{ item.libelleFacteur }}</span>
+              </ng-container>
+              <ng-template #sansFacteur><span class="alerte-facteur">non résolu</span></ng-template>
+            </td>
+
+            <td class="base-cell" [title]="item.baseAppliquee">
+              <span class="base-badge" *ngIf="item.baseAppliquee; else sansBase">{{ item.baseAppliquee }}</span>
+              <span class="origine-repli" *ngIf="item.origineFacteur === 'ADEME'">repli</span>
+              <ng-template #sansBase>—</ng-template>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="10" class="empty-row">
+              Aucun produit en phase d'utilisation enregistré sur ce périmètre.
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="5">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td class="ta-right num-fort">{{ totalQuantiteVendue | number:'1.0-0' }} unités</td>
+            <td colspan="2"></td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier le produit en utilisation'
+                         : '🛒 Ajouter un produit en utilisation' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Utilisation des produits vendus — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="ut-gamme">Gamme / Type de filtre *</label>
+            <select id="ut-gamme" [(ngModel)]="formModel.gamme" (ngModelChange)="onCritereChange()">
+              <option *ngFor="let g of gammes" [value]="g">{{ emojiGamme(g) }} {{ g }}</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="ut-ref">Référence / Code produit</label>
+            <input id="ut-ref" type="text" [(ngModel)]="formModel.reference"
+                   placeholder="Engendrée si vide">
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Type de donnée</label>
+            <div class="radio-groupe">
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Réel'">
+                <input type="radio" name="prov-use" value="Réel" [(ngModel)]="formModel.provenance">
+                <span>✓ Réel</span>
+              </label>
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Estimation'">
+                <input type="radio" name="prov-use" value="Estimation" [(ngModel)]="formModel.provenance">
+                <span>≈ Estimation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="ut-etab">Établissement</label>
+            <select id="ut-etab" [(ngModel)]="formModel.etablissement">
+              <option [value]="'Site Principal'">Site Principal</option>
+              <option *ngFor="let u of usinesDisponibles" [value]="u.nom">{{ u.nom }}</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="ut-saisie">Type de saisie</label>
+            <select id="ut-saisie" [(ngModel)]="formModel.typeSaisie" (ngModelChange)="onCritereChange()">
+              <option value="Kilométrage">Kilométrage / Durée de vie</option>
+              <option value="Consommation">Consommation directe</option>
+              <option value="Monétaire">Monétaire</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SAISIE PAR VOLUME VENDU -->
+        <div class="form-row" *ngIf="formModel.typeSaisie !== 'Monétaire'">
+          <div class="form-group flex-1">
+            <label for="ut-quantite">Quantité vendue (unités) *</label>
+            <input id="ut-quantite" type="number" step="any" [(ngModel)]="formModel.quantiteVendue"
+                   (ngModelChange)="onSaisieChange()" placeholder="Ex : 10000">
+          </div>
+
+          <div class="form-group flex-1" *ngIf="formModel.typeSaisie === 'Kilométrage'">
+            <label for="ut-duree">Durée de vie estimée (km) *</label>
+            <input id="ut-duree" type="number" step="any" [(ngModel)]="formModel.dureeVieKm"
+                   (ngModelChange)="onSaisieChange()" [placeholder]="dureeVieDefaut">
+            <small class="field-hint">
+              Intervalle de remplacement du consommable. Par défaut {{ dureeVieDefaut | number:'1.0-0' }} km.
+            </small>
+          </div>
+        </div>
+
+        <!-- SAISIE MONÉTAIRE -->
+        <div class="form-row" *ngIf="formModel.typeSaisie === 'Monétaire'">
+          <div class="form-group flex-1">
+            <label for="ut-montant">Montant facturé / Chiffre d'affaires *</label>
+            <input id="ut-montant" type="number" step="any" [(ngModel)]="formModel.montant"
+                   (ngModelChange)="onSaisieChange()" placeholder="0.00">
+          </div>
+          <div class="form-group flex-1">
+            <label for="ut-devise">Devise</label>
+            <input id="ut-devise" type="text" [value]="formModel.devise" readonly class="readonly-field">
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="ut-facteur">Facteur MS SQL</label>
+          <select id="ut-facteur" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-6' }} / {{ f.unit }})
+            </option>
+          </select>
+        </div>
+
+        <!-- CALCULATRICE EN DIRECT -->
+        <div class="formule-box">
+          <div class="formule-titre">
+            <span aria-hidden="true">💡</span> Formule appliquée &amp; calcul live
+          </div>
+
+          <p class="formule-enonce" *ngIf="formModel.typeSaisie === 'Kilométrage'">
+            Émissions (kgCO₂e) = Quantité Vendue × Durée de vie (km) × Facteur d'Émission MS SQL
+          </p>
+          <p class="formule-enonce" *ngIf="formModel.typeSaisie === 'Monétaire'">
+            Émissions (kgCO₂e) = Montant facturé × Facteur d'Émission MS SQL
+          </p>
+          <p class="formule-enonce" *ngIf="formModel.typeSaisie === 'Consommation'">
+            Émissions (kgCO₂e) = Quantité Vendue × Facteur d'Émission MS SQL
+          </p>
+
+          <div class="formule-etape"
+               *ngIf="formModel.typeSaisie === 'Kilométrage' && grandeurPrevisionnelle !== null">
+            <span>
+              {{ formModel.quantiteVendue | number:'1.0-0' }} unités ×
+              {{ formModel.dureeVieKm | number:'1.0-0' }} km =
+            </span>
+            <strong>{{ grandeurPrevisionnelle | number:'1.0-0' }} km·unité</strong>
+          </div>
+
+          <div class="formule-etape"
+               *ngIf="grandeurPrevisionnelle !== null && facteurCourant.valeur !== null">
+            <span>
+              {{ grandeurPrevisionnelle | number:'1.0-0' }} {{ uniteGrandeurCourante }} ×
+              {{ facteurCourant.valeur | number:'1.0-6' }} kgCO₂e
+              ({{ facteurCourant.origine === 'MS SQL BDD'
+                    ? formModel.gamme + ' MS SQL'
+                    : 'repli ADEME ' + formModel.gamme }}) =
+            </span>
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <p class="formule-enonce" *ngIf="grandeurPrevisionnelle === null">
+            {{ formModel.typeSaisie === 'Monétaire'
+                ? 'Renseignez le montant pour voir le calcul.'
+                : 'Renseignez la quantité vendue pour voir le calcul.' }}
+          </p>
+
+          <div class="formule-resultat">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="facteurCourant.origine === 'ADEME'">
+            <span class="origine-repli">Facteur de repli</span>
+            <span>{{ facteurCourant.libelle }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer la matrice d'utilisation</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Colonnes obligatoires : <strong>Gamme</strong> (ou <em>Type Filtre</em>,
+          <em>Désignation</em>) et <strong>Quantité Vendue</strong> (ou <em>Unités</em>,
+          <em>Volume</em>) — ou <strong>Montant</strong> en approche monétaire.
+        </p>
+        <p class="import-hint">
+          Colonnes optionnelles : <strong>Référence</strong> → engendrée automatiquement,
+          <strong>Établissement</strong> → « Site Principal »,
+          <strong>Kilométrage (km)</strong> → {{ dureeVieDefaut | number:'1.0-0' }} km,
+          <strong>Type Saisie</strong> → déduit de la colonne renseignée.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS D'IMPORT -->
+  <div class="toast-pile" *ngIf="toastMessage">
+    <div class="toast" role="status">
+      <span aria-hidden="true">✅</span>
+      <span>{{ toastMessage }}</span>
+      <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="toast toast-repli" *ngIf="toastSecondaire" role="status">
+      <span aria-hidden="true">⚠️</span>
+      <span>{{ toastSecondaire }}</span>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,68 @@
+<!--
+  Deux rendus pour un même état : le bandeau autonome, et la variante compacte
+  intégrée à l'en-tête du tableau de bord, où la place est comptée.
+-->
+
+<!-- ---------- Variante compacte, hébergée par la bannière ---------- -->
+<div class="ticker-inline" *ngIf="compact; else bandeauComplet" aria-label="Taux de change de la semaine">
+  <article class="rate-inline" *ngFor="let ligne of lignes">
+    <span class="rate-inline-pair">{{ ligne.paire }}</span>
+    <span class="rate-inline-value">{{ ligne.rate | number:'1.2-4' }}</span>
+    <span class="chip chip-sm" [ngClass]="'chip-' + ligne.sens" *ngIf="ligne.sens !== 'inconnu'">
+      <span class="chip-arrow" aria-hidden="true">{{ ligne.sens === 'baisse' ? '▼' : '▲' }}</span>
+      {{ ligne.variation! > 0 ? '+' : '' }}{{ ligne.variation | number:'1.2-2' }}%
+    </span>
+  </article>
+
+  <span class="ticker-inline-source" [class.ticker-source-warn]="replique"
+        [title]="replique ? 'Cours indicatifs — référentiel injoignable' : 'Référentiel devises MISFAT'">
+    <span class="ticker-dot" [class.pulse]="!replique && !chargement" aria-hidden="true"></span>
+  </span>
+</div>
+
+<!-- ---------- Bandeau autonome ---------- -->
+<ng-template #bandeauComplet>
+  <section class="ticker" aria-label="Taux de change de la semaine">
+
+    <!-- Repère temporel : jour de consultation et semaine de référence -->
+    <div class="ticker-period">
+      <span class="ticker-accent" aria-hidden="true"></span>
+      <div class="ticker-period-text">
+        <span class="ticker-today">{{ libelleAujourdhui }}</span>
+        <span class="ticker-week">
+          {{ libelleSemaine }}
+          <em class="ticker-week-no">S{{ numeroSemaine }}</em>
+          <em class="ticker-hist" *ngIf="estHistorique">Historique</em>
+        </span>
+      </div>
+    </div>
+
+    <div class="ticker-divider" aria-hidden="true"></div>
+
+    <!-- Cours retenus pour la comptabilité carbone monétaire -->
+    <div class="ticker-rates">
+      <article class="rate" *ngFor="let ligne of lignes">
+        <div class="rate-head">
+          <span class="rate-pair">{{ ligne.paire }}</span>
+          <span class="chip" [ngClass]="'chip-' + ligne.sens" *ngIf="ligne.sens !== 'inconnu'">
+            <span class="chip-arrow" aria-hidden="true">{{ ligne.sens === 'baisse' ? '▼' : '▲' }}</span>
+            {{ ligne.variation! > 0 ? '+' : '' }}{{ ligne.variation | number:'1.2-2' }}%
+          </span>
+        </div>
+        <div class="rate-value">
+          <span class="rate-unit">1 {{ ligne.code }} =</span>
+          <strong>{{ ligne.rate | number:'1.2-4' }}</strong>
+          <span class="rate-currency">TND</span>
+        </div>
+        <div class="rate-label">{{ ligne.label }}</div>
+      </article>
+    </div>
+
+    <!-- Provenance : une valeur de repli ne doit pas passer pour un cours officiel -->
+    <div class="ticker-source" [class.ticker-source-warn]="replique">
+      <span class="ticker-dot" [class.pulse]="!replique && !chargement" aria-hidden="true"></span>
+      {{ chargement ? 'Synchronisation…' : (replique ? 'Cours indicatifs — référentiel injoignable' : 'Référentiel devises MISFAT') }}
+    </div>
+
+  </section>
+</ng-template>

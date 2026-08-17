@@ -1,0 +1,175 @@
+<section class="act-shell">
+
+  <header class="act-entete">
+    <div>
+      <h2>🏢 Données d'Activité &amp; KPI</h2>
+      <p>
+        Chiffre d'affaires, effectif, production et ventes du périmètre
+        <strong>{{ libelleSociete }}</strong>. Ces valeurs alimentent l'intensité carbone du
+        tableau de bord et les ratios des deux modes du rapport.
+      </p>
+    </div>
+  </header>
+
+  <div class="act-message" *ngIf="message">
+    <span aria-hidden="true">✅</span>
+    <span>{{ message }}</span>
+    <button type="button" class="msg-fermer" (click)="message = ''" aria-label="Fermer">×</button>
+  </div>
+
+  <div class="act-erreur" *ngIf="erreur">
+    <span aria-hidden="true">⚠️</span>
+    <span>{{ erreur }}</span>
+    <button type="button" class="msg-fermer" (click)="erreur = ''" aria-label="Fermer">×</button>
+  </div>
+
+  <!-- ============ A. IMPORTATION ============ -->
+  <div class="act-carte">
+    <h3 class="act-titre">Importation intelligente</h3>
+    <p class="act-sous-titre">
+      Déposez un état financier : les lignes « Chiffre d'affaires », « Effectif »,
+      « Production » et « Ventes » sont reconnues automatiquement, sur un ou plusieurs exercices.
+    </p>
+
+    <label class="depot"
+           [class.depot-survol]="survol"
+           (dragover)="surSurvol($event, true)"
+           (dragleave)="surSurvol($event, false)"
+           (drop)="surDepot($event)">
+      <input type="file" accept=".xlsx,.xls,.csv,.pdf" (change)="surSelection($event)" hidden>
+      <span class="depot-icone" aria-hidden="true">📥</span>
+      <span class="depot-texte">
+        <strong>Glissez un fichier ici</strong>
+        <small>ou cliquez pour parcourir — Excel (.xlsx, .xls) ou CSV</small>
+      </span>
+      <span class="depot-fichier" *ngIf="nomFichier">{{ nomFichier }}</span>
+    </label>
+
+    <div class="depot-bilan" *ngIf="reconnus.length">
+      <span class="bilan-cle">Intitulés reconnus :</span>
+      <span class="etiquette" *ngFor="let intitule of reconnus">{{ intitule }}</span>
+    </div>
+
+    <ul class="depot-avertissements" *ngIf="avertissements.length">
+      <li *ngFor="let avertissement of avertissements">{{ avertissement }}</li>
+    </ul>
+  </div>
+
+  <!-- ============ B. FORMULAIRE D'ÉDITION ============ -->
+  <div class="act-carte">
+    <div class="act-carte-entete">
+      <div>
+        <h3 class="act-titre">Saisie manuelle</h3>
+        <p class="act-sous-titre">
+          {{ exerciceExistant ? 'Exercice déjà enregistré — vos modifications le remplaceront.'
+                              : 'Nouvel exercice — renseignez puis enregistrez.' }}
+        </p>
+      </div>
+
+      <label class="act-annee">
+        <span>Exercice</span>
+        <select name="annee" [ngModel]="anneeEditee" (ngModelChange)="changerAnnee($event)">
+          <option *ngFor="let annee of anneesProposees" [value]="annee">{{ annee }}</option>
+        </select>
+      </label>
+    </div>
+
+    <form class="act-form" (ngSubmit)="enregistrer()">
+      <label>
+        <span>Chiffre d'affaires (M {{ devise }})</span>
+        <input type="number" name="ca" step="0.01" min="0"
+               [(ngModel)]="formulaire.chiffreAffairesM" placeholder="ex : 45">
+      </label>
+
+      <label>
+        <span>Effectif total (employés)</span>
+        <input type="number" name="effectif" step="1" min="0"
+               [(ngModel)]="formulaire.effectif" placeholder="ex : 465">
+      </label>
+
+      <label>
+        <span>Véhicules de fonction</span>
+        <input type="number" name="vehicules" step="1" min="0"
+               [(ngModel)]="formulaire.vehiculesFonction" placeholder="ex : 32">
+      </label>
+
+      <label>
+        <span>Volume de production (unités)</span>
+        <input type="number" name="production" step="1" min="0"
+               [(ngModel)]="formulaire.production" placeholder="ex : 9400000">
+      </label>
+
+      <label>
+        <span>Volume de ventes (unités)</span>
+        <input type="number" name="ventes" step="1" min="0"
+               [(ngModel)]="formulaire.ventes" placeholder="ex : 9100000">
+      </label>
+
+      <div class="act-actions">
+        <button type="button" class="btn-act-secondaire" (click)="ajouterAnnee()">
+          ➕ Ajouter une année
+        </button>
+        <button type="submit" class="btn-act-principal">💾 Enregistrer</button>
+        <button type="button" class="btn-act-danger" (click)="supprimerCourant()"
+                [disabled]="!exerciceExistant">
+          🗑️ Supprimer
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ============ C. TABLEAU HISTORIQUE ============ -->
+  <div class="act-carte">
+    <h3 class="act-titre">Historique des données d'activité</h3>
+    <p class="act-sous-titre">
+      Relevés enregistrés pour {{ libelleSociete }}, du plus ancien exercice au plus récent.
+    </p>
+
+    <div class="act-tableau">
+      <table>
+        <thead>
+          <tr>
+            <th>Exercice</th>
+            <th class="col-num">CA (M {{ devise }})</th>
+            <th class="col-num">Effectif</th>
+            <th class="col-num">Véhicules</th>
+            <th class="col-num">Production</th>
+            <th class="col-num">Ventes</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let releve of historique" [class.ligne-editee]="releve.annee === anneeEditee">
+            <td class="cell-annee">{{ releve.annee }}</td>
+            <td class="col-num">{{ afficher(releve, 'chiffreAffairesM') }}</td>
+            <td class="col-num">{{ afficher(releve, 'effectif') }}</td>
+            <td class="col-num">{{ afficher(releve, 'vehiculesFonction') }}</td>
+            <td class="col-num">{{ afficher(releve, 'production') }}</td>
+            <td class="col-num">{{ afficher(releve, 'ventes') }}</td>
+            <td class="col-actions">
+              <ng-container *ngIf="suppressionEnAttente !== releve.annee">
+                <button type="button" class="btn-ligne" (click)="editer(releve)" title="Éditer">✏️</button>
+                <button type="button" class="btn-ligne btn-ligne-danger"
+                        (click)="demanderSuppression(releve.annee)" title="Supprimer">🗑️</button>
+              </ng-container>
+
+              <ng-container *ngIf="suppressionEnAttente === releve.annee">
+                <span class="confirme">Supprimer ?</span>
+                <button type="button" class="btn-ligne btn-ligne-danger"
+                        (click)="confirmerSuppression(releve.annee)">Oui</button>
+                <button type="button" class="btn-ligne" (click)="annulerSuppression()">Non</button>
+              </ng-container>
+            </td>
+          </tr>
+
+          <tr *ngIf="historique.length === 0">
+            <td colspan="7" class="cell-vide">
+              Aucune donnée d'activité pour ce périmètre. Importez un état financier ou renseignez
+              le formulaire ci-dessus.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

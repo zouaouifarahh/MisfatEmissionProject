@@ -1,0 +1,434 @@
+<div class="emission-container">
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Actifs loués en aval 🏢</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">
+        Note d'information — Scope 3 (Catégorie 13 : Actifs loués en aval)
+      </p>
+      <p class="note-texte">
+        Note : Cette catégorie couvre les émissions liées à l'exploitation des actifs détenus par
+        l'entreprise (bâtiments, entrepôts, véhicules) mais loués à des tiers, lorsque ces émissions
+        ne sont pas déjà comptabilisées dans les Scopes 1 et 2.
+      </p>
+      <p class="note-regle">
+        <span aria-hidden="true">🔧</span>
+        Cas MISFAT : catégorie généralement non applicable si l'entreprise ne loue aucun actif à des
+        tiers. À défaut de relevé du locataire, une surface louée est convertie en consommation
+        annuelle sur la base de {{ kwhParM2 }} kWh/m²/an.
+      </p>
+    </div>
+  </div>
+
+  <!-- DÉCLARATION D'ABSENCE D'ACTIF -->
+  <div class="declaration-box" [class.declaration-active]="sansActivite">
+    <label class="declaration-toggle">
+      <input type="checkbox" [checked]="sansActivite" (change)="basculerSansActivite()">
+      <span class="declaration-piste" aria-hidden="true"><span class="declaration-pouce"></span></span>
+      <span class="declaration-texte">
+        Aucun actif loué en aval sur cet exercice (Marquer le total à 0 kgCO₂e)
+      </span>
+    </label>
+
+    <p class="declaration-aide" *ngIf="sansActivite">
+      Position consignée : la catégorie 13 est déclarée non applicable et son total est arrêté à
+      0 kgCO₂e. Un tableau simplement vide se confondrait avec une collecte non faite.
+    </p>
+  </div>
+
+  <div class="ref-warning ref-warning-contradiction" *ngIf="contradictionDeclaration">
+    <span aria-hidden="true">⚠️</span>
+    {{ listeEmissions.length }} ligne(s) sont enregistrées alors que la catégorie est déclarée
+    non applicable : levez la déclaration ou supprimez ces lignes.
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreReplis">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreReplis }} ligne(s) valorisée(s) par un facteur de repli ADEME, faute de facteur
+    correspondant au référentiel MS SQL.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par référence, actif, locataire ou base…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreType" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les types d'actifs</option>
+        <option *ngFor="let t of typesActif" [value]="t">{{ emojiActifAval(t) }} {{ t }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes provenances</option>
+        <option value="Réel">Réel</option>
+        <option value="Estimation">Estimation</option>
+        <option value="Excel">Excel</option>
+      </select>
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Ajouter un actif loué</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Réf / ID</th>
+            <th class="sortable" (click)="sortData('designation')">Désignation de l'actif</th>
+            <th>Type d'actif</th>
+            <th>Locataire</th>
+            <th class="ta-right">Surface (m²) / Unité</th>
+            <th class="sortable ta-right" (click)="sortData('consommation')">Consommation / an</th>
+            <th>Facteur MS SQL</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émiss. (kgCO₂e)</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.origineFacteur === 'Aucun'">
+            <td>
+              <span class="ref-badge">{{ item.reference }}</span>
+              <span class="duo-second">
+                <span class="prov-badge prov-compacte"
+                      [class.prov-reel]="item.provenance === 'Réel'"
+                      [class.prov-estim]="item.provenance === 'Estimation'"
+                      [class.prov-excel]="item.provenance === 'Excel'">
+                  {{ item.provenance === 'Excel' ? '📄' : item.provenance === 'Estimation' ? '≈' : '✓' }}
+                  {{ item.provenance }}
+                </span>
+              </span>
+            </td>
+
+            <td class="cell-strong designation-cell" [title]="item.designation">{{ item.designation }}</td>
+
+            <td>
+              <span class="actif-badge" [ngClass]="classeBadgeActifAval(item.typeActif || '')">
+                <span aria-hidden="true">{{ emojiActifAval(item.typeActif || '') }}</span>
+                {{ item.typeActif || '—' }}
+              </span>
+            </td>
+
+            <td class="locataire-cell" [title]="item.locataire">{{ item.locataire || '—' }}</td>
+
+            <td class="ta-right num">
+              <span class="duo-principal">{{ item.quantite | number:'1.0-2' }}</span>
+              <span class="duo-second">{{ item.unite }} · {{ item.modeSaisie }}</span>
+            </td>
+
+            <td class="ta-right num">
+              <ng-container *ngIf="item.consommation !== null; else sansConso">
+                <span class="duo-principal">{{ item.consommation | number:'1.0-0' }}</span>
+                <span class="duo-second">{{ item.uniteConsommation }}</span>
+              </ng-container>
+              <ng-template #sansConso><span class="duo-second">—</span></ng-template>
+            </td>
+
+            <td class="facteur-cell" [title]="item.libelleFacteur">
+              <ng-container *ngIf="item.facteur !== null; else sansFacteur">
+                <span class="duo-principal">
+                  {{ item.facteur | number:'1.0-6' }} <span class="unite-facteur">/{{ item.uniteFacteur }}</span>
+                </span>
+                <span class="duo-second">
+                  {{ item.baseAppliquee }}
+                  <span class="origine-repli" *ngIf="item.origineFacteur === 'ADEME'">repli</span>
+                </span>
+              </ng-container>
+              <ng-template #sansFacteur><span class="alerte-facteur">non résolu</span></ng-template>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="9" class="empty-row">
+              {{ sansActivite
+                  ? 'Catégorie déclarée non applicable : aucun actif loué en aval, total arrêté à 0 kgCO₂e.'
+                  : 'Aucun actif loué en aval enregistré sur ce périmètre.' }}
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="7">Total — {{ emissionsFiltrees.length }} actif(s)</td>
+            <td class="ta-right num-fort">{{ (sansActivite ? 0 : totalEmissions) | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier l\'actif loué en aval'
+                         : '🏢 Ajouter un actif loué en aval' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Actifs loués en aval — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="ala-designation">Désignation de l'actif *</label>
+            <input id="ala-designation" type="text" [(ngModel)]="formModel.designation"
+                   placeholder="Ex : Entrepôt Bizerte Nord">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="ala-ref">Référence / Code</label>
+            <input id="ala-ref" type="text" [(ngModel)]="formModel.reference"
+                   placeholder="Engendrée si vide">
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Type de donnée</label>
+            <div class="radio-groupe">
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Réel'">
+                <input type="radio" name="prov-ala" value="Réel" [(ngModel)]="formModel.provenance">
+                <span>✓ Réel</span>
+              </label>
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Estimation'">
+                <input type="radio" name="prov-ala" value="Estimation" [(ngModel)]="formModel.provenance">
+                <span>≈ Estimation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="ala-type">Type d'actif *</label>
+            <select id="ala-type" [(ngModel)]="formModel.typeActif" (ngModelChange)="onCritereChange()">
+              <option *ngFor="let t of typesActif" [value]="t">{{ emojiActifAval(t) }} {{ t }}</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="ala-locataire">Locataire</label>
+            <input id="ala-locataire" type="text" [(ngModel)]="formModel.locataire"
+                   placeholder="Ex : LOGIPARC SARL">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="ala-mode">Mode de saisie</label>
+            <select id="ala-mode" [(ngModel)]="formModel.modeSaisie" (ngModelChange)="onModeSaisieChange()">
+              <option value="Consommation">Consommation réelle (kWh)</option>
+              <option value="Surface">Surface louée (m²)</option>
+              <option value="Monétaire">Monétaire (revenus de location)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="ala-quantite">
+              {{ formModel.modeSaisie === 'Surface' ? 'Surface louée *'
+                 : formModel.modeSaisie === 'Monétaire' ? 'Revenus de location *'
+                 : 'Consommation annuelle *' }}
+            </label>
+            <input id="ala-quantite" type="number" step="any" [(ngModel)]="formModel.quantite"
+                   (ngModelChange)="onSaisieChange()" placeholder="Ex : 500">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="ala-unite">Unité *</label>
+            <select id="ala-unite" [(ngModel)]="formModel.unite" (ngModelChange)="onCritereChange()">
+              <option *ngFor="let u of unitesDisponibles" [value]="u">{{ u }}</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1" *ngIf="afficherEnergie">
+            <label for="ala-energie">Énergie desservante</label>
+            <select id="ala-energie" [(ngModel)]="formModel.energie" (ngModelChange)="onCritereChange()">
+              <option value="Électricité">⚡ Électricité</option>
+              <option value="Gaz">🔥 Gaz</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="ala-facteur">Facteur MS SQL</label>
+          <select id="ala-facteur" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-6' }} / {{ f.unit }})
+            </option>
+          </select>
+        </div>
+
+        <!-- CALCULATRICE EN DIRECT -->
+        <div class="formule-box">
+          <div class="formule-titre">
+            <span aria-hidden="true">💡</span> Formule appliquée &amp; calcul live
+          </div>
+
+          <p class="formule-enonce">
+            Émissions (kgCO₂e) = Consommation (kWh) × Facteur d'Émission MS SQL
+          </p>
+
+          <!-- Étape de conversion, quand l'actif est saisi en surface -->
+          <div class="formule-etape"
+               *ngIf="formModel.modeSaisie === 'Surface' && consommationPrevisionnelle !== null">
+            <span>
+              {{ formModel.quantite | number:'1.0-2' }} m² × {{ kwhParM2 }} kWh/m²/an =
+            </span>
+            <strong>{{ consommationPrevisionnelle | number:'1.0-0' }} kWh</strong>
+          </div>
+
+          <div class="formule-etape"
+               *ngIf="consommationPrevisionnelle !== null && facteurCourant.valeur !== null">
+            <span>
+              {{ consommationPrevisionnelle | number:'1.0-0' }} {{ uniteConsommationCourante }} ×
+              {{ facteurCourant.valeur | number:'1.0-6' }} kgCO₂e/{{ facteurCourant.unite }}
+              ({{ facteurCourant.origine === 'MS SQL BDD' ? 'MS SQL' : 'repli ADEME' }}) =
+            </span>
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <p class="formule-enonce" *ngIf="consommationPrevisionnelle === null">
+            {{ formModel.modeSaisie === 'Surface'
+                ? 'Renseignez la surface louée pour voir le calcul.'
+                : formModel.modeSaisie === 'Monétaire'
+                  ? 'Renseignez les revenus de location pour voir le calcul.'
+                  : 'Renseignez la consommation annuelle pour voir le calcul.' }}
+          </p>
+
+          <div class="formule-resultat">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="facteurCourant.origine === 'ADEME'">
+            <span class="origine-repli">Facteur de repli</span>
+            <span>{{ facteurCourant.libelle }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer les actifs loués en aval</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Colonnes obligatoires : <strong>Désignation</strong> et <strong>Quantité</strong>.
+          <strong>Référence</strong>, <strong>Type Actif</strong>, <strong>Locataire</strong>,
+          <strong>Mode Saisie</strong> et <strong>Unité</strong> sont facultatifs.
+        </p>
+        <p class="import-hint">
+          À défaut de mode de saisie, celui-ci se déduit de l'unité : « m² » désigne une surface,
+          « TND » un montant, tout le reste une consommation en kWh.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS D'IMPORT -->
+  <div class="toast-pile" *ngIf="toastMessage">
+    <div class="toast" role="status">
+      <span aria-hidden="true">✅</span>
+      <span>{{ toastMessage }}</span>
+      <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="toast toast-repli" *ngIf="toastSecondaire" role="status">
+      <span aria-hidden="true">⚠️</span>
+      <span>{{ toastSecondaire }}</span>
+    </div>
+  </div>
+
+</div>

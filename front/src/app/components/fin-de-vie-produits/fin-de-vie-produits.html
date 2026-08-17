@@ -1,0 +1,412 @@
+<div class="emission-container">
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Fin de vie des produits vendus ♻️</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">
+        Note d'information — Scope 3 (Catégorie 12 : Fin de vie des produits vendus)
+      </p>
+      <p class="note-texte">
+        Note : Cette catégorie concerne les émissions liées à la collecte, au traitement et à
+        l'élimination finale des produits vendus par l'entreprise lorsqu'ils arrivent en fin de vie
+        (mise en décharge, incinération, recyclage).
+      </p>
+      <p class="note-regle">
+        <span aria-hidden="true">🔧</span>
+        Application aux filtres usagés : Prise en compte de la masse des filtres vendus et de la
+        clé de répartition locale des déchets (ex: % Recyclage métal/plastique vs % Incinération/Décharge).
+      </p>
+    </div>
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreReplis">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreReplis }} ligne(s) valorisée(s) par un facteur de repli ADEME, faute de facteur
+    correspondant au référentiel MS SQL.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par référence, produit, filière ou base…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreFiliere" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes les filières</option>
+        <option *ngFor="let f of filieres" [value]="f">{{ emojiFiliere(f) }} {{ f }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes provenances</option>
+        <option value="Réel">Réel</option>
+        <option value="Estimation">Estimation</option>
+        <option value="Excel">Excel</option>
+      </select>
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Ajouter une fin de vie produit</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortData('reference')">Réf / ID</th>
+            <th class="sortable" (click)="sortData('produit')">Gamme de produit</th>
+            <th>Filière de traitement</th>
+            <th class="sortable ta-right" (click)="sortData('masse')">Masse totale (T)</th>
+            <th>Type saisie</th>
+            <th>Facteur MS SQL</th>
+            <th>Base appliquée</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.origineFacteur === 'Aucun'">
+            <td>
+              <span class="ref-badge">{{ item.reference }}</span>
+              <span class="duo-second">
+                <span class="prov-badge prov-compacte"
+                      [class.prov-reel]="item.provenance === 'Réel'"
+                      [class.prov-estim]="item.provenance === 'Estimation'"
+                      [class.prov-excel]="item.provenance === 'Excel'">
+                  {{ item.provenance === 'Excel' ? '📄' : item.provenance === 'Estimation' ? '≈' : '✓' }}
+                  {{ item.provenance }}
+                </span>
+              </span>
+            </td>
+
+            <td class="cell-strong produit-cell" [title]="item.produit">{{ item.produit }}</td>
+
+            <td>
+              <span class="filiere-badge" [ngClass]="classeBadgeFiliere(item.filiere || '')">
+                <span aria-hidden="true">{{ emojiFiliere(item.filiere || '') }}</span>
+                {{ item.filiere ? libelleFiliere(item.filiere) : (item.filiereTexte || '—') }}
+              </span>
+            </td>
+
+            <td class="ta-right num">
+              <ng-container *ngIf="item.typeSaisie === 'Masse' && item.grandeur !== null; else montantCell">
+                {{ (item.grandeur / 1000) | number:'1.0-3' }}
+                <span class="duo-second">{{ item.grandeur | number:'1.0-0' }} kg</span>
+              </ng-container>
+              <ng-template #montantCell>
+                <span class="montant-chip">{{ item.montant | number:'1.0-2' }} {{ item.devise }}</span>
+              </ng-template>
+            </td>
+
+            <td><span class="saisie-chip">{{ item.typeSaisie }}</span></td>
+
+            <td class="facteur-cell" [title]="item.libelleFacteur">
+              <ng-container *ngIf="item.facteur !== null; else sansFacteur">
+                <span class="duo-principal">
+                  {{ item.facteur | number:'1.0-6' }} <span class="unite-facteur">/{{ item.uniteFacteur }}</span>
+                </span>
+                <span class="duo-second">{{ item.libelleFacteur }}</span>
+              </ng-container>
+              <ng-template #sansFacteur><span class="alerte-facteur">non résolu</span></ng-template>
+            </td>
+
+            <td class="base-cell" [title]="item.baseAppliquee">
+              <span class="base-badge" *ngIf="item.baseAppliquee; else sansBase">{{ item.baseAppliquee }}</span>
+              <span class="origine-repli" *ngIf="item.origineFacteur === 'ADEME'">repli</span>
+              <ng-template #sansBase>—</ng-template>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="9" class="empty-row">
+              Aucun produit en fin de vie enregistré sur ce périmètre.
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="3">Total — {{ emissionsFiltrees.length }} flux</td>
+            <td class="ta-right num-fort">{{ totalMasseTonnes | number:'1.0-3' }} T</td>
+            <td colspan="3"></td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier la fin de vie produit'
+                         : '♻️ Ajouter une fin de vie produit' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Fin de vie des produits vendus — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="fv-produit">Produit / Gamme *</label>
+            <input id="fv-produit" type="text" [(ngModel)]="formModel.produit"
+                   placeholder="Ex : Filtres à air usagés">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="fv-ref">Référence / Code</label>
+            <input id="fv-ref" type="text" [(ngModel)]="formModel.reference"
+                   placeholder="Engendrée si vide">
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Type de donnée</label>
+            <div class="radio-groupe">
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Réel'">
+                <input type="radio" name="prov-fdv" value="Réel" [(ngModel)]="formModel.provenance">
+                <span>✓ Réel</span>
+              </label>
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Estimation'">
+                <input type="radio" name="prov-fdv" value="Estimation" [(ngModel)]="formModel.provenance">
+                <span>≈ Estimation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="fv-filiere">Filière de traitement *</label>
+            <select id="fv-filiere" [(ngModel)]="formModel.filiere" (ngModelChange)="onCritereChange()">
+              <option *ngFor="let f of filieres" [value]="f">
+                {{ emojiFiliere(f) }} {{ libelleFiliere(f) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="fv-saisie">Type de saisie</label>
+            <select id="fv-saisie" [(ngModel)]="formModel.typeSaisie" (ngModelChange)="onTypeSaisieChange()">
+              <option value="Masse">Masse / Filière</option>
+              <option value="Monétaire">Monétaire</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SAISIE PAR MASSE -->
+        <div class="form-row" *ngIf="formModel.typeSaisie === 'Masse'">
+          <div class="form-group flex-1">
+            <label for="fv-masse">Masse totale *</label>
+            <input id="fv-masse" type="number" step="any" [(ngModel)]="formModel.masse"
+                   (ngModelChange)="onSaisieChange()" placeholder="Ex : 10">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="fv-unite">Unité *</label>
+            <select id="fv-unite" [(ngModel)]="formModel.unite" (ngModelChange)="onCritereChange()">
+              <option *ngFor="let u of unitesDisponibles" [value]="u">{{ u }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SAISIE MONÉTAIRE -->
+        <div class="form-row" *ngIf="formModel.typeSaisie === 'Monétaire'">
+          <div class="form-group flex-1">
+            <label for="fv-montant">Coût de traitement *</label>
+            <input id="fv-montant" type="number" step="any" [(ngModel)]="formModel.montant"
+                   (ngModelChange)="onSaisieChange()" placeholder="0.00">
+          </div>
+          <div class="form-group flex-1">
+            <label for="fv-devise">Devise</label>
+            <input id="fv-devise" type="text" [value]="formModel.devise" readonly class="readonly-field">
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="fv-facteur">Facteur MS SQL</label>
+          <select id="fv-facteur" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-6' }} / {{ f.unit }})
+            </option>
+          </select>
+        </div>
+
+        <!-- CALCULATRICE EN DIRECT -->
+        <div class="formule-box">
+          <div class="formule-titre">
+            <span aria-hidden="true">💡</span> Formule appliquée &amp; calcul live
+          </div>
+
+          <p class="formule-enonce" *ngIf="formModel.typeSaisie === 'Masse'">
+            Émissions (kgCO₂e) = Masse (kg) × Facteur d'Émission Filière MS SQL
+          </p>
+          <p class="formule-enonce" *ngIf="formModel.typeSaisie === 'Monétaire'">
+            Émissions (kgCO₂e) = Coût de traitement × Facteur d'Émission MS SQL
+          </p>
+
+          <!-- Étape de conversion, quand la masse est saisie en tonnes -->
+          <div class="formule-etape"
+               *ngIf="formModel.typeSaisie === 'Masse' && grandeurPrevisionnelle !== null
+                      && formModel.unite === 'Tonnes'">
+            <span>{{ formModel.masse | number:'1.0-3' }} Tonnes =</span>
+            <strong>{{ grandeurPrevisionnelle | number:'1.0-0' }} kg</strong>
+          </div>
+
+          <div class="formule-etape"
+               *ngIf="grandeurPrevisionnelle !== null && facteurCourant.valeur !== null">
+            <span>
+              {{ grandeurPrevisionnelle | number:'1.0-0' }} {{ uniteGrandeurCourante }} ×
+              {{ facteurCourant.valeur | number:'1.0-6' }} kgCO₂e/{{ facteurCourant.unite }}
+              ({{ facteurCourant.origine === 'MS SQL BDD'
+                    ? formModel.filiere + ' MS SQL'
+                    : 'repli ADEME ' + formModel.filiere }}) =
+            </span>
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <p class="formule-enonce" *ngIf="grandeurPrevisionnelle === null">
+            {{ formModel.typeSaisie === 'Monétaire'
+                ? 'Renseignez le coût de traitement pour voir le calcul.'
+                : 'Renseignez la masse totale pour voir le calcul.' }}
+          </p>
+
+          <div class="formule-resultat">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="facteurCourant.origine === 'ADEME'">
+            <span class="origine-repli">Facteur de repli</span>
+            <span>{{ facteurCourant.libelle }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer la matrice de fin de vie</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Colonnes obligatoires : <strong>Produit</strong> (ou <em>Gamme</em>, <em>Filtre</em>),
+          <strong>Filière</strong> (ou <em>Traitement</em>, <em>Mode Fin de vie</em>) et
+          <strong>Masse (Tonnes)</strong> ou <strong>Masse (kg)</strong> — ou un
+          <strong>Montant</strong> en approche monétaire.
+        </p>
+        <p class="import-hint">
+          L'unité de la masse est lue dans l'intitulé de sa colonne, puis ramenée au kilogramme.
+          <strong>Référence</strong> et <strong>Type Saisie</strong> sont facultatifs : la première
+          est engendrée, le second se déduit de la colonne renseignée.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS D'IMPORT -->
+  <div class="toast-pile" *ngIf="toastMessage">
+    <div class="toast" role="status">
+      <span aria-hidden="true">✅</span>
+      <span>{{ toastMessage }}</span>
+      <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="toast toast-repli" *ngIf="toastSecondaire" role="status">
+      <span aria-hidden="true">⚠️</span>
+      <span>{{ toastSecondaire }}</span>
+    </div>
+  </div>
+
+</div>

@@ -2,13 +2,13 @@ package com.misfat.userservice.service;
 
 import com.misfat.userservice.dto.UserRegistrationDto;
 import com.misfat.userservice.entity.User;
-import com.misfat.userservice.entity.Role;
 import com.misfat.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -29,13 +29,15 @@ public class UserService {
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
         user.setRole(dto.getRole());
+        user.setUsine(dto.getUsine());
         user.setStatus("EN_ATTENTE");
+        user.setPassword(dto.getPassword()); // Sauvegarde temporaire dans MS SQL Server
 
         return userRepository.save(user);
     }
 
-    // 2. Approbation par l'Admin (Création Keycloak + Activation BDD)
-    public String approveUser(Long id, String password) throws Exception {
+    // 2. Approbation (Prend le mot de passe depuis SQL Server et crée le compte Keycloak)
+    public String approveUser(Long id) throws Exception {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new Exception("Utilisateur introuvable."));
 
@@ -49,7 +51,7 @@ public class UserService {
         keycloakDto.setFirstName(user.getFirstName());
         keycloakDto.setLastName(user.getLastName());
         keycloakDto.setRole(user.getRole());
-        keycloakDto.setPassword(password);
+        keycloakDto.setPassword(user.getPassword()); // Récupéré de SQL Server
 
         int status = keycloakService.createUser(keycloakDto);
 
@@ -62,7 +64,7 @@ public class UserService {
         }
     }
 
-    // 3. Connexion (Calcul automatique de l'accessType pour Angular)
+    // 3. Connexion
     public Map<String, Object> loginUser(String username) throws Exception {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new Exception("Erreur : Utilisateur non trouvé."));
@@ -80,21 +82,19 @@ public class UserService {
             case CONTRIBUTEUR:
                 accessType = "STANDARD_USER";
                 break;
-            case AUDITEUR:
-            case DIRECTION:
-                accessType = "VIEWER";
-                break;
             default:
                 accessType = "VIEWER";
         }
 
         Map<String, Object> response = new HashMap<>();
-        response.put("user", user);
+        response.put("username", user.getUsername());
+        response.put("role", user.getRole().toString());
         response.put("accessType", accessType);
+        response.put("token", "simulated-jwt-token");
         return response;
     }
 
-    public java.util.List<User> getAllUsers() {
+    public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 }

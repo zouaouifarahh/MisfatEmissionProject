@@ -1,0 +1,349 @@
+@import "../../shared/styles/scope1-theme.css";
+
+/* ==========================================================================
+   Émissions de réfrigérants — 3ᵉ catégorie du Scope 1
+   Thème Scope 1 (vert) aligné sur les deux premières catégories.
+   ========================================================================== */
+
+:host {
+    display: block;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+    /* Jetons du Scope 1 : mêmes teintes que les cartes du tableau de bord. */
+    --sc: #2F7D50;
+    --sc-vif: #3FA96B;
+    --sc-pale: #EEF7F2;
+    --sc-bord: #CBEBD8;
+
+    --texte: #1E293B;
+    --texte-2: #475569;
+    --texte-3: #94A3B8;
+    --ligne: #E2E8F0;
+    --ligne-douce: #EEF2F7;
+}
+
+.emission-container { display: flex; flex-direction: column; gap: 14px; }
+
+/* ---------- En-tête ---------- */
+
+.emission-header { border-left: 4px solid var(--sc-vif); padding-left: 14px; }
+.emission-header h2 { margin: 0 0 4px; font-size: 21px; font-weight: 800; color: var(--texte); }
+.section-desc { margin: 0; font-size: 13px; color: var(--texte-2); max-width: 760px; }
+
+.ref-warning {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+}
+
+/* ---------- Carte et barre d'actions ---------- */
+
+.emission-card {
+    background: #ffffff; border: 1px solid var(--ligne); border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); overflow: hidden;
+}
+
+.table-actions {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 14px 16px; border-bottom: 1px solid var(--ligne-douce); background: #F8FAFC;
+}
+
+.search-input, .filter-dropdown {
+    border: 1px solid var(--ligne); border-radius: 8px; padding: 8px 11px;
+    font-size: 12.5px; font-family: inherit; color: var(--texte); background: #ffffff;
+}
+
+.search-input { flex: 1; min-width: 230px; }
+.search-input:focus, .filter-dropdown:focus { outline: 2px solid var(--sc-vif); outline-offset: 1px; }
+
+.perimetre-chip {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.4px;
+    padding: 4px 10px; border-radius: 20px;
+    color: var(--sc); background: var(--sc-pale); border: 1px solid var(--sc-bord);
+}
+
+.right-actions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+.btn-new, .btn-import, .btn-export, .btn-model, .btn-ghost {
+    border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 700;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+    transition: background 0.18s ease, filter 0.18s ease;
+}
+
+.btn-new { background: var(--sc); color: #ffffff; border: none; }
+.btn-new:hover { filter: brightness(1.08); }
+
+.btn-import, .btn-export, .btn-model, .btn-ghost {
+    background: #ffffff; color: var(--texte-2); border: 1px solid var(--ligne);
+}
+.btn-import:hover, .btn-export:hover, .btn-model:hover, .btn-ghost:hover {
+    background: var(--sc-pale); border-color: var(--sc-bord); color: var(--sc);
+}
+.btn-export:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- Tableau ---------- */
+
+/* Onze colonnes : le tableau défile dans son cadre plutôt que d'élargir la page. */
+.table-container { overflow-x: auto; }
+
+.data-table { width: 100%; border-collapse: collapse; min-width: 1080px; }
+
+.data-table thead th {
+    text-align: left; font-size: 10px; font-weight: 800; letter-spacing: 0.7px;
+    text-transform: uppercase; color: #ffffff; background: var(--sc);
+    padding: 11px 12px; white-space: nowrap;
+}
+
+.data-table thead th.sortable { cursor: pointer; }
+.data-table thead th.sortable:hover { background: var(--sc-vif); }
+
+.data-table tbody td {
+    font-size: 12.5px; color: var(--texte-2);
+    padding: 9px 12px; border-bottom: 1px solid var(--ligne-douce);
+}
+
+.data-table tbody tr:nth-child(even) { background: #FBFCFE; }
+.data-table tbody tr:hover { background: var(--sc-pale); }
+
+.data-table tfoot td {
+    font-size: 12.5px; font-weight: 800; color: #ffffff; background: #1E3A52;
+    padding: 11px 12px;
+}
+
+.ta-right { text-align: right; }
+.ta-center { text-align: center; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num-fort { font-weight: 800; color: var(--texte); }
+.cell-strong { font-weight: 600; color: var(--texte); }
+.periode { white-space: nowrap; font-size: 11.5px; }
+
+.ref-badge, .base-badge, .unit-badge, .hyp-badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 5px; white-space: nowrap;
+}
+
+.ref-badge  { color: #3D7CA3; background: #EFF6FA; border: 1px solid #CFE4F0; }
+.base-badge { color: var(--sc); background: var(--sc-pale); border: 1px solid var(--sc-bord); }
+.unit-badge { color: var(--texte-2); background: #F8FAFC; border: 1px solid var(--ligne); }
+.hyp-badge  { color: var(--sc); background: var(--sc-pale); border: 1px solid var(--sc-bord); }
+.hyp-badge.hyp-estim { color: #B4652F; background: #FCF4EE; border-color: #F5DCC2; }
+
+.empty-row { text-align: center; color: var(--texte-3); padding: 28px 12px; font-size: 12.5px; }
+
+.action-buttons { display: inline-flex; gap: 6px; }
+
+.btn-edit, .btn-delete {
+    border: 1px solid var(--ligne); background: #ffffff; border-radius: 7px;
+    width: 28px; height: 28px; font-size: 12px; line-height: 1; cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-edit:hover { background: var(--sc-pale); border-color: var(--sc-vif); }
+.btn-delete:hover { background: #FEF2F2; border-color: #EF4444; }
+
+/* ---------- Modales ---------- */
+
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 18px;
+}
+
+.modal-card {
+    background: #ffffff; border-radius: 14px; width: 100%; max-width: 520px;
+    max-height: 92vh; display: flex; flex-direction: column;
+    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+}
+
+.wide-modal { max-width: 860px; }
+
+.modal-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 15px 20px; border-bottom: 1px solid var(--ligne);
+    background: var(--sc); border-radius: 14px 14px 0 0;
+}
+
+.modal-header h3 { margin: 0; font-size: 15px; font-weight: 800; color: #ffffff; }
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.2); border: none; color: #ffffff;
+    width: 26px; height: 26px; border-radius: 7px; font-size: 17px; line-height: 1; cursor: pointer;
+}
+.modal-close:hover { background: rgba(255, 255, 255, 0.32); }
+
+/* Le corps défile : la modale reste dans l'écran quel que soit le contenu. */
+.modal-body { padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+.validation-alert {
+    display: flex; align-items: center; gap: 9px; padding: 10px 13px; border-radius: 9px;
+    font-size: 12.5px; font-weight: 600;
+    color: #B91C1C; background: #FEF2F2; border: 1px solid #FECACA;
+}
+
+.scope-box-header {
+    display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px;
+    font-size: 12.5px; font-weight: 600; color: var(--sc);
+    background: var(--sc-pale); border: 1px solid var(--sc-bord);
+}
+
+.scope-tag {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+    padding: 2px 9px; border-radius: 20px; color: #ffffff; background: var(--sc);
+}
+
+.form-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.flex-1 { flex: 1; min-width: 190px; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+
+.form-group label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.7px;
+    text-transform: uppercase; color: var(--texte-3);
+}
+
+.form-group input, .form-group select {
+    border: 1px solid var(--ligne); border-radius: 8px; padding: 9px 11px;
+    font-size: 12.5px; font-family: inherit; color: var(--texte); background: #ffffff;
+}
+
+.form-group input:focus, .form-group select:focus { outline: 2px solid var(--sc-vif); outline-offset: 1px; }
+.form-group select:disabled { background: #F1F5F9; color: var(--texte-3); cursor: not-allowed; }
+
+/* Champ piloté par le référentiel : la saisie manuelle contournerait la base. */
+.readonly-field { background: #F8FAFC !important; color: var(--texte-2) !important; cursor: default; }
+
+.field-hint { font-size: 10.5px; color: var(--texte-3); }
+
+.toggle-buttons { display: inline-flex; background: #F1F5F9; border-radius: 9px; padding: 3px; }
+
+.btn-toggle {
+    background: none; border: none; border-radius: 7px; padding: 7px 15px;
+    font-size: 12.5px; font-weight: 700; font-family: inherit;
+    color: var(--texte-2); cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-toggle.active { background: var(--sc); color: #ffffff; }
+
+/* ---------- Récapitulatif du facteur ---------- */
+
+.live-preview-box {
+    border: 1px dashed var(--sc-bord); background: var(--sc-pale);
+    border-radius: 10px; padding: 13px 15px;
+}
+
+.preview-title {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--sc); margin-bottom: 9px;
+}
+
+.preview-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
+}
+
+.preview-grid > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.preview-grid span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--texte-3); }
+.preview-grid strong {
+    font-size: 12.5px; font-weight: 700; color: var(--texte);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.preview-total {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--sc-bord);
+    font-size: 12px; font-weight: 600; color: var(--texte-2);
+}
+
+.preview-total strong { font-size: 19px; font-weight: 800; color: var(--sc); font-variant-numeric: tabular-nums; }
+
+.hypothesis-section { display: flex; flex-direction: column; gap: 8px; }
+
+.hypothesis-section label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.7px;
+    text-transform: uppercase; color: var(--texte-3);
+}
+
+.hypothesis-section input {
+    border: 1px solid var(--ligne); border-radius: 8px; padding: 9px 11px;
+    font-size: 12.5px; font-family: inherit; color: var(--texte);
+}
+
+.modal-footer {
+    display: flex; justify-content: flex-end; gap: 9px;
+    padding: 14px 20px; border-top: 1px solid var(--ligne); background: #F8FAFC;
+    border-radius: 0 0 14px 14px;
+}
+
+.btn-cancel, .btn-submit {
+    border-radius: 8px; padding: 9px 17px; font-size: 12.5px; font-weight: 700;
+    font-family: inherit; cursor: pointer;
+}
+
+.btn-cancel { background: #ffffff; color: var(--texte-2); border: 1px solid var(--ligne); }
+.btn-cancel:hover { background: #F1F5F9; }
+.btn-submit { background: var(--sc); color: #ffffff; border: none; }
+.btn-submit:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- Import ---------- */
+
+.import-hint { margin: 0; font-size: 12.5px; color: var(--texte-2); line-height: 1.55; }
+
+.file-input {
+    border: 1px dashed var(--ligne); border-radius: 9px; padding: 14px;
+    font-size: 12.5px; width: 100%; background: #F8FAFC;
+}
+
+.import-ok, .import-ko {
+    padding: 10px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 600;
+}
+.import-ok { color: var(--sc); background: var(--sc-pale); border: 1px solid var(--sc-bord); }
+.import-ko { color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2; }
+
+@media (max-width: 700px) {
+    .right-actions { width: 100%; margin-left: 0; }
+    .search-input { min-width: 0; }
+}
+
+/* Une ligne issue de la ventilation d'un classeur comptable ne doit pas se
+   confondre avec une saisie faite à la main sur l'usine. */
+.badge-ventilation {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #1E3A52;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+}
+
+/* Provenance de la donnée : saisie, estimation ou import de classeur. */
+.prov-badge {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.prov-reel { color: #2F7D50; background: #EEF7F2; border-color: #CBEBD8; }
+.prov-estim { color: #B4652F; background: #FCF4EE; border-color: #F5DCC2; }
+.prov-excel { color: #1E3A52; background: #EFF6FA; border-color: #CFE4F0; }
+
+/* Étiquette métier de la ligne : ventilation comptable ou saisie directe. */
+.type-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #1E3A52;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+}
+
+.type-neutre { font-size: 11px; color: #94A3B8; }

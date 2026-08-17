@@ -1,0 +1,323 @@
+@import "../../shared/styles/scope1-theme.css";
+@import "../../shared/styles/mobilite-badges.css";
+
+/* ==========================================================================
+   Transformation des produits vendus — Scope 3, catégorie 10
+   Le thème partagé est piloté par variables ; la note, le toast et l'encart de
+   formule viennent du socle commun aux catégories 6 à 9.
+   ========================================================================== */
+
+:host {
+    display: block;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+    /* Bleu Scope 3, aux teintes du tableau de bord. */
+    --sc1: #1E3A52;
+    --sc1-vif: #1E92CD;
+    --sc1-pale: #EFF6FA;
+    --sc1-bord: #CFE4F0;
+
+    --sc1-total: #1B364A;
+
+    --sc1-texte: #1E293B;
+    --sc1-texte-2: #475569;
+    --sc1-texte-3: #94A3B8;
+    --sc1-ligne: #E2E8F0;
+    --sc1-ligne-douce: #EEF2F7;
+}
+
+.emission-container { display: flex; flex-direction: column; gap: 14px; }
+
+/* La remarque sur les produits finis détermine si la catégorie a un objet :
+   elle se détache du corps de la note. */
+.note-regle {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin: 7px 0 0;
+    padding: 8px 11px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px dashed var(--sc1-bord);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--sc1);
+}
+
+/* ---------- Déclaration de non-applicabilité ---------- */
+
+.bouton-na {
+    align-self: flex-start;
+    margin-top: 9px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    text-align: left;
+    color: var(--sc1);
+    background: #ffffff;
+    border: 1px solid var(--sc1-bord);
+    cursor: pointer;
+}
+
+.bouton-na:hover { border-color: var(--sc1-vif); }
+
+.bouton-na-actif {
+    color: #059669;
+    background: #D1FAE5;
+    border-color: #A7F3D0;
+}
+
+/* Une catégorie sans objet est un résultat, pas une absence de données. */
+.bandeau-na {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 13px 16px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #065F46;
+    background: #D1FAE5;
+    border: 1px solid #A7F3D0;
+    border-left: 4px solid #059669;
+}
+
+.ref-warning {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+}
+
+.emission-card {
+    background: #ffffff;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+}
+
+.table-container { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 1480px; }
+
+.cell-strong { font-weight: 600; color: var(--sc1-texte); }
+
+.produit-cell, .client-cell, .facteur-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.client-cell { color: var(--sc1-texte-2); }
+
+/* ---------- Pastilles de procédé ---------- */
+
+.procede-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* ⚙️ Assemblage mécanique. */
+.procede-assemblage { color: #1D4ED8; background: #DBEAFE; border-color: #BFDBFE; }
+/* 🔥 Traitement thermique et fusion. */
+.procede-thermique { color: #DC2626; background: #FEE2E2; border-color: #FECACA; }
+/* 📐 Usinage et découpe. */
+.procede-usinage { color: #D97706; background: #FEF3C7; border-color: #FDE68A; }
+/* 🧪 Extrusion et moulage plastique. */
+.procede-moulage { color: #6D28D9; background: #EDE9FE; border-color: #DDD6FE; }
+/* 📦 Produit fini : aucune transformation ultérieure. */
+.procede-fini { color: #059669; background: #D1FAE5; border-color: #A7F3D0; }
+
+.procede-neutre { color: #475569; background: #F1F5F9; border-color: #E2E8F0; }
+
+/* Approche de valorisation retenue pour la ligne. */
+.saisie-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--sc1-texte-2);
+    background: var(--sc1-ligne-douce);
+    border: 1px solid var(--sc1-ligne);
+}
+
+/* ---------- Pastille de provenance ---------- */
+
+.prov-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.prov-compacte { padding: 1px 7px; font-size: 10px; }
+
+.prov-reel { color: #2F7D50; background: #EEF7F2; border-color: #CBEBD8; }
+.prov-estim { color: #B4652F; background: #FCF4EE; border-color: #F5DCC2; }
+.prov-excel { color: var(--sc1); background: var(--sc1-pale); border-color: var(--sc1-bord); }
+
+/* Une ligne sans facteur pèse zéro à tort : elle doit se repérer. */
+.ligne-sans-facteur { background: #FFFBF5; }
+.alerte-facteur { display: block; font-size: 11px; font-weight: 700; color: #B4652F; }
+
+/* ---------- Cellules à deux niveaux ---------- */
+
+.duo-principal {
+    display: block;
+    font-weight: 600;
+    color: var(--sc1-texte);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.duo-second {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--sc1-texte-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.unite-facteur { font-size: 10px; font-weight: 600; color: var(--sc1-texte-3); }
+
+.base-cell { max-width: 170px; }
+
+.base-badge {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sc1);
+    background: var(--sc1-pale);
+    border: 1px solid var(--sc1-bord);
+}
+
+/* ---------- Sélecteur radio du type de donnée ---------- */
+
+.radio-groupe { display: flex; gap: 8px; }
+
+.radio-option {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 8px 11px;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--sc1-texte);
+    cursor: pointer;
+}
+
+.radio-option:hover { border-color: var(--sc1-vif); }
+.radio-option input { position: absolute; opacity: 0; pointer-events: none; }
+
+.radio-actif {
+    border-color: var(--sc1);
+    background: var(--sc1-pale);
+    box-shadow: inset 0 0 0 1px var(--sc1);
+}
+
+/* ---------- Pagination ---------- */
+
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 11px 16px;
+    border-top: 1px solid var(--sc1-ligne);
+    background: #FBFDFE;
+}
+
+.pagination-info { font-size: 12px; font-weight: 600; color: var(--sc1-texte-2); }
+.pagination-controls { display: flex; align-items: center; gap: 6px; }
+
+.btn-page {
+    min-width: 30px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--sc1);
+    background: #ffffff;
+    border: 1px solid var(--sc1-ligne);
+    cursor: pointer;
+}
+
+.btn-page:hover:not(:disabled) { border-color: var(--sc1-vif); background: var(--sc1-pale); }
+.btn-page:disabled { color: var(--sc1-texte-3); cursor: not-allowed; opacity: 0.55; }
+
+.page-courante {
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sc1-texte);
+    font-variant-numeric: tabular-nums;
+}
+
+.pagination-taille {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sc1-texte-2);
+}
+
+.pagination-taille select {
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--sc1-texte);
+    background: #ffffff;
+}
+
+/* ---------- Import ---------- */
+
+.import-hint { margin: 0; font-size: 12.5px; color: var(--sc1-texte-2); line-height: 1.55; }
+
+.file-input {
+    border: 1px dashed var(--sc1-ligne); border-radius: 9px; padding: 14px;
+    font-size: 12.5px; width: 100%; background: #F8FAFC;
+}
+
+.import-ko {
+    padding: 10px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 600;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+}

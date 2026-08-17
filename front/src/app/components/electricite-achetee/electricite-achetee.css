@@ -1,0 +1,156 @@
+@import "../../shared/styles/scope1-theme.css";
+
+/* ==========================================================================
+   Électricité achetée — Scope 2
+   Le thème partagé est entièrement piloté par variables : il suffit de les
+   redéfinir ici pour que l'en-tête de tableau, les pastilles, les pilules, la
+   modale et les boutons basculent en orange. Aucune règle n'est recopiée.
+   L'ordre compte : cette déclaration suit l'@import, elle l'emporte donc.
+   ========================================================================== */
+
+:host {
+    display: block;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+    /* Orange Scope 2, aux teintes déjà employées par le tableau de bord. */
+    --sc1: #C35014;          /* bandeaux pleins, boutons d'action */
+    --sc1-vif: #E86622;      /* survols, contours de focus */
+    --sc1-pale: #FCF4EE;     /* fonds doux : cartouche, pastilles */
+    --sc1-bord: #F5DCC2;
+
+    /* Ligne de total : bleu nuit commun à tous les scopes. */
+    --sc1-total: #1B364A;
+
+    --sc1-texte: #1E293B;
+    --sc1-texte-2: #475569;
+    --sc1-texte-3: #94A3B8;
+    --sc1-ligne: #E2E8F0;
+    --sc1-ligne-douce: #EEF2F7;
+}
+
+.emission-container { display: flex; flex-direction: column; gap: 14px; }
+
+/* Les pastilles héritent de la palette ci-dessus ; seules les nuances propres
+   à cet écran sont définies ici. */
+.emission-card .ref-badge { color: #3D7CA3; background: #EFF6FA; border-color: #CFE4F0; }
+
+.ref-warning {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+}
+
+.emission-card {
+    background: #ffffff;
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+}
+
+/* Onze colonnes : le tableau défile dans son cadre plutôt que d'élargir la page. */
+.table-container { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 1080px; }
+
+.cell-strong { font-weight: 600; color: var(--sc1-texte); }
+.periode { white-space: nowrap; font-size: 11.5px; }
+
+/* ---------- Récapitulatif du facteur ---------- */
+
+.preview-title {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--sc1); margin-bottom: 9px;
+}
+
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.preview-grid > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.preview-grid span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--sc1-texte-3); }
+
+.preview-grid strong {
+    font-size: 12.5px; font-weight: 700; color: var(--sc1-texte);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.preview-total {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--sc1-bord);
+    font-size: 12px; font-weight: 600; color: var(--sc1-texte-2);
+}
+
+.preview-total strong {
+    font-size: 19px; font-weight: 800; color: var(--sc1);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Hypothèse ---------- */
+
+.hypothesis-section { display: flex; flex-direction: column; gap: 8px; }
+
+.hypothesis-section > label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.7px;
+    text-transform: uppercase; color: var(--sc1-texte-3);
+}
+
+.hypothesis-section input {
+    border: 1px solid var(--sc1-ligne); border-radius: 8px; padding: 9px 11px;
+    font-size: 12.5px; font-family: inherit; color: var(--sc1-texte);
+}
+
+/* ---------- Import ---------- */
+
+.import-hint { margin: 0; font-size: 12.5px; color: var(--sc1-texte-2); line-height: 1.55; }
+
+.file-input {
+    border: 1px dashed var(--sc1-ligne); border-radius: 9px; padding: 14px;
+    font-size: 12.5px; width: 100%; background: #F8FAFC;
+}
+
+.import-ok, .import-ko { padding: 10px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 600; }
+.import-ok { color: var(--sc1); background: var(--sc1-pale); border: 1px solid var(--sc1-bord); }
+.import-ko { color: #B91C1C; background: #FEF2F2; border: 1px solid #FECACA; }
+
+/* Une ligne issue de la ventilation d'un classeur comptable ne doit pas se
+   confondre avec une saisie faite à la main sur l'usine. */
+.badge-ventilation {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #1E3A52;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+}
+
+/* Provenance de la donnée : saisie, estimation ou import de classeur. */
+.prov-badge {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.prov-reel { color: #2F7D50; background: #EEF7F2; border-color: #CBEBD8; }
+.prov-estim { color: #B4652F; background: #FCF4EE; border-color: #F5DCC2; }
+.prov-excel { color: #1E3A52; background: #EFF6FA; border-color: #CFE4F0; }
+
+/* Étiquette métier de la ligne : ventilation comptable ou saisie directe. */
+.type-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #1E3A52;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+}
+
+.type-neutre { font-size: 11px; color: #94A3B8; }

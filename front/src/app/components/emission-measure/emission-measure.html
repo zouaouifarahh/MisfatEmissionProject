@@ -1,0 +1,119 @@
+<div class="factor-container">
+
+  <!-- TOAST -->
+  <div *ngIf="toastMessage" class="toast-box" [ngClass]="'toast-' + toastType">
+    <span>{{ toastType === 'success' ? '✅' : (toastType === 'danger' ? '⚠️' : 'ℹ️') }}</span>
+    <span>{{ toastMessage }}</span>
+  </div>
+
+  <div>
+    <h1 class="page-title">📊 Facteurs d'Émission</h1>
+    <p class="page-subtitle">Référentiel des facteurs de conversion GES par catégorie (DEFRA / ECOINVENT / IPCC)</p>
+  </div>
+
+  <!-- SÉLECTION SCOPE -->
+  <div class="scope-tabs">
+    <button type="button" *ngFor="let s of scopes" class="tab-btn" [class.active]="selectedScope === s.id" (click)="selectScope(s.id)">
+      {{ s.name }}
+    </button>
+  </div>
+
+  <!-- CATÉGORIES EN PILLS (toujours visibles, plus de select caché) -->
+  <div class="category-pills">
+    <button type="button" *ngFor="let cat of categoriesByScope[selectedScope]" class="pill-btn" [class.active]="selectedCategory === cat.id" (click)="selectCategory(cat.id)">
+      <span>{{ cat.icon }}</span> {{ cat.name }}
+    </button>
+  </div>
+
+  <!-- FORMULAIRE -->
+  <div class="card-box">
+    <h3 class="card-title">
+      {{ editingFactorId ? '✏️ Modifier le Facteur' : '➕ Ajouter un nouveau Facteur' }} — <span class="text-orange">{{ currentCategoryLabel }}</span>
+    </h3>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Source / Élément</label>
+        <select class="custom-input" [(ngModel)]="newSource">
+          <option *ngFor="let src of currentAvailableSources" [value]="src">{{ src }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Base de données</label>
+        <select class="custom-input" [(ngModel)]="newDatabase">
+          <option value="DEFRA">DEFRA</option>
+          <option value="ECOINVENT">ECOINVENT</option>
+          <option value="IPCC">IPCC</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Type de mesure</label>
+        <select class="custom-input" [(ngModel)]="newType" (change)="onTypeChange()">
+          <option value="PHYSIQUE">Physique</option>
+          <option value="MONETAIRE">Monétaire</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Valeur Ratio (kg CO₂e)</label>
+        <input type="number" class="custom-input" [(ngModel)]="newValue" placeholder="Ex: 2.51" />
+      </div>
+
+      <div class="form-group">
+        <label>Unité</label>
+        <select class="custom-input" [(ngModel)]="newUnit">
+          <ng-container *ngIf="newType === 'PHYSIQUE'">
+            <option *ngFor="let u of physicalUnits" [value]="u">{{ u }}</option>
+          </ng-container>
+          <ng-container *ngIf="newType === 'MONETAIRE'">
+            <option *ngFor="let u of monetaryUnits" [value]="u">{{ u }}</option>
+          </ng-container>
+        </select>
+      </div>
+
+      <div class="form-group" style="flex-direction: row; gap: 8px;">
+        <button type="button" class="btn-submit" style="flex:1" (click)="addFactor()">
+          {{ editingFactorId ? 'Mettre à jour' : 'Enregistrer' }}
+        </button>
+        <button type="button" *ngIf="editingFactorId" class="btn-delete" (click)="cancelEdit()">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLEAU -->
+  <div class="card-box">
+    <h3 class="card-title">📋 Référentiel des Facteurs Actifs</h3>
+
+    <table class="misfat-table">
+      <thead>
+        <tr>
+          <th>Source / Élément</th>
+          <th>Base</th>
+          <th>Type</th>
+          <th>Valeur Ratio</th>
+          <th>Unité</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let f of filteredFactors">
+          <td class="text-navy font-bold">{{ f.sourceName }}</td>
+          <td><span class="badge" [ngClass]="getBadgeClass(f.databaseName)">{{ f.databaseName }}</span></td>
+          <td>{{ f.type }}</td>
+          <td class="text-orange font-bold">{{ f.value }} kg CO₂e</td>
+          <td>/ {{ f.unit }}</td>
+          <td class="text-right">
+            <button type="button" class="btn-submit" style="padding:6px 12px;font-size:12px;margin-right:6px;" (click)="editFactor(f)">✏️ Modifier</button>
+            <button type="button" class="btn-delete" (click)="deleteFactor(f.id)">🗑️ Supprimer</button>
+          </td>
+        </tr>
+        <tr *ngIf="filteredFactors.length === 0">
+          <td colspan="6" class="empty-msg">Aucun facteur d'émission configuré pour « {{ currentCategoryLabel }} ».</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>

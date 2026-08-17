@@ -1,0 +1,221 @@
+<section class="panel">
+
+  <header class="panel-header">
+    <div>
+      <h2>Référentiel des facteurs d'émission</h2>
+      <p>{{ lignesFiltrees.length }} facteur(s) sur {{ lignes.length }} · base carbone interne MISFAT</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn-ghost" (click)="telechargerModele()">📄 Modèle</button>
+
+      <!-- L'input reste masqué : le label stylé sert de bouton de dépôt. -->
+      <label class="btn-outline btn-file" [class.btn-disabled]="importEnCours">
+        {{ importEnCours ? '⏳ Import…' : '📥 Importer Excel' }}
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierImport($event)" [disabled]="importEnCours" hidden>
+      </label>
+
+      <button type="button" class="btn-outline" [disabled]="!lignesFiltrees.length" (click)="exporterExcel()">
+        📤 Exporter Excel
+      </button>
+      <button type="button" class="btn-primary" (click)="ouvrirFormulaire()">+ Ajouter un facteur</button>
+    </div>
+  </header>
+
+  <!-- Bilan du dernier import par lot -->
+  <div class="import-summary" *ngIf="bilanImport" [class.import-summary-warn]="bilanImport.erreurs > 0">
+    <div class="import-summary-body">
+      <strong>{{ bilanImport.total }} ligne(s) lue(s)</strong>
+      — {{ bilanImport.crees }} facteur(s) et {{ bilanImport.references }} référence(s) créé(s).
+      <span *ngIf="bilanImport.erreurs > 0">{{ bilanImport.erreurs }} ligne(s) en erreur.</span>
+      <span *ngIf="bilanImport.erreurs === 0 && bilanImport.crees === 0"> Référentiel déjà à jour.</span>
+      <p class="import-summary-detail" *ngIf="bilanImport.detail">{{ bilanImport.detail }}</p>
+    </div>
+    <button type="button" class="icon-btn" title="Fermer" (click)="fermerBilanImport()">✕</button>
+  </div>
+
+  <!-- Filtres -->
+  <div class="toolbar">
+    <div class="search">
+      <span class="search-icon">⌕</span>
+      <input type="text" placeholder="Rechercher une référence, un type, une unité…"
+             [(ngModel)]="recherche" (ngModelChange)="onFiltreChange()">
+    </div>
+
+    <label class="filter">
+      <span>Scope</span>
+      <select [(ngModel)]="filtreScope" (ngModelChange)="onScopeChange()">
+        <option value="ALL">Tous</option>
+        <option *ngFor="let s of scopes" [value]="s">{{ s }}</option>
+      </select>
+    </label>
+
+    <label class="filter">
+      <span>Catégorie</span>
+      <select [(ngModel)]="filtreCategorie" (ngModelChange)="onFiltreChange()">
+        <option value="ALL">Toutes</option>
+        <option *ngFor="let c of categoriesDisponibles" [value]="c">{{ c }}</option>
+      </select>
+    </label>
+
+    <label class="filter">
+      <span>Provenance</span>
+      <select [(ngModel)]="filtreOrigine" (ngModelChange)="onFiltreChange()">
+        <option value="ALL">Toutes</option>
+        <option value="MANUAL_ENTRY">Manuel</option>
+        <option value="EXCEL_IMPORT">Import Excel</option>
+      </select>
+    </label>
+
+    <button type="button" class="btn-ghost" (click)="reinitialiserFiltres()">Réinitialiser</button>
+  </div>
+
+  <!-- États -->
+  <div class="state state-loading" *ngIf="chargement">Chargement du référentiel…</div>
+  <div class="state state-error" *ngIf="erreur">{{ erreur }}</div>
+
+  <!-- Tableau -->
+  <div class="table-wrap" *ngIf="!chargement && !erreur">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>Type</th>
+          <th>Catégorie</th>
+          <th class="ta-right">Valeur</th>
+          <th>Unité</th>
+          <th>Source</th>
+          <th>Validité</th>
+          <th>Provenance</th>
+          <th class="ta-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let ligne of lignesPage">
+          <td><code class="ref-code">{{ ligne.referenceCode }}</code></td>
+          <td class="cell-strong" [title]="ligne.typeName">{{ ligne.typeName }}</td>
+          <td>
+            <span class="scope-tag" [attr.data-scope]="ligne.scopeCode">{{ ligne.scopeCode }}</span>
+            {{ ligne.categoryName }}
+          </td>
+          <td class="ta-right cell-value">{{ ligne.defaultFactorValue | number:'1.0-6' }}</td>
+          <td><span class="unit-tag">{{ ligne.unit || '—' }}</span></td>
+          <td><span class="source-tag" [title]="ligne.databaseSource || ''">{{ ligne.databaseSource || '—' }}</span></td>
+          <td>{{ ligne.validityLabel || ligne.referenceYear || '—' }}</td>
+          <td><app-origin-badge [origin]="ligne.origin"></app-origin-badge></td>
+          <td class="ta-center row-actions">
+            <button type="button" class="icon-btn" title="Modifier" (click)="editerLigne(ligne)">✏️</button>
+            <button type="button" class="icon-btn icon-btn-danger" title="Supprimer" (click)="demanderSuppression(ligne)">🗑️</button>
+          </td>
+        </tr>
+
+        <tr *ngIf="!lignesPage.length">
+          <td colspan="9" class="cell-empty">Aucun facteur ne correspond aux filtres.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" *ngIf="!chargement && !erreur && lignesFiltrees.length">
+    <label class="page-size">
+      Lignes
+      <select [(ngModel)]="taillePage" (ngModelChange)="allerPage(1)">
+        <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+      </select>
+    </label>
+
+    <div class="page-controls">
+      <button type="button" (click)="allerPage(page - 1)" [disabled]="page === 1">‹</button>
+      <span>Page {{ page }} / {{ totalPages }}</span>
+      <button type="button" (click)="allerPage(page + 1)" [disabled]="page === totalPages">›</button>
+    </div>
+  </div>
+</section>
+
+<!-- Formulaire de création manuelle -->
+<div class="modal-overlay" *ngIf="formulaireOuvert" (click)="fermerFormulaire()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h3>{{ factorEnEdition ? 'Modifier le facteur' : "Ajouter un facteur d'émission" }}</h3>
+      <p *ngIf="!factorEnEdition">Le facteur créé ici portera le badge <strong>Manuel</strong>.</p>
+      <p *ngIf="factorEnEdition">La provenance d'origine est conservée.</p>
+    </header>
+
+    <div class="modal-body">
+      <label class="field">
+        <span>Référence carbone <em>*</em></span>
+        <select [(ngModel)]="nouveau.carbonReferenceId" name="carbonReferenceId">
+          <option [ngValue]="null" disabled>Choisir une référence</option>
+          <option *ngFor="let r of referencesDisponibles" [ngValue]="r.id">{{ r.libelle }}</option>
+        </select>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Valeur du facteur <em>*</em></span>
+          <input type="number" step="any" min="0" [(ngModel)]="nouveau.factorValue" name="factorValue">
+        </label>
+        <label class="field">
+          <span>Unité <em>*</em></span>
+          <input type="text" placeholder="L, kg, kWh, Km…" [(ngModel)]="nouveau.unit" name="unit">
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Type de donnée</span>
+          <select [(ngModel)]="nouveau.dataType" name="dataType">
+            <option value="PHYSIQUE">Physique</option>
+            <option value="MONETAIRE">Monétaire</option>
+          </select>
+        </label>
+        <label class="field" *ngIf="nouveau.dataType === 'MONETAIRE'">
+          <span>Devise</span>
+          <input type="text" placeholder="TND, EUR…" [(ngModel)]="nouveau.currency" name="currency">
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Année de référence</span>
+          <input type="number" [(ngModel)]="nouveau.referenceYear" name="referenceYear">
+        </label>
+        <label class="field">
+          <span>Incertitude (%)</span>
+          <input type="number" step="any" [(ngModel)]="nouveau.uncertaintyPercent" name="uncertaintyPercent">
+        </label>
+      </div>
+
+      <p class="form-error" *ngIf="messageFormulaire">{{ messageFormulaire }}</p>
+    </div>
+
+    <footer class="modal-footer">
+      <button type="button" class="btn-ghost" (click)="fermerFormulaire()">Annuler</button>
+      <button type="button" class="btn-primary" [disabled]="!formulaireValide || enregistrement" (click)="enregistrer()">
+        {{ enregistrement ? 'Enregistrement…' : 'Enregistrer' }}
+      </button>
+    </footer>
+  </div>
+</div>
+
+<!-- Confirmation de suppression -->
+<div class="modal-overlay" *ngIf="ligneASupprimer" (click)="annulerSuppression()">
+  <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h3>Supprimer ce facteur ?</h3>
+    </header>
+    <div class="modal-body">
+      <p class="confirm-text">
+        <strong>{{ ligneASupprimer.referenceCode }}</strong> — {{ ligneASupprimer.typeName }}<br>
+        Valeur {{ ligneASupprimer.defaultFactorValue }} {{ ligneASupprimer.unit }}.
+      </p>
+      <p class="confirm-warn">Cette suppression est définitive.</p>
+    </div>
+    <footer class="modal-footer">
+      <button type="button" class="btn-ghost" (click)="annulerSuppression()">Annuler</button>
+      <button type="button" class="btn-danger" [disabled]="suppressionEnCours" (click)="confirmerSuppression()">
+        {{ suppressionEnCours ? 'Suppression…' : 'Supprimer' }}
+      </button>
+    </footer>
+  </div>
+</div>

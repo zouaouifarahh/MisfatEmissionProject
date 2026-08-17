@@ -1,0 +1,162 @@
+<div class="ref-container">
+
+  <!-- TOAST / ALERTE DYNAMIQUE -->
+  <div *ngIf="toastMessage" class="toast-box" [ngClass]="'toast-' + toastType">
+    <span>{{ toastType === 'success' ? '✅' : (toastType === 'danger' ? '⚠️' : 'ℹ️') }}</span>
+    <span>{{ toastMessage }}</span>
+  </div>
+
+  <!-- EN-TÊTE PAGE ET ONGLETS SCOPES -->
+  <div>
+    <h1 class="page-title">📚 Sources d'Émission</h1>
+    <p class="page-subtitle">Configurez vos sources d'émission et carburants pour les utiliser ensuite dans les calculs de Mesure.</p>
+
+    <div class="scope-tabs">
+      <button *ngFor="let s of scopesData"
+              type="button"
+              class="tab-btn"
+              [class.active]="selectedScopeTab === s.id"
+              (click)="changerOngletScope(s.id)">
+        {{ s.name }}
+      </button>
+    </div>
+  </div>
+
+  <!-- BLOC FORMULAIRE D'AJOUT / MODIFICATION -->
+  <div class="card-box">
+    <div class="card-title-row">
+      <h3 class="card-title">
+        {{ isEditMode ? '✏️ Modifier la source' : '➕ Ajouter une nouvelle source d\'émission' }}
+      </h3>
+      <span class="active-scope-badge" [ngClass]="getScopeBadgeClass(selectedScopeTab)">
+        {{ getScopeLabel(selectedScopeTab) }}
+      </span>
+    </div>
+
+    <form (ngSubmit)="enregistrerSource()" #refForm="ngForm">
+      <div class="form-grid">
+
+        <!-- CATÉGORIE -->
+        <div class="form-group">
+          <label>CATÉGORIE *</label>
+          <select class="custom-input" [(ngModel)]="nouvelleSource.category" name="category" required>
+            <option *ngFor="let cat of categoriesDisponibles" [value]="cat.nom">
+              {{ cat.icone ? cat.icone + ' ' : '' }}{{ cat.nom }}
+            </option>
+          </select>
+        </div>
+
+        <!-- CODE RÉF -->
+        <div class="form-group">
+          <label>CODE RÉF. *</label>
+          <input type="text" class="custom-input" [(ngModel)]="nouvelleSource.referenceCode" name="referenceCode" placeholder="Ex: MS1COV" required>
+        </div>
+
+        <!-- NOM DE LA SOURCE -->
+        <div class="form-group">
+          <label>NOM (CARBURANT / SOURCE) *</label>
+          <input type="text" class="custom-input" [(ngModel)]="nouvelleSource.sourceName" name="sourceName" placeholder="Ex: Voiture à diesel moyenne" required>
+        </div>
+
+        <!-- UNITÉ -->
+        <div class="form-group">
+          <label>UNITÉ DE MESURE *</label>
+          <select class="custom-input" [(ngModel)]="nouvelleSource.defaultUnit" name="defaultUnit" required>
+            <option value="kg">kg (Kilogrammes)</option>
+            <option value="L">L (Litres)</option>
+            <option value="kWh">kWh (Kilowatt-heure)</option>
+            <option value="m3">m³ (Mètres cubes)</option>
+            <option value="km">Km (Kilomètres)</option>
+            <option value="tonne">Tonne</option>
+          </select>
+        </div>
+
+        <!-- BOUTONS ACTION -->
+        <div class="form-group form-actions">
+          <button *ngIf="isEditMode" type="button" class="btn-cancel" (click)="annulerEdition()">
+            Annuler
+          </button>
+          <button type="submit" class="btn-submit" [disabled]="!refForm.valid">
+            {{ isEditMode ? 'Mettre à jour' : 'Enregistrer' }}
+          </button>
+        </div>
+
+      </div>
+    </form>
+  </div>
+
+  <!-- TABLEAU FILTRÉ DES SOURCES -->
+  <div class="card-box no-padding">
+
+    <!-- Filtres appliqués au tableau : scope via les onglets, puis catégorie -->
+    <div class="table-toolbar">
+      <div class="tb-search">
+        <span class="tb-search-icon">⌕</span>
+        <input type="text" placeholder="Rechercher un code, une source, une unité…"
+               [(ngModel)]="recherche" (ngModelChange)="onRechercheChange()">
+      </div>
+
+      <label class="tb-filter">
+        <span>Catégorie</span>
+        <select [(ngModel)]="selectedCategorie" (ngModelChange)="onCategorieChange()">
+          <option value="ALL">Toutes les catégories</option>
+          <option *ngFor="let c of categoriesTableau" [value]="c">{{ c }}</option>
+        </select>
+      </label>
+
+      <span class="tb-count">{{ sourcesFiltrees.length }} source(s)</span>
+      <button type="button" class="tb-reset" (click)="reinitialiserFiltres()">Réinitialiser</button>
+    </div>
+
+    <div class="table-container">
+      <table class="misfat-table">
+        <thead>
+          <tr>
+            <th>CODE RÉF.</th>
+            <th>SCOPE</th>
+            <th>CATÉGORIE</th>
+            <th>SOURCE / CARBURANT</th>
+            <th>UNITÉ</th>
+            <th class="text-right">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let source of sourcesFiltrees">
+            <td><span class="code-badge">{{ source.referenceCode }}</span></td>
+            <td><span class="scope-pill" [ngClass]="getScopeBadgeClass(source.scope)">{{ getScopeLabel(source.scope) }}</span></td>
+            <td>{{ getCategorieName(source.scope, source.category) }}</td>
+            <td class="source-name">{{ source.sourceName }}</td>
+            <td><span class="unit-tag">{{ source.defaultUnit }}</span></td>
+            <td class="text-right">
+              <div class="row-actions">
+                <button type="button" class="icon-btn" title="Modifier" (click)="editerSource(source)">✏️</button>
+                <button type="button" class="icon-btn icon-btn-danger" title="Supprimer"
+                        (click)="demanderSuppression(source.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="sourcesFiltrees.length === 0">
+            <td colspan="6" class="empty-msg">
+              Aucune source d'émission enregistrée pour le <strong>{{ getScopeLabel(selectedScopeTab) }}</strong>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODALE DE CONFIRMATION DE SUPPRESSION -->
+<div class="modal-backdrop" *ngIf="showDeleteModal">
+  <div class="modal-card">
+    <div class="modal-icon">⚠️</div>
+    <h3 class="modal-title">Confirmer la suppression</h3>
+    <p class="modal-text">Voulez-vous vraiment supprimer cette source d'émission ? Cette action est irréversible.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-modal-cancel" (click)="annulerSuppression()">Annuler</button>
+      <button type="button" class="btn-modal-confirm" (click)="confirmerSuppression()">Oui, supprimer</button>
+    </div>
+  </div>
+</div>

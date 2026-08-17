@@ -33,6 +33,20 @@ public class EmissionFactorController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<EmissionFactor>> search(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String emissionSource,
+            @RequestParam(required = false) String dataType) {
+
+        // Si aucun paramètre n'est renseigné, renvoyer tous les facteurs
+        if (category == null && emissionSource == null && dataType == null) {
+            return ResponseEntity.ok(service.getAllFactors());
+        }
+
+        return ResponseEntity.ok(service.searchFactors(category, emissionSource, dataType));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<EmissionFactor> update(@PathVariable Long id, @RequestBody EmissionFactor factor) {
         return service.updateFactor(id, factor)
@@ -46,5 +60,10 @@ public class EmissionFactorController {
             return ResponseEntity.ok().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/by-category")
+    public ResponseEntity<List<EmissionFactor>> getByCategory(@RequestParam String category) {
+        return ResponseEntity.ok(service.getFactorsByCategory(category));
     }
 }

@@ -1,372 +1,1466 @@
-<div style="display: flex; min-height: 100vh; background-color: #f0f2f5; font-family: 'Inter', sans-serif;">
-  
-  <!-- BARRE LATÉRALE : INCHANGÉE -->
-  <aside style="width: 270px; background-color: #092c5c; color: white; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1); justify-content: space-between;">
-    
-    <div style="display: flex; flex-direction: column; overflow-y: auto; flex: 1;">
-        <div style="padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
-            <div style="background: white; padding: 10px; border-radius: 8px; display: inline-block;">
-                <img src="misfat logo.jpg" alt="Misfat" style="height: 35px;">
-            </div>
-            <p style="color: #f17a22; font-size: 10px; font-weight: 800; letter-spacing: 1px; margin-top: 10px;">BACKOFFICE CONSOLE</p>
+<div class="dash-shell">
+
+  <!-- BARRE LATÉRALE (SIDEBAR) -->
+  <aside class="sidebar" [style.width]="isSidebarCollapsed ? '75px' : '270px'">
+
+    <div class="sidebar-scroll">
+      <!-- LOGO ET HEADER SIDEBAR -->
+      <div class="sidebar-brand">
+        <div class="sidebar-logo-box">
+          <img src="misfat logo.jpg" alt="Misfat" [style.height]="isSidebarCollapsed ? '20px' : '35px'">
         </div>
+        <p *ngIf="!isSidebarCollapsed" class="sidebar-brand-caption">BACKOFFICE CONSOLE</p>
 
-        <nav style="padding: 15px; display: flex; flex-direction: column; gap: 5px;">
-            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">ACCUEIL</p>
-            <button (click)="setActive('dashboard-home')" class="nav-btn" [style.background]="activeSub === 'dashboard-home' ? 'rgba(255,255,255,0.1)' : 'transparent'" style="width: 100%; text-align: left; padding: 10px 15px; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">🏠 Tableau de bord</button>
+        <button type="button" (click)="toggleSidebar()" class="sidebar-collapse-btn" title="Réduire / Agrandir">
+          <span>{{ isSidebarCollapsed ? '▶' : '◀' }}</span>
+        </button>
+      </div>
 
-            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">ÉMISSIONS CARBONE</p>
-            <button (click)="toggleMenu('emissions')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left;">
-                <span>🌱 Émission Carbone</span>
-                <span [style.transform]="menus.emissions ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
-            </button>
-            
-            <div *ngIf="menus.emissions" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
-                <button (click)="setActive('apercu')" [style.color]="activeSub === 'apercu' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Aperçu</button>
-                
-                <button (click)="setActive('mesure')" [style.color]="(activeSub === 'mesure' || menus.mesureCategories) ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; width: 100%; padding-right: 15px;">
-                  <span>• Mesure</span>
-                  <span style="font-size: 9px; transition: transform 0.2s;" [style.transform]="menus.mesureCategories ? 'rotate(90deg)' : 'rotate(0)'">▶</span>
-                </button>
+      <!-- NAVIGATION -->
+      <nav class="sidebar-nav">
 
-                <!-- Les 10 sous-boutons de Mesure -->
-                <div class="nested-measure-subs" *ngIf="menus.mesureCategories" style="padding-left: 10px;">
-                  <div 
-                    *ngFor="let cat of categoriesMesure" 
-                    class="nested-sub-item" 
-                    [style.color]="activeSub === cat.id ? '#f17a22' : '#cbd5e1'"
-                    style="font-size: 12px; padding: 6px 0; cursor: pointer;"
-                    (click)="setActive(cat.id)">
-                    <span>{{ cat.icone }}</span> {{ cat.nom }}
-                  </div>
-                </div>
+        <!-- SECTION ACCUEIL -->
+        <p *ngIf="!isSidebarCollapsed" class="nav-section-title">ACCUEIL</p>
+        <button type="button" (click)="setActive('dashboard-home')" class="nav-btn" [class.nav-btn-active]="activeSub === 'dashboard-home'" [title]="isSidebarCollapsed ? 'Tableau de bord' : ''">
+          <span>🏠</span> <span *ngIf="!isSidebarCollapsed">Tableau de bord</span>
+        </button>
+
+        <button *ngIf="droits.importDonnees" type="button" (click)="setActive('import-data')" class="nav-btn" [class.nav-btn-active]="activeSub === 'import-data'" [title]="isSidebarCollapsed ? 'Import de données' : ''">
+          <span>📥</span> <span *ngIf="!isSidebarCollapsed">Import de données</span>
+        </button>
+
+        <!-- SECTION ÉMISSIONS CARBONE — réservée aux profils qui collectent -->
+        <ng-container *ngIf="droits.emissionCarbone">
+        <p *ngIf="!isSidebarCollapsed" class="nav-section-title">ÉMISSIONS CARBONE</p>
+
+        <button type="button" (click)="toggleMenu('emissions')" class="nav-btn dropdown" [title]="isSidebarCollapsed ? 'Émission Carbone' : ''">
+          <div>
+            <span>🌱</span> <span *ngIf="!isSidebarCollapsed">Émission Carbone</span>
+          </div>
+          <span *ngIf="!isSidebarCollapsed" class="nav-caret" [style.transform]="menus.emissions ? 'rotate(180deg)' : 'rotate(0)'">▼</span>
+        </button>
+
+        <!-- SOUS-MENU ÉMISSIONS CARBONE -->
+        <div *ngIf="menus.emissions" class="sub-menu">
+
+          <!-- 1. REFERENTIEL DES FACTEURS -->
+          <button type="button" (click)="setActive('facteurs')" class="sub-btn" [class.active-sub]="activeSub === 'facteurs'" [title]="isSidebarCollapsed ? 'Référentiel Facteurs' : ''">
+            <span>🧮</span> <span *ngIf="!isSidebarCollapsed">Référentiel Facteurs</span>
+          </button>
+
+          <!-- 2. SOURCES D'ÉMISSION -->
+          <button type="button" (click)="setActive('referentiel-carbone')" class="sub-btn" [class.active-sub]="activeSub === 'referentiel-carbone'" [title]="isSidebarCollapsed ? 'Sources d\'Émission' : ''">
+            <span>📚</span> <span *ngIf="!isSidebarCollapsed">Sources d'Émission</span>
+          </button>
+
+          <!-- 3. MESURE : en-tête de sous-menu, il ne devient jamais l'onglet actif -->
+          <button type="button" (click)="basculerSousMenuMesure($event)" class="sub-btn sub-btn-split" [class.active-sub]="menus.mesureCategories" [title]="isSidebarCollapsed ? 'Mesure' : ''">
+            <div class="sub-btn-label">
+              <span>📈</span> <span *ngIf="!isSidebarCollapsed">Mesure</span>
             </div>
+            <span *ngIf="!isSidebarCollapsed" class="nav-caret-sm" [style.transform]="menus.mesureCategories ? 'rotate(90deg)' : 'rotate(0)'">▶</span>
+          </button>
 
-            <!-- MENU REPORTING -->
-            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">REPORTING</p>
-            <button (click)="toggleMenu('reporting')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left;">
-                <span>📄 Reporting</span>
-                <span [style.transform]="menus.reporting ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
-            </button>
-            <div *ngIf="menus.reporting" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
-                <button (click)="setActive('ghg')" [style.color]="activeSub === 'ghg' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Rapport GHG</button>
-            </div>
-
-            <!-- MENU PARAMÈTRES -->
-            <p style="font-size: 11px; color: #94a3b8; font-weight: 700; margin: 15px 0 5px 10px;">PARAMÈTRES</p>
-            <button (click)="toggleMenu('parametres')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left;">
-                <span>⚙️ Paramètres</span>
-                <span [style.transform]="menus.parametres ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
-            </button>
-            <div *ngIf="menus.parametres" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
-                <button (click)="setActive('p-op')" [style.color]="activeSub === 'p-op' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Profil opérationnel</button>
-                <button (click)="setActive('p-org')" [style.color]="activeSub === 'p-org' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Profil organisationnel</button>
-            </div>
-
-            <!-- GESTION UTILISATEURS -->
-            <button (click)="toggleMenu('utilisateurs')" class="nav-btn dropdown" style="width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; color: white; border-radius: 6px; cursor: pointer; text-align: left; margin-top: 10px;">
-                <span>👥 Gestion Utilisateurs</span>
-                <span [style.transform]="menus.utilisateurs ? 'rotate(180deg)' : 'rotate(0)'" style="transition: transform 0.2s;">▼</span>
-            </button>
-            <div *ngIf="menus.utilisateurs" style="display: flex; flex-direction: column; gap: 2px; padding-left: 20px; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 2px 0;">
-                <button (click)="setActive('m-prof')" [style.color]="activeSub === 'm-prof' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Mon Profil</button>
-                <button (click)="setActive('m-equipe')" [style.color]="activeSub === 'm-equipe' ? '#f17a22' : '#cbd5e1'" style="text-align: left; background: transparent; border: none; padding: 8px; font-size: 13px; cursor: pointer;">• Membre de l'équipe</button>
-            </div>
-
-            <!-- SÉCURITÉ ADMIN -->
-            <ng-container *ngIf="userRole === 'ADMINISTRATEUR'">
-              <p style="font-size: 11px; color: #f87171; font-weight: 700; margin: 15px 0 5px 10px;">SÉCURITÉ</p>
-              <button (click)="setActive('acces')" [style.background]="activeSub === 'acces' ? '#dc2626' : 'transparent'" style="width: 100%; text-align: left; padding: 10px 15px; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                🔐 Demandes d'Accès <span style="background: white; color: #dc2626; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 800;">New</span>
+          <!-- SOUS-SCOPES DE MESURE -->
+          <div *ngIf="menus.mesureCategories && !isSidebarCollapsed" class="scope-list">
+            <div *ngFor="let scope of scopesData">
+              <button type="button" (click)="toggleScope(scope.id, $event)" class="scope-btn">
+                <span>{{ scope.name }}</span>
+                <span class="nav-caret-xs" [style.transform]="activeScope === scope.id ? 'rotate(90deg)' : 'rotate(0)'">▶</span>
               </button>
-            </ng-container>
-        </nav>
+
+              <div class="nested-measure-subs" *ngIf="activeScope === scope.id">
+                <div
+                  *ngFor="let cat of scope.categories"
+                  class="nested-sub-item"
+                  [class.active]="activeSub === cat.id"
+                  (click)="setActive(cat.id, $event)">
+                  <span>{{ cat.icone }}</span> {{ cat.nom }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        </ng-container>
+
+        <!-- SECTION REPORTING — ouverte à tous les profils -->
+        <ng-container *ngIf="droits.reporting">
+        <p *ngIf="!isSidebarCollapsed" class="nav-section-title">REPORTING</p>
+        <button type="button" (click)="toggleMenu('reporting')" class="nav-btn dropdown" [title]="isSidebarCollapsed ? 'Reporting' : ''">
+          <div>
+            <span>📄</span> <span *ngIf="!isSidebarCollapsed">Reporting</span>
+          </div>
+          <span *ngIf="!isSidebarCollapsed" class="nav-caret" [style.transform]="menus.reporting ? 'rotate(180deg)' : 'rotate(0)'">▼</span>
+        </button>
+        <div *ngIf="menus.reporting && !isSidebarCollapsed" class="sub-menu sub-menu-indent">
+          <button type="button" (click)="setActive('reporting-executif')" class="sub-btn" [class.active-sub]="activeSub === 'reporting-executif' || activeSub === 'ghg'">• Bilan Carbone Exécutif</button>
+        </div>
+        </ng-container>
+
+        <!-- SECTION DONNÉES D'ACTIVITÉ — Master Admin uniquement -->
+        <ng-container *ngIf="droits.donneesActivite">
+        <p *ngIf="!isSidebarCollapsed" class="nav-section-title">PILOTAGE</p>
+        <button type="button" (click)="setActive('donnees-activite')" class="nav-btn"
+                [class.nav-btn-active]="activeSub === 'donnees-activite'"
+                [title]="isSidebarCollapsed ? 'Données d\'Activité &amp; KPI' : ''">
+          <span>🏢</span> <span *ngIf="!isSidebarCollapsed">Données d'Activité &amp; KPI</span>
+        </button>
+        </ng-container>
+
+        <!-- SECTION PARAMÈTRES — administration seule -->
+        <ng-container *ngIf="droits.parametres">
+        <p *ngIf="!isSidebarCollapsed" class="nav-section-title">PARAMÈTRES</p>
+        <button type="button" (click)="toggleMenu('parametres')" class="nav-btn dropdown" [title]="isSidebarCollapsed ? 'Paramètres' : ''">
+          <div>
+            <span>⚙️</span> <span *ngIf="!isSidebarCollapsed">Paramètres</span>
+          </div>
+          <span *ngIf="!isSidebarCollapsed" class="nav-caret" [style.transform]="menus.parametres ? 'rotate(180deg)' : 'rotate(0)'">▼</span>
+        </button>
+
+        <div *ngIf="menus.parametres && !isSidebarCollapsed" class="sub-menu sub-menu-indent">
+          <button type="button" (click)="setActive('societes')" class="sub-btn" [class.active-sub]="activeSub === 'societes'">• Gestion des Sociétés</button>
+          <button type="button" (click)="setActive('sauvegarde-donnees', $event)" class="sub-btn" [class.active-sub]="activeSub === 'sauvegarde-donnees'">• Sauvegarde &amp; Données</button>
+        </div>
+        </ng-container>
+
+        <!-- SECTION GESTION UTILISATEURS — chaque entrée suit son propre droit -->
+        <ng-container *ngIf="droits.monProfil || droits.membresEquipe">
+        <button type="button" (click)="toggleMenu('utilisateurs')" class="nav-btn dropdown nav-btn-spaced" [title]="isSidebarCollapsed ? 'Gestion Utilisateurs' : ''">
+          <div>
+            <span>👥</span> <span *ngIf="!isSidebarCollapsed">Gestion Utilisateurs</span>
+          </div>
+          <span *ngIf="!isSidebarCollapsed" class="nav-caret" [style.transform]="menus.utilisateurs ? 'rotate(180deg)' : 'rotate(0)'">▼</span>
+        </button>
+        <div *ngIf="menus.utilisateurs && !isSidebarCollapsed" class="sub-menu sub-menu-indent">
+          <button type="button" *ngIf="droits.monProfil" (click)="setActive('m-prof')" class="sub-btn" [class.active-sub]="activeSub === 'm-prof'">• Mon Profil</button>
+          <button type="button" *ngIf="droits.membresEquipe" (click)="setActive('m-equipe')" class="sub-btn" [class.active-sub]="activeSub === 'm-equipe'">• Membres de l'équipe</button>
+        </div>
+        </ng-container>
+
+        <!-- SECTION SÉCURITÉ (ADMIN) -->
+        <ng-container *ngIf="droits.demandesAcces">
+          <p *ngIf="!isSidebarCollapsed" class="nav-section-title nav-section-danger">SÉCURITÉ</p>
+          <button type="button" (click)="setActive('acces')" class="nav-btn nav-btn-danger" [class.nav-btn-danger-active]="activeSub === 'acces'" [title]="isSidebarCollapsed ? 'Demandes d\'Accès' : ''">
+            <span>🔐</span>
+            <span *ngIf="!isSidebarCollapsed" class="nav-btn-danger-label">
+              Demandes d'Accès <span class="nav-pill-new">New</span>
+            </span>
+          </button>
+        </ng-container>
+      </nav>
     </div>
 
-    <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); background-color: #061f42;">
-      <button (click)="allerAAccueil()" style="width: 100%; background: #f17a22; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        🏠 Quitter vers l'Accueil
+    <!-- BOUTON QUITTER (PIED DE SIDEBAR) -->
+    <div class="sidebar-footer">
+      <button type="button" (click)="allerAAccueil()" class="btn-quitter" [title]="isSidebarCollapsed ? 'Quitter' : ''">
+        <span>🏠</span> <span *ngIf="!isSidebarCollapsed">Quitter</span>
       </button>
     </div>
   </aside>
 
   <!-- CONTENU PRINCIPAL DYNAMIQUE -->
-  <main style="flex: 1; padding: 25px; overflow-y: auto;">
-    
-    <!-- 1️⃣ CAS : DEMANDE D'ACCÈS -->
-    <div *ngIf="activeSub === 'acces' && userRole === 'ADMINISTRATEUR'">
-      <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 30px; border-top: 4px solid #dc2626;">
-          <h2 style="color: #092c5c; margin: 0 0 5px 0; font-size: 20px; font-weight: 700;">🔐 Contrôle des Accès Secrétariat Misfat</h2>
-          <p style="color: #64748b; font-size: 13px; margin: 0 0 20px 0;">Validez ou rejetez les demandes d'accès.</p>
-          <table style="width: 100%; border-collapse: collapse; text-align: left;">
-              <thead>
-                  <tr style="background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 2px solid #e2e8f0;">
-                      <th style="padding: 12px;">Collaborateur</th>
-                      <th style="padding: 12px;">Email</th>
-                      <th style="padding: 12px;">Rôle demandé</th>
-                      <th style="padding: 12px;">Affectation</th>
-                      <th style="padding: 12px;">Statut actuel</th>
-                      <th style="padding: 12px; text-align: right;">Décision Master Admin</th>
-                  </tr>
-              </thead>
-              <tbody>
-                  <tr *ngFor="let user of demandesEnAttente" style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
-                      <td style="padding: 15px; font-weight: 700; color: #092c5c;">{{ user.firstName }} {{ user.lastName }}</td>
-                      <td style="padding: 15px; color: #475569;">{{ user.email }}</td>
-                      <td style="padding: 15px;">{{ user.role }}</td>
-                      <td style="padding: 15px;">{{ user.usine }}</td>
-                      <td style="padding: 15px;">{{ user.status }}</td>
-                      <td style="padding: 15px; text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
-                          <button (click)="accepterDemande(user)" style="background: #22c55e; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✔ Approuver</button>
-                          <button (click)="refuserDemande(user)" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✖ Refuser</button>
-                      </td>
-                  </tr>
-              </tbody>
+  <main class="dash-main">
+
+    <!-- Compte rendu de la reprise des lignes restées sans facteur -->
+    <div class="bandeau-recalcul" *ngIf="messageRecalcul">
+      <span aria-hidden="true">♻️</span>
+      <span>{{ messageRecalcul }}</span>
+      <button type="button" class="bandeau-fermer" (click)="messageRecalcul = ''" aria-label="Fermer">×</button>
+    </div>
+
+
+    <app-header (imported)="onImported()"></app-header>
+
+    <!-- Demandes d'accès (admin) -->
+    <div *ngIf="activeSub === 'acces' && droits.demandesAcces">
+      <div class="glass-card acces-card">
+        <h2 class="section-title">🔐 Contrôle des Accès Secrétariat Misfat</h2>
+        <p class="section-subtitle">
+          Validez ou rejetez les demandes d'accès transmises par le site entreprise, et affectez à
+          chacune le rôle correspondant. Le rôle porté par la demande n'est qu'une proposition :
+          celui que vous retenez ici fait foi. Une demande approuvée ouvre immédiatement la
+          connexion de l'intéressé, par son nom et son adresse email, sans mot de passe.
+        </p>
+
+        <div class="bandeau-recalcul" *ngIf="messageAcces">
+          <span aria-hidden="true">🔑</span>
+          <span>{{ messageAcces }}</span>
+          <button type="button" class="bandeau-fermer" (click)="messageAcces = ''" aria-label="Fermer">×</button>
+        </div>
+
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Collaborateur</th>
+                <th>CIN / Matricule</th>
+                <th>Email</th>
+                <th>Rôle affecté</th>
+                <th>Affectation</th>
+                <th>Statut actuel</th>
+                <th class="ta-right">Décision Master Admin</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let user of demandesEnAttente">
+                <td class="cell-strong">{{ user.firstName }} {{ user.lastName }}</td>
+                <td>{{ user.matricule || '—' }}</td>
+                <td>{{ user.email }}</td>
+
+                <!-- Le rôle et le périmètre sont arrêtés ici, pas hérités de la
+                     demande : c'est l'administration qui attribue les accès. -->
+                <td>
+                  <select class="select-decision" *ngIf="decisions[user.id] as decision"
+                          [(ngModel)]="decision.role"
+                          [attr.aria-label]="'Rôle affecté à ' + user.firstName + ' ' + user.lastName">
+                    <option *ngFor="let r of rolesAffectables" [value]="r.code">{{ r.libelle }}</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="select-decision" *ngIf="decisions[user.id] as decision"
+                          [(ngModel)]="decision.affectation"
+                          [attr.aria-label]="'Périmètre affecté à ' + user.firstName + ' ' + user.lastName">
+                    <option *ngFor="let a of affectationsProposees" [value]="a.code">{{ a.libelle }}</option>
+                  </select>
+                </td>
+
+                <td>{{ user.statut }}</td>
+                <td class="cell-actions">
+                  <button type="button" (click)="accepterDemande(user)" class="btn-approve">✔ Approuver</button>
+                  <button type="button" (click)="refuserDemande(user)" class="btn-reject">✖ Refuser</button>
+                </td>
+              </tr>
+              <tr *ngIf="demandesEnAttente.length === 0">
+                <td colspan="7" class="cell-empty">Aucune demande en attente.</td>
+              </tr>
+            </tbody>
           </table>
+        </div>
       </div>
     </div>
 
-    <!-- 2️⃣ CAS : AFFICHAGE DE "MON PROFIL" -->
-    <div *ngIf="activeSub === 'm-prof'">
-       <app-profile></app-profile>
+    <!-- Mon profil : ouvert aux trois profils -->
+    <div *ngIf="activeSub === 'm-prof' && droits.monProfil">
+      <app-profile></app-profile>
     </div>
 
-    <!-- 3️⃣ CAS : VUES RELATIVES AUX MODULES CRUD (Corrigé pour injecter le composant d'émissions) -->
-    <div *ngIf="activeSub !== 'acces' && activeSub !== 'm-prof' && activeSub !== 'dashboard-home' && activeSub !== 'apercu' && activeSub !== 'mesure'">
-      
-      <!-- Si on clique sur Combustion Établissements, on charge directement le composant -->
-      <ng-container *ngIf="activeSub === 'combustion-etablissements'; else autreModule">
-        <app-emission-list></app-emission-list>
-      </ng-container>
+    <!-- Membres de l'équipe : annuaire et invitations, administration seule -->
+    <div *ngIf="activeSub === 'm-equipe' && droits.membresEquipe">
+      <app-gestion-equipe></app-gestion-equipe>
+    </div>
 
-      <!-- Fallback dynamique pour les autres pages CRUD non encore développées -->
-      <ng-template #autreModule>
-        <div style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-          <h2 style="color: #092c5c; text-transform: capitalize; margin: 0 0 10px 0;">⚙️ Module : {{ activeSub.replace('-', ' ') }}</h2>
-          <div style="padding: 40px; border: 2px dashed #e2e8f0; border-radius: 10px; text-align: center; color: #94a3b8; margin-top: 20px;">
-            [ L'interface CRUD pour <strong>{{ activeSub }}</strong> s'affichera ici ]
+    <!-- Données d'activité : dénominateurs des ratios de tout l'outil -->
+    <div *ngIf="activeSub === 'donnees-activite' && droits.donneesActivite">
+      <app-activity-data></app-activity-data>
+    </div>
+
+    <!-- Import de données -->
+    <div *ngIf="activeSub === 'import-data'">
+      <app-import-data (imported)="onImported()"></app-import-data>
+    </div>
+
+    <!-- Sauvegarde et restauration des saisies -->
+    <div *ngIf="activeSub === 'sauvegarde-donnees'">
+      <app-sauvegarde-donnees></app-sauvegarde-donnees>
+    </div>
+
+    <!-- Référentiel des facteurs d'émission -->
+    <div *ngIf="activeSub === 'facteurs'">
+      <app-emission-factors></app-emission-factors>
+    </div>
+
+    <!-- Gestion des sociétés -->
+    <div *ngIf="activeSub === 'societes'">
+      <app-gestion-societes (modifie)="onSocietesModifiees()"></app-gestion-societes>
+    </div>
+
+    <!-- Référentiel carbone -->
+    <div *ngIf="activeSub === 'referentiel-carbone'">
+      <app-referentiel-carbone></app-referentiel-carbone>
+    </div>
+
+    <!-- Reporting exécutif : configuration des scopes puis document imprimable -->
+    <div *ngIf="(activeSub === 'reporting-executif' || activeSub === 'ghg') && droits.reporting">
+      <app-reporting></app-reporting>
+    </div>
+
+    <!-- MESURES / CRUD -->
+    <div *ngIf="activeSub !== 'acces' && activeSub !== 'm-prof' && activeSub !== 'dashboard-home' && activeSub !== 'societes' && activeSub !== 'mesure' && activeSub !== 'referentiel-carbone' && activeSub !== 'facteurs' && activeSub !== 'import-data' && activeSub !== 'sauvegarde-donnees' && activeSub !== 'reporting-executif' && activeSub !== 'ghg' && activeSub !== 'm-equipe' && activeSub !== 'donnees-activite' && droits.emissionCarbone">
+      <div *ngIf="activeSub === 'combustion-etablissements'">
+        <app-emission-list></app-emission-list>
+      </div>
+
+      <div *ngIf="activeSub === 'combustion-vehicules'">
+        <app-combustion-vehicules></app-combustion-vehicules>
+      </div>
+
+      <div *ngIf="activeSub === 'emissions-refrigerants'">
+        <app-emissions-refrigerants></app-emissions-refrigerants>
+      </div>
+
+      <div *ngIf="activeSub === 'electricite-achetee'">
+        <app-electricite-achetee></app-electricite-achetee>
+      </div>
+
+      <div *ngIf="activeSub === 'biens-services'">
+        <app-biens-services></app-biens-services>
+      </div>
+
+      <div *ngIf="activeSub === 'biens-equipement'">
+        <app-biens-equipement></app-biens-equipement>
+      </div>
+
+      <div *ngIf="activeSub === 'energie'">
+        <app-activites-energie></app-activites-energie>
+      </div>
+
+      <div *ngIf="activeSub === 'transport-amont'">
+        <app-transport-amont></app-transport-amont>
+      </div>
+
+      <div *ngIf="activeSub === 'dechets'">
+        <app-dechets></app-dechets>
+      </div>
+
+      <div *ngIf="activeSub === 'voyages-affaires'">
+        <app-voyages-affaires></app-voyages-affaires>
+      </div>
+
+      <div *ngIf="activeSub === 'deplacements-employes'">
+        <app-deplacements-employes></app-deplacements-employes>
+      </div>
+
+      <div *ngIf="activeSub === 'actifs-loues-amont'">
+        <app-actifs-loues-amont></app-actifs-loues-amont>
+      </div>
+
+      <div *ngIf="activeSub === 'transport-aval'">
+        <app-transport-aval></app-transport-aval>
+      </div>
+
+      <div *ngIf="activeSub === 'transformation-produits'">
+        <app-transformation-produits></app-transformation-produits>
+      </div>
+
+      <div *ngIf="activeSub === 'utilisation-produits'">
+        <app-utilisation-produits></app-utilisation-produits>
+      </div>
+
+      <div *ngIf="activeSub === 'fin-de-vie-produits'">
+        <app-fin-de-vie-produits></app-fin-de-vie-produits>
+      </div>
+
+      <div *ngIf="activeSub === 'actifs-loues-aval'">
+        <app-actifs-loues-aval></app-actifs-loues-aval>
+      </div>
+
+      <div *ngIf="activeSub === 'franchises'">
+        <app-franchises></app-franchises>
+      </div>
+
+      <div *ngIf="activeSub === 'investissements'">
+        <app-investissements></app-investissements>
+      </div>
+
+      <!-- Catégorie inscrite au menu mais dont l'écran reste à développer :
+           mieux vaut le dire qu'afficher une page vide. -->
+      <div class="ecran-a-venir" *ngIf="isCategory(activeSub) && !ecranDisponible(activeSub)">
+        <div class="a-venir-icone" aria-hidden="true">🚧</div>
+        <h3>{{ libelleCategorie(activeSub) }}</h3>
+        <p>
+          Cette catégorie figure à la nomenclature GHG Protocol, mais son écran de saisie
+          n'est pas encore développé. Les catégories déjà disponibles restent accessibles
+          depuis le menu latéral.
+        </p>
+        <p class="a-venir-code">Identifiant de catégorie : <code>{{ activeSub }}</code></p>
+      </div>
+    </div>
+
+    <!-- ================= TABLEAU DE BORD EXÉCUTIF ================= -->
+    <div *ngIf="activeSub === 'dashboard-home' || activeSub === 'mesure'" class="ghg-dashboard">
+
+      <!-- ===== BANNIÈRE D'EN-TÊTE : identité, période et cours en une ligne ===== -->
+      <header class="exec-banner">
+        <div class="exec-banner-main">
+          <!-- Empreinte carbone : SVG inline, aucune librairie d'icônes dans le projet -->
+          <span class="exec-banner-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 14 13 13"></path>
+            </svg>
+          </span>
+
+          <div class="exec-banner-flags">
+            <span class="exec-banner-flag" *ngFor="let d of drapeaux">{{ d }}</span>
+          </div>
+
+          <div class="exec-banner-id">
+            <h1 class="exec-banner-title">Tableau de bord exécutif MISFAT</h1>
+            <div class="exec-banner-meta">
+              <span class="exec-banner-entity">{{ filialeLabel }}</span>
+              <span class="exec-banner-sep" aria-hidden="true">·</span>
+              <span>{{ paysActif }}</span>
+              <span class="exec-banner-sep" aria-hidden="true">·</span>
+              <span>¤ {{ deviseBadge }}</span>
+              <span class="exec-banner-sep" aria-hidden="true">·</span>
+              <span>{{ vueActive }}</span>
+            </div>
+
+            <!-- Le repère temporel rejoint la colonne d'identité : la colonne
+                 droite est réservée aux cours, qui gagnent ainsi en présence. -->
+            <div class="exec-banner-date">
+              <span class="exec-banner-day">{{ libelleJour }}</span>
+              <span class="exec-banner-sep" aria-hidden="true">·</span>
+              <span class="exec-banner-week">{{ libelleSemaine }}</span>
+            </div>
           </div>
         </div>
-      </ng-template>
 
-    </div>
+        <!-- Cours de change : colonne droite, centrée sur la hauteur de la carte -->
+        <div class="exec-banner-side">
+          <app-exchange-ticker class="compact" [compact]="true" [referenceDate]="selectedDate"></app-exchange-ticker>
+        </div>
+      </header>
 
-    <!-- 4️⃣ CAS : TABLEAU DE BORD BILAN CARBONE — DESIGN GHG PROTOCOL -->
-    <div *ngIf="activeSub === 'dashboard-home' || activeSub === 'apercu' || activeSub === 'mesure'" class="ghg-dashboard">
+      <!-- BARRE DE FILTRES -->
+      <div class="glass-card filter-bar">
+        <div class="filter-grid">
+          <!-- Société et année sont portées par l'en-tête : pas de doublon ici. -->
+          <div class="filter-field">
+            <label class="filter-label" for="f-usine">USINE</label>
+            <select id="f-usine" class="org-select" (change)="onUsineChange($any($event.target).value)" [disabled]="selectedFilialeId === 'ALL'">
+              <option value="ALL">Toutes les usines</option>
+              <option *ngFor="let u of usinesFiltered" [value]="u.id">{{ u.nom }} — {{ u.emplacement }}</option>
+            </select>
+          </div>
 
-        <!-- EN-TÊTE + FILTRE ÉTABLISSEMENTS -->
-        <div class="ghg-header">
+          <div class="filter-field">
+            <label class="filter-label" for="f-periode">PÉRIODE</label>
+            <select id="f-periode" class="org-select" (change)="onPeriodeChange($any($event.target).value)">
+              <option *ngFor="let p of periodes" [value]="p.code" [selected]="p.code === selectedPeriode">{{ p.label }}</option>
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label class="filter-label" for="f-date">DATE PRÉCISE</label>
+            <input id="f-date" type="date" class="org-select org-date" [value]="selectedDate" (change)="onDateChange($any($event.target).value)">
+          </div>
+        </div>
+
+        <div class="filter-summary">
+          <div class="summary-panel">
+            <div class="summary-title">{{ filialeLabel }}</div>
+            <div class="summary-sub">Affichage des émissions</div>
+          </div>
+          <div class="summary-panel">
+            <div class="summary-title">{{ periodeActive.label }}</div>
+            <div class="summary-sub">Date de référence : {{ selectedDate }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode de valorisation + provenance des chiffres -->
+      <div class="stats-bar">
+        <div class="mode-toggle" role="group" aria-label="Mode de valorisation">
+          <button type="button"
+                  [class.actif]="modeStats === 'PHYSIQUE'"
+                  [attr.aria-pressed]="modeStats === 'PHYSIQUE'"
+                  (click)="basculerMode('PHYSIQUE')">
+            <span aria-hidden="true">📊</span> Mode Physique (tCO₂e)
+          </button>
+          <button type="button"
+                  [class.actif]="modeStats === 'MONETAIRE'"
+                  [attr.aria-pressed]="modeStats === 'MONETAIRE'"
+                  (click)="basculerMode('MONETAIRE')">
+            <span aria-hidden="true">💰</span> Mode Monétaire ({{ deviseMonetaire }})
+          </button>
+        </div>
+
+        <!-- Devise de restitution : n'a de sens qu'en valorisation monétaire -->
+        <label class="devise-switch" *ngIf="modeStats === 'MONETAIRE'">
+          <span>Devise</span>
+          <select [value]="deviseMonetaire" (change)="changerDeviseMonetaire($any($event.target).value)">
+            <option value="TND">TND — Dinar tunisien</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="USD">USD — Dollar</option>
+            <option value="MAD">MAD — Dirham</option>
+          </select>
+        </label>
+
+        <span class="stats-source" [class.stats-demo]="!statsSontReelles">
+          {{ chargementStats ? 'Calcul en cours…' : (statsSontReelles ? statsReelles!.measureCount + ' mesure(s) en base' : 'Aucune mesure en base — valeurs de démonstration') }}
+        </span>
+
+        <span class="stats-warn" *ngIf="statsReelles?.unconvertedCurrencies?.length">
+          ⚠ Devise(s) sans taux connu : {{ statsReelles!.unconvertedCurrencies.join(', ') }}
+        </span>
+      </div>
+
+      <!-- LIGNE 1 : 4 CARTES KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-total pastel-perf">
+          <div class="kpi-decor"></div>
+          <div class="kpi-top">
+            <span class="kpi-label">TOTAL EMPREINTE CARBONE</span>
+            <span class="kpi-periode-chip">{{ periodeActive.court }}</span>
+          </div>
+          <!-- L'unité est portée par `kpi-unit` juste dessous : le pipe ne la
+               répète pas, mais garde son garde-fou de plausibilité. -->
+          <div class="kpi-value">{{ stats.totalCO2 | tco2e:{ unite: false } }}</div>
+          <div class="kpi-unit">tCO₂eq — {{ periodeActive.cumul }}</div>
+          <div class="stacked-bar">
+            <div class="stacked-segment seg-1" [style.width]="(stats.scope1 / totalEmissions * 100) + '%'"></div>
+            <div class="stacked-segment seg-2" [style.width]="(stats.scope2 / totalEmissions * 100) + '%'"></div>
+            <div class="stacked-segment seg-3" [style.width]="(stats.scope3 / totalEmissions * 100) + '%'"></div>
+          </div>
+          <div class="stacked-split">
+            <span><i class="dot dot-1"></i>Scope 1 <strong>{{ stats.scope1 | tco2e }}</strong></span>
+            <span><i class="dot dot-2"></i>Scope 2 <strong>{{ stats.scope2 | tco2e }}</strong></span>
+            <span><i class="dot dot-3"></i>Scope 3 <strong>{{ stats.scope3 | tco2e }}</strong></span>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-scope scope-1 pastel-s1">
+          <div class="kpi-decor"></div>
+          <div class="kpi-top">
+            <span class="kpi-label">SCOPE 1</span>
+            <span class="kpi-badge">DIRECT</span>
+          </div>
+          <div class="kpi-value">{{ stats.scope1 | tco2e:{ unite: false } }}</div>
+          <div class="kpi-unit">tCO₂eq</div>
+          <div class="mini-progress"><div class="mini-progress-fill fill-1" [style.width]="(stats.scope1 / totalEmissions * 100) + '%'"></div></div>
+          <div class="kpi-percent">{{ (stats.scope1 / totalEmissions * 100) | number:'1.0-1' }}% du total</div>
+        </div>
+
+        <div class="kpi-card kpi-scope scope-2 pastel-s2">
+          <div class="kpi-decor"></div>
+          <div class="kpi-top">
+            <span class="kpi-label">SCOPE 2</span>
+            <span class="kpi-badge">ÉNERGIE</span>
+          </div>
+          <div class="kpi-value">{{ stats.scope2 | tco2e:{ unite: false } }}</div>
+          <div class="kpi-unit">tCO₂eq</div>
+          <div class="mini-progress"><div class="mini-progress-fill fill-2" [style.width]="(stats.scope2 / totalEmissions * 100) + '%'"></div></div>
+          <div class="kpi-percent">{{ (stats.scope2 / totalEmissions * 100) | number:'1.0-1' }}% du total</div>
+        </div>
+
+        <div class="kpi-card kpi-scope scope-3 pastel-s3">
+          <div class="kpi-decor"></div>
+          <div class="kpi-top">
+            <span class="kpi-label">SCOPE 3</span>
+            <span class="kpi-badge">CHAÎNE</span>
+          </div>
+          <div class="kpi-value">{{ stats.scope3 | tco2e:{ unite: false } }}</div>
+          <div class="kpi-unit">tCO₂eq</div>
+          <div class="mini-progress"><div class="mini-progress-fill fill-3" [style.width]="(stats.scope3 / totalEmissions * 100) + '%'"></div></div>
+          <div class="kpi-percent">{{ (stats.scope3 / totalEmissions * 100) | number:'1.0-1' }}% du total</div>
+        </div>
+      </div>
+
+      <!-- LIGNE 2 : ANALYSE DES CAUSES | RÉPARTITION PAR SCOPE + TOP SCOPE 3 -->
+      <div class="analysis-grid">
+
+        <div class="analysis-left">
+
+        <div class="glass-card causes-card">
+          <div class="causes-eyebrow">ANALYSE DES CAUSES</div>
+          <h2 class="causes-title">
+            Où sont passées les émissions ?
+            <!-- Le détail passe en infobulle : il n'a pas à occuper la carte en permanence. -->
+            <span class="info-hint"
+                  tabindex="0"
+                  role="img"
+                  aria-label="Répartition sur le pays et l'usine sélectionnés. Ajustez la période ou la date pour explorer l'empreinte."
+                  title="Répartition sur le pays et l'usine sélectionnés. Ajustez la période ou la date pour explorer l'empreinte.">i</span>
+          </h2>
+          <p class="causes-text">Contribution de chaque scope au total du périmètre.</p>
+
+          <!-- Liste compacte : les trois colonnes pleine hauteur ne portaient
+               qu'un libellé et un pourcentage, pour beaucoup d'espace vide. -->
+          <ul class="causes-liste">
+            <li class="cause-ligne"
+                *ngFor="let it of scopeDonutItems; let i = index"
+                [class.mini-s1]="i === 0"
+                [class.mini-s2]="i === 1"
+                [class.mini-s3]="i === 2"
+                [class.cause-zero]="it.total === 0">
+              <i class="cause-pastille" [style.background]="it.couleur" aria-hidden="true"></i>
+
+              <div class="cause-corps">
+                <div class="cause-entete">
+                  <span class="cause-nom">{{ it.nom }}</span>
+                  <span class="cause-valeur">{{ it.total | number:'1.0-2' }} <em>{{ uniteStats }}</em></span>
+                </div>
+                <div class="cause-track">
+                  <div class="cause-fill" [style.width.%]="it.pct" [style.background]="it.couleur"></div>
+                </div>
+              </div>
+
+              <span class="cause-pct">{{ it.pct | number:'1.0-1' }}%</span>
+            </li>
+          </ul>
+
+          <div class="causes-footer">
+            <span>{{ vueActive }}</span>
+            <span>{{ periodeActive.reference }}</span>
+          </div>
+        </div>
+
+        <!-- ===== HISTORIQUE PLURIANNUEL & ANALYSE DÉCISIONNELLE ===== -->
+        <section class="glass-card historique-card">
+          <div class="historique-entete">
             <div>
-                <h1 class="ghg-title">Bilan Carbone Misfat Filtration</h1>
-                <p class="ghg-subtitle">
-                    <span class="ghg-tag">Norme GHG Protocol</span>
-                    Fabrication de filtres à huile, à air, à carburant et d'habitacle
+              <h3 class="historique-titre">Évolution de l'Empreinte Carbone Globale</h3>
+              <p class="historique-sous-titre">Historique multi-annuel &amp; trajectoire</p>
+            </div>
+            <div class="historique-legende">
+              <span class="hist-leg"><i class="hist-pastille hist-s1"></i>Scope 1</span>
+              <span class="hist-leg"><i class="hist-pastille hist-s2"></i>Scope 2</span>
+              <span class="hist-leg"><i class="hist-pastille hist-s3"></i>Scope 3</span>
+            </div>
+          </div>
+
+          <!-- A. MINI-CARTES DE SYNTHÈSE -->
+          <div class="hist-kpis">
+            <div class="hist-kpi">
+              <span class="hk-libelle">Empreinte totale {{ anneeCarte ?? '—' }}</span>
+              <span class="hk-valeur">{{ formatCompact(totalCarte) }}</span>
+              <span class="hk-unite">{{ uniteStats }}</span>
+            </div>
+
+            <div class="hist-kpi">
+              <span class="hk-libelle">
+                Variation {{ variationCarte ? 'vs ' + variationCarte.precedent : 'vs N-1' }}
+              </span>
+              <ng-container *ngIf="variationCarte as variation; else pasDeVariation">
+                <span class="hk-valeur"
+                      [class.hk-hausse]="variation.hausse"
+                      [class.hk-baisse]="!variation.hausse">
+                  {{ variation.hausse ? '+' : '' }}{{ variation.pct | number:'1.1-1' }} %
+                </span>
+                <span class="hk-unite">{{ variation.hausse ? 'en hausse' : 'en baisse' }}</span>
+              </ng-container>
+              <ng-template #pasDeVariation>
+                <span class="hk-valeur hk-vide">—</span>
+                <span class="hk-unite">Aucun exercice antérieur collecté</span>
+              </ng-template>
+            </div>
+
+            <div class="hist-kpi">
+              <span class="hk-libelle">Scope dominant</span>
+              <ng-container *ngIf="scopeDominantCarte as dominant; else pasDeDominant">
+                <span class="hk-valeur" [style.color]="dominant.couleur">
+                  {{ dominant.libelle }}
+                </span>
+                <span class="hk-unite">{{ dominant.pct | number:'1.1-1' }} % des émissions</span>
+              </ng-container>
+              <ng-template #pasDeDominant>
+                <span class="hk-valeur hk-vide">—</span>
+                <span class="hk-unite">Collecte à lancer</span>
+              </ng-template>
+            </div>
+          </div>
+
+          <p class="historique-etat" *ngIf="chargementHistorique">
+            Calcul des exercices en cours…
+          </p>
+
+          <!-- B. AIRES EMPILÉES -->
+          <ng-container *ngIf="!chargementHistorique">
+            <div class="historique-graphe" *ngIf="historiqueRenseigne; else histVide">
+
+              <div class="hist-axe-y">
+                <span *ngFor="let repere of grilleHistorique"
+                      [style.top.%]="(repere.y / svgHaut) * 100">{{ repere.libelle }}</span>
+              </div>
+
+              <div class="hist-toile">
+                <svg [attr.viewBox]="'0 0 ' + svgLarg + ' ' + svgHaut"
+                     preserveAspectRatio="none" role="img"
+                     aria-label="Évolution empilée des émissions par scope">
+                  <defs>
+                    <linearGradient id="degrade-s1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#3FA96B" stop-opacity="0.55"></stop>
+                      <stop offset="100%" stop-color="#3FA96B" stop-opacity="0.06"></stop>
+                    </linearGradient>
+                    <linearGradient id="degrade-s2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#E0803F" stop-opacity="0.55"></stop>
+                      <stop offset="100%" stop-color="#E0803F" stop-opacity="0.06"></stop>
+                    </linearGradient>
+                    <linearGradient id="degrade-s3" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#4A96C4" stop-opacity="0.55"></stop>
+                      <stop offset="100%" stop-color="#4A96C4" stop-opacity="0.06"></stop>
+                    </linearGradient>
+                  </defs>
+
+                  <!-- Repères horizontaux -->
+                  <line *ngFor="let repere of grilleHistorique"
+                        class="hist-grille" x1="0" [attr.y1]="repere.y"
+                        [attr.x2]="svgLarg" [attr.y2]="repere.y"
+                        vector-effect="non-scaling-stroke"></line>
+
+                  <!-- Aires empilées, du Scope 3 au Scope 1 pour que le plus
+                       large ne recouvre pas les autres -->
+                  <ng-container *ngFor="let serie of airesHistorique">
+                    <path [attr.d]="serie.aire" [attr.fill]="'url(#degrade-' + serie.id + ')'"
+                          stroke="none"></path>
+                  </ng-container>
+
+                  <path *ngFor="let serie of airesHistorique"
+                        class="hist-ligne" [attr.d]="serie.ligne" fill="none"
+                        [attr.stroke]="serie.couleur" vector-effect="non-scaling-stroke"></path>
+
+                  <!-- Trajectoire cible -->
+                  <line *ngIf="cibleHistorique as cible"
+                        class="hist-cible" x1="0" [attr.y1]="cible.y"
+                        [attr.x2]="svgLarg" [attr.y2]="cible.y"
+                        vector-effect="non-scaling-stroke"></line>
+
+                  <!-- Jalons SBTi : −25 % en 2028, −50 % en 2030, posés sur
+                       l'exercice de base. Un jalon hors échelle n'est pas tracé. -->
+                  <line *ngFor="let jalon of jalonsHistorique"
+                        class="hist-jalon" x1="0" [attr.y1]="jalon.y"
+                        [attr.x2]="svgLarg" [attr.y2]="jalon.y"
+                        vector-effect="non-scaling-stroke"></line>
+
+                </svg>
+
+                <span class="hist-jalon-etiquette" *ngFor="let jalon of jalonsHistorique"
+                      [style.top.%]="(jalon.y / svgHaut) * 100">{{ jalon.libelle }}</span>
+
+                <!-- Repères de la courbe supérieure, posés en HTML : la zone de
+                     dessin est étirée, un cercle SVG y deviendrait une ellipse. -->
+                <button type="button" class="hist-marqueur"
+                        *ngFor="let marqueur of marqueursHistorique; let i = index"
+                        [class.actif]="marqueur.actif"
+                        [style.left.%]="positionX(i)"
+                        [style.top.%]="(marqueur.y / svgHaut) * 100"
+                        (click)="choisirAnnee(marqueur.annee)"
+                        [attr.aria-label]="'Consulter l\'exercice ' + marqueur.annee"
+                        [title]="'Exercice ' + marqueur.annee + ' — ' + (historique[i].total | number:'1.0-0') + ' ' + uniteStats">
+                </button>
+
+                <span class="hist-cible-etiquette" *ngIf="cibleHistorique as cible"
+                      [style.top.%]="(cible.y / svgHaut) * 100">{{ cible.libelle }}</span>
+              </div>
+
+              <!-- Axe des abscisses : un exercice par repère, cliquable -->
+              <div class="hist-axe-x">
+                <button type="button" class="hist-annee"
+                        *ngFor="let point of historique; let i = index"
+                        [class.hist-annee-active]="estAnneeActive(point.annee)"
+                        [style.left.%]="positionX(i)"
+                        (click)="choisirAnnee(point.annee)"
+                        [title]="'Exercice ' + point.annee + ' — ' + (point.total | number:'1.0-0') + ' ' + uniteStats">
+                  {{ point.annee }}
+                </button>
+              </div>
+            </div>
+
+            <ng-template #histVide>
+              <p class="historique-etat">
+                Aucun exercice n'est encore chiffré sur ce périmètre. Les courbes apparaîtront dès
+                qu'une collecte aura alimenté une année.
+              </p>
+            </ng-template>
+          </ng-container>
+
+          <!-- Bandeau d'analyse décisionnelle -->
+          <div class="smart-insight">
+            <span class="insight-icone" aria-hidden="true">💡</span>
+            <div class="insight-corps">
+              <p class="insight-principal">{{ analyseExercice }}</p>
+              <p class="insight-variation" *ngIf="analyseVariation">
+                <span aria-hidden="true">{{ iconeVariation }}</span> {{ analyseVariation }}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        </div>
+
+        <div class="analysis-right">
+
+          <div class="glass-card donut-card">
+            <div class="donut-card-header">
+              <h3 class="donut-title">Répartition par Scope</h3>
+              <button type="button" *ngIf="selectedScopeSlice" class="btn-reset-donut" (click)="selectedScopeSlice = null">↺ Vue globale</button>
+            </div>
+            <div class="donut-body">
+              <div class="donut-visual" [class.focused]="scopeDonutCenter.focused" [style.background]="scopeDonutGradient">
+                <div class="donut-hole">
+                  <span class="donut-center-value">{{ scopeDonutCenter.value | number }}</span>
+                  <span class="donut-center-label">{{ scopeDonutCenter.label }}</span>
+                  <span class="donut-center-pct" *ngIf="scopeDonutCenter.pct !== null">{{ scopeDonutCenter.pct | number:'1.0-1' }}%</span>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <div class="donut-legend-item"
+                     *ngFor="let it of scopeDonutItems"
+                     [class.active]="selectedScopeSlice === it.nom"
+                     [class.dimmed]="selectedScopeSlice && selectedScopeSlice !== it.nom"
+                     (click)="toggleScopeSlice(it.nom)">
+                  <i class="legend-dot" [style.background]="it.couleur"></i>
+                  <span class="legend-name">{{ it.nom }}</span>
+                  <span class="legend-pct">{{ it.pct | number:'1.0-1' }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DISTRIBUTION PAR FILIALE / PAYS, issue de la base -->
+          <div class="glass-card donut-card">
+            <div class="donut-card-header">
+              <h3 class="donut-title">Distribution par Filiale / Pays</h3>
+              <button type="button" *ngIf="selectedFilialeSlice" class="btn-reset-donut" (click)="selectedFilialeSlice = null">↺ Vue globale</button>
+              <span class="donut-subtitle" *ngIf="!selectedFilialeSlice">{{ uniteStats }}</span>
+            </div>
+
+            <!-- Donut centré : la légende passe dessous pour ne pas laisser de
+                 bande blanche à côté du cercle sur les écrans larges. -->
+            <div class="donut-body donut-body-centre">
+              <div class="donut-visual donut-visual-sm"
+                   [class.focused]="selectedFilialeSlice !== null"
+                   [style.background]="filialeDonutGradient">
+                <div class="donut-hole donut-hole-sm">
+                  <span class="donut-center-value">{{ filialeDonutCenter.valeur | number:'1.0-2' }}</span>
+                  <span class="donut-center-label">{{ filialeDonutCenter.label }}</span>
+                  <span class="donut-center-pct" *ngIf="filialeDonutCenter.pct !== null">{{ filialeDonutCenter.pct | number:'1.0-1' }}%</span>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <div class="donut-legend-item"
+                     *ngFor="let f of filialesAffichees"
+                     [class.active]="selectedFilialeSlice === f.nom"
+                     [class.dimmed]="selectedFilialeSlice && selectedFilialeSlice !== f.nom"
+                     [class.zero-cat]="f.valeur === 0"
+                     (click)="f.valeur > 0 && toggleFilialeSlice(f.nom)">
+                  <i class="legend-dot" [style.background]="f.couleur"></i>
+                  <div class="legend-stack">
+                    <span class="legend-name">{{ f.drapeau }} {{ f.nom }}</span>
+                    <span class="legend-sub">{{ f.pays }} — {{ f.valeur | number:'1.0-2' }} {{ uniteStats }}</span>
+                  </div>
+                  <span class="legend-pct">{{ f.pct | number:'1.0-1' }}%</span>
+                </div>
+
+                <p class="legend-vide" *ngIf="filialesAffichees.length === 0">
+                  Aucune société ne porte d'émission sur ce périmètre.
                 </p>
-            </div>
-            <div class="filter-pills">
-                <button (click)="changerFiltre('ALL')"
-                        class="pill pill-all"
-                        [class.active]="filtreActif === 'ALL'">
-                    🌐 Tout consolider
+
+                <button type="button" class="btn-voir-tout" *ngIf="filialesMasquees > 0"
+                        (click)="afficherFilialesZero = !afficherFilialesZero">
+                  {{ afficherFilialesZero
+                     ? '▴ Masquer les sociétés à 0 %'
+                     : '▾ Voir toutes les sociétés (' + filialesMasquees + ' à 0 %)' }}
                 </button>
-                <button *ngFor="let num of [1,2,3,4,5]" 
-                        (click)="changerFiltre(num)"
-                        class="pill pill-num"
-                        [class.active]="filtreActif === num">
-                    Usine {{ num }}
+              </div>
+            </div>
+          </div>
+
+          <!-- DÉTAIL SCOPE 3, alimenté par l'agrégat de la base -->
+          <div class="glass-card donut-card">
+            <div class="donut-card-header">
+              <h3 class="donut-title">Détail Scope 3</h3>
+              <span class="donut-subtitle">Postes de la chaîne de valeur</span>
+            </div>
+            <div class="donut-legend donut-legend-scroll">
+              <div class="donut-legend-item"
+                   *ngFor="let it of scope3Affiches"
+                   [class.active]="selectedScope3Slice === it.nom"
+                   [class.dimmed]="selectedScope3Slice && selectedScope3Slice !== it.nom"
+                   [class.zero-cat]="it.total === 0"
+                   (click)="it.total > 0 && toggleScope3Slice(it.nom)">
+                <i class="legend-dot" [style.background]="it.couleur"></i>
+                <div class="legend-stack">
+                  <span class="legend-name">{{ it.nom }}</span>
+                  <span class="legend-sub">{{ it.total | number:'1.0-2' }} {{ uniteStats }}</span>
+                </div>
+                <span class="legend-pct">{{ it.pct | number:'1.0-1' }}%</span>
+              </div>
+
+              <p class="legend-vide" *ngIf="scope3Affiches.length === 0">
+                Aucun poste du Scope 3 n'est chiffré sur ce périmètre : les 15 catégories
+                attendent leur collecte.
+              </p>
+
+              <button type="button" class="btn-voir-tout" *ngIf="scope3Masques > 0"
+                      (click)="afficherScope3Zero = !afficherScope3Zero">
+                {{ afficherScope3Zero
+                   ? '▴ Masquer les catégories à 0 %'
+                   : '▾ Voir toutes les catégories (' + scope3Masques + ' à 0 %)' }}
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ÉVOLUTION DES DEVISES -->
+      <app-currency-trend class="bloc-devises"></app-currency-trend>
+
+      <!-- Ventilation par catégorie, issue de la base -->
+      <section class="glass-card categories-card" *ngIf="categoriesStats.length">
+        <h3 class="categories-title">Répartition par catégorie <span>({{ uniteStats }})</span></h3>
+        <div class="categories-list">
+          <div class="categorie-ligne" *ngFor="let c of categoriesStats">
+            <span class="categorie-nom" [title]="c.nom">
+              {{ c.nom }}
+              <span class="categorie-attente" *ngIf="c.nonResolu">
+                facteur non résolu — {{ c.lignes }} ligne(s)
+              </span>
+            </span>
+            <div class="categorie-barre">
+              <div class="categorie-remplissage" [class.categorie-plate]="c.nonResolu"
+                   [style.width.%]="c.nonResolu ? 100 : c.pct"></div>
+            </div>
+            <span class="categorie-valeur">{{ c.valeur | number:'1.0-2' }}</span>
+            <span class="categorie-pct">{{ c.pct | number:'1.0-1' }}%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIGNE 3 : VUE D'ENSEMBLE ENTREPRISE -->
+      <div class="entreprise-block">
+        <div class="entreprise-head">
+          <div>
+            <div class="exec-eyebrow exec-eyebrow-sm">VUE D'ENSEMBLE ENTREPRISE</div>
+            <h2 class="entreprise-heading">Performance MISFAT {{ plageAnnees }}</h2>
+          </div>
+          <span class="entreprise-note">Données consolidées</span>
+        </div>
+
+        <!-- 3 cartes de synthèse -->
+        <div class="synthese-grid">
+
+          <div class="synthese-card" data-teinte="intensite">
+            <div class="synthese-top">
+              <span class="synthese-icone" aria-hidden="true">🌍</span>
+              <span class="synthese-label">Intensité carbone</span>
+            </div>
+
+            <div class="synthese-value-row">
+              <span class="synthese-value">{{ intensiteCarbone | number:'1.1-2' }}</span>
+              <span class="synthese-unite">kg CO₂e / unité</span>
+            </div>
+
+            <span class="synthese-tendance" *ngIf="tendanceIntensite as t"
+                  [class.negative]="t.pct < 0">
+              <span aria-hidden="true">{{ t.pct >= 0 ? '▲' : '▼' }}</span>
+              {{ t.pct | number:'1.1-1' }}%
+            </span>
+
+            <p class="synthese-note">Indice calculé sur le volume de production et l'empreinte totale.</p>
+          </div>
+
+          <div class="synthese-card" data-teinte="production">
+            <div class="synthese-top">
+              <span class="synthese-icone" aria-hidden="true">📦</span>
+              <span class="synthese-label">Production</span>
+            </div>
+
+            <div class="synthese-value-row">
+              <span class="synthese-value">{{ getValeurActuelle(kpisEntreprise[2]).valeur | number:'1.0-1' }}</span>
+              <span class="synthese-unite">M unités</span>
+            </div>
+
+            <span class="synthese-tendance" *ngIf="tendanceProduction as t"
+                  [class.negative]="t.pct < 0">
+              <span aria-hidden="true">{{ t.pct >= 0 ? '▲' : '▼' }}</span>
+              {{ t.pct | number:'1.1-1' }}%
+            </span>
+
+            <p class="synthese-note">Volume de production, piste d'amélioration prioritaire.</p>
+          </div>
+
+          <div class="synthese-card" data-teinte="productivite">
+            <div class="synthese-top">
+              <span class="synthese-icone" aria-hidden="true">👥</span>
+              <span class="synthese-label">Productivité</span>
+            </div>
+
+            <div class="synthese-value-row">
+              <span class="synthese-value">{{ productiviteEmploye.valeur | number:'1.0-0' }}</span>
+              <span class="synthese-unite">{{ devise }} / employé</span>
+            </div>
+
+            <span class="synthese-tendance" *ngIf="tendanceProductivite as t"
+                  [class.negative]="t.pct < 0">
+              <span aria-hidden="true">{{ t.pct >= 0 ? '▲' : '▼' }}</span>
+              {{ t.pct | number:'1.1-1' }}%
+            </span>
+
+            <p class="synthese-note">{{ noteProductivite }}</p>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- JAUGE D'INTENSITÉ ET COMPARATIF MULTI-PAYS                    -->
+        <!-- ============================================================== -->
+        <div class="duo-grid">
+
+          <!-- JAUGE : intensité carbone par unité produite -->
+          <div class="glass-card jauge-card" *ngIf="jaugeIntensite as jauge">
+            <div class="donut-card-header">
+              <h3 class="donut-title">Intensité carbone par produit</h3>
+              <span class="jauge-badge" [attr.data-statut]="jauge.statut">{{ jauge.statut }}</span>
+            </div>
+
+            <div class="jauge-corps">
+              <!-- Demi-cadran SVG : il se pré-rend au serveur et sort à
+                   l'impression, comme les autres graphiques du tableau de bord. -->
+              <svg class="jauge-svg" viewBox="0 0 160 100" role="img"
+                   [attr.aria-label]="'Intensité carbone : ' + jauge.libelle">
+                <defs>
+                  <!-- Dégradé tricolore : vert à gauche, ambre au seuil, rouge
+                       en butée. L'aiguille se lit alors contre une échelle
+                       continue, sans marche entre deux zones. -->
+                  <linearGradient id="jauge-tricolore" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#10b981"></stop>
+                    <stop offset="42%" stop-color="#34d399"></stop>
+                    <stop offset="58%" stop-color="#f59e0b"></stop>
+                    <stop offset="80%" stop-color="#f97316"></stop>
+                    <stop offset="100%" stop-color="#dc2626"></stop>
+                  </linearGradient>
+                </defs>
+
+                <!-- Zones d'arrière-plan, en aplats très légers -->
+                <path class="jauge-zone jauge-zone-bon" d="M 10 80 A 70 70 0 0 1 38.9 23.1"
+                      fill="none"></path>
+                <path class="jauge-zone jauge-zone-vigilance" d="M 38.9 23.1 A 70 70 0 0 1 80 10"
+                      fill="none"></path>
+                <path class="jauge-zone jauge-zone-critique" d="M 80 10 A 70 70 0 0 1 150 80"
+                      fill="none"></path>
+
+                <!-- Piste -->
+                <path class="jauge-piste" d="M 10 80 A 70 70 0 0 1 150 80" fill="none"></path>
+
+                <!-- Arc rempli, proportionnel à la valeur, sur le dégradé -->
+                <path class="jauge-arc" *ngIf="jauge.arc" [attr.d]="jauge.arc" fill="none"></path>
+
+                <!-- Repère du seuil sectoriel, à mi-échelle -->
+                <line class="jauge-seuil" x1="80" y1="8" x2="80" y2="26"></line>
+                <text class="jauge-seuil-marque" x="80" y="5" text-anchor="middle">seuil</text>
+
+                <!-- Aiguille : la rotation est animée par la feuille de style,
+                     l'angle change donc en douceur au changement de périmètre. -->
+                <g class="jauge-groupe-aiguille"
+                   [style.transform]="'rotate(' + jauge.angle + 'deg)'">
+                  <line class="jauge-aiguille" x1="80" y1="80" x2="80" y2="20"></line>
+                </g>
+                <circle class="jauge-pivot-halo" cx="80" cy="80" r="9"></circle>
+                <circle class="jauge-pivot" cx="80" cy="80" r="5"></circle>
+              </svg>
+
+              <div class="jauge-lecture">
+                <span class="jauge-valeur">{{ jauge.valeur | number:'1.1-2' }}</span>
+                <span class="jauge-unite">kgCO₂e / unité</span>
+                <span class="jauge-seuil-libelle">Repère sectoriel : {{ jauge.seuil }}</span>
+              </div>
+            </div>
+
+            <p class="synthese-note">{{ jauge.libelle }}</p>
+            <p class="synthese-note" *ngIf="!jauge.renseignee">
+              Renseignez le volume de production dans « Données d'Activité &amp; KPI » pour que
+              l'intensité devienne calculable.
+            </p>
+          </div>
+
+          <!-- COMPARATIF : bilans consolidés par pays d'implantation -->
+          <div class="glass-card comparatif-card">
+            <div class="donut-card-header">
+              <h3 class="donut-title">Comparatif des implantations</h3>
+              <span class="donut-subtitle">{{ uniteStats }}</span>
+            </div>
+
+            <p class="synthese-note comparatif-regle">
+              Chaque pays est consolidé : les émissions de ses sociétés s'additionnent, les
+              quotes-parts sont recalculées.
+            </p>
+
+            <p class="historique-etat" *ngIf="chargementComparatif">
+              Consolidation des implantations en cours…
+            </p>
+
+            <div class="comparatif-corps" *ngIf="!chargementComparatif && comparatifRenseigne">
+              <div class="comparatif-ligne" *ngFor="let ligne of comparatifPays">
+                <div class="comparatif-entete">
+                  <span class="comparatif-pays">{{ ligne.drapeau }} {{ ligne.pays }}</span>
+                  <span class="comparatif-societes">{{ ligne.societes }} société(s)</span>
+                  <span class="comparatif-total">{{ ligne.totalT | number:'1.0-2' }}</span>
+                </div>
+
+                <!-- Barre empilée : la longueur compare les pays, les segments
+                     montrent la structure de chacun. -->
+                <div class="comparatif-barre" [style.width.%]="ligne.largeur"
+                     role="img"
+                     [attr.aria-label]="ligne.pays + ' : ' + (ligne.totalT | number:'1.0-2') + ' ' + uniteStats">
+                  <span class="comparatif-segment seg-s1" [style.width.%]="ligne.pctScope1"
+                        [class.survole]="estSurvole('SCOPE_1')"
+                        [class.estompe]="estEstompe('SCOPE_1')"
+                        (mouseenter)="survoler('SCOPE_1')" (mouseleave)="survoler(null)"
+                        [attr.data-bulle]="infobulleScope('Scope 1 — directes', 'SCOPE_1', ligne.scope1T, ligne.pctScope1)"
+                        [title]="infobulleScope('Scope 1 — directes', 'SCOPE_1', ligne.scope1T, ligne.pctScope1)"></span>
+                  <span class="comparatif-segment seg-s2" [style.width.%]="ligne.pctScope2"
+                        [class.survole]="estSurvole('SCOPE_2')"
+                        [class.estompe]="estEstompe('SCOPE_2')"
+                        (mouseenter)="survoler('SCOPE_2')" (mouseleave)="survoler(null)"
+                        [attr.data-bulle]="infobulleScope('Scope 2 — énergie', 'SCOPE_2', ligne.scope2T, ligne.pctScope2)"
+                        [title]="infobulleScope('Scope 2 — énergie', 'SCOPE_2', ligne.scope2T, ligne.pctScope2)"></span>
+                  <span class="comparatif-segment seg-s3" [style.width.%]="ligne.pctScope3"
+                        [class.survole]="estSurvole('SCOPE_3')"
+                        [class.estompe]="estEstompe('SCOPE_3')"
+                        (mouseenter)="survoler('SCOPE_3')" (mouseleave)="survoler(null)"
+                        [attr.data-bulle]="infobulleScope('Scope 3 — chaîne de valeur', 'SCOPE_3', ligne.scope3T, ligne.pctScope3)"
+                        [title]="infobulleScope('Scope 3 — chaîne de valeur', 'SCOPE_3', ligne.scope3T, ligne.pctScope3)"></span>
+                </div>
+              </div>
+
+              <div class="comparatif-legende">
+                <button type="button" class="pilule pilule-scope" data-scope="SCOPE_1"
+                        [class.survole]="estSurvole('SCOPE_1')" [class.estompe]="estEstompe('SCOPE_1')"
+                        (mouseenter)="survoler('SCOPE_1')" (mouseleave)="survoler(null)"
+                        (focus)="survoler('SCOPE_1')" (blur)="survoler(null)">
+                  <i class="empile-pastille" data-scope="SCOPE_1" data-rang="1"></i>Scope 1
                 </button>
+                <button type="button" class="pilule pilule-scope" data-scope="SCOPE_2"
+                        [class.survole]="estSurvole('SCOPE_2')" [class.estompe]="estEstompe('SCOPE_2')"
+                        (mouseenter)="survoler('SCOPE_2')" (mouseleave)="survoler(null)"
+                        (focus)="survoler('SCOPE_2')" (blur)="survoler(null)">
+                  <i class="empile-pastille" data-scope="SCOPE_2" data-rang="1"></i>Scope 2
+                </button>
+                <button type="button" class="pilule pilule-scope" data-scope="SCOPE_3"
+                        [class.survole]="estSurvole('SCOPE_3')" [class.estompe]="estEstompe('SCOPE_3')"
+                        (mouseenter)="survoler('SCOPE_3')" (mouseleave)="survoler(null)"
+                        (focus)="survoler('SCOPE_3')" (blur)="survoler(null)">
+                  <i class="empile-pastille" data-scope="SCOPE_3" data-rang="1"></i>Scope 3
+                </button>
+              </div>
             </div>
+
+            <p class="doc-vide" *ngIf="!chargementComparatif && !comparatifRenseigne">
+              Aucune implantation ne porte d'émission sur cet exercice.
+            </p>
+          </div>
         </div>
 
-        <!-- KPI HERO : EMPREINTE TOTALE + 3 SCOPES -->
-        <div class="kpi-grid">
-            <div class="kpi-card kpi-total">
-                <div class="kpi-top">
-                    <span class="kpi-icon">🌍</span>
-                    <span class="kpi-label">Empreinte Totale</span>
-                </div>
-                <div class="kpi-value">{{ (stats.scope1 + stats.scope2 + stats.scope3) | number }}</div>
-                <div class="kpi-unit">tCO₂eq — cumul annuel</div>
-                <div class="stacked-bar">
-                    <div class="stacked-segment seg-1" [style.width]="(stats.scope1 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div>
-                    <div class="stacked-segment seg-2" [style.width]="(stats.scope2 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div>
-                    <div class="stacked-segment seg-3" [style.width]="(stats.scope3 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div>
-                </div>
-                <div class="stacked-legend">
-                    <span><i class="dot dot-1"></i>Scope 1</span>
-                    <span><i class="dot dot-2"></i>Scope 2</span>
-                    <span><i class="dot dot-3"></i>Scope 3</span>
-                </div>
+        <!-- ============================================================== -->
+        <!-- VENTILATION EMPILÉE : ZOOM SCOPE 1 ET SCOPE 3                 -->
+        <!-- ============================================================== -->
+        <div class="duo-grid">
+          <div class="glass-card empile-card" *ngFor="let zoom of [
+                 { code: 'SCOPE_1', titre: 'Zoom Scope 1 — directes' },
+                 { code: 'SCOPE_3', titre: 'Zoom Scope 3 — chaîne de valeur' }]">
+            <div class="donut-card-header">
+              <h3 class="donut-title">{{ zoom.titre }}</h3>
+              <span class="donut-subtitle">{{ uniteStats }}</span>
             </div>
 
-            <div class="kpi-card kpi-scope scope-1">
-                <div class="kpi-top">
-                    <span class="kpi-icon">🏭</span>
-                    <span class="kpi-badge">Direct</span>
-                </div>
-                <div class="kpi-label">Scope 1 · Émissions Directes</div>
-                <div class="kpi-value">{{ stats.scope1 | number }}<span class="kpi-unit-inline">tCO₂eq</span></div>
-                <div class="mini-progress"><div class="mini-progress-fill fill-1" [style.width]="(stats.scope1 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div></div>
-                <div class="kpi-percent">{{ (stats.scope1 / (stats.scope1+stats.scope2+stats.scope3) * 100) | number:'1.0-1' }}% de l'empreinte totale</div>
-            </div>
+            <ng-container *ngIf="ventilationEmpilee(zoom.code) as segments">
+              <!-- Chaque segment porte son rang : la feuille de style en décline
+                   le dégradé du scope, sans dupliquer la palette côté composant. -->
+              <div class="empile-barre" *ngIf="segments.length" role="img"
+                   [attr.aria-label]="'Ventilation interne du ' + zoom.titre">
+                <span class="empile-segment" *ngFor="let seg of segments"
+                      [attr.data-scope]="zoom.code" [attr.data-rang]="seg.rang"
+                      [style.width.%]="seg.pct"
+                      [class.survole]="estSurvole(seg.clef)"
+                      [class.estompe]="estEstompe(seg.clef)"
+                      (mouseenter)="survoler(seg.clef)" (mouseleave)="survoler(null)"
+                      [attr.data-bulle]="infobullePoste(seg.nom, seg.valeur, seg.pct)"
+                      [title]="infobullePoste(seg.nom, seg.valeur, seg.pct)"></span>
+              </div>
 
-            <div class="kpi-card kpi-scope scope-2">
-                <div class="kpi-top">
-                    <span class="kpi-icon">⚡</span>
-                    <span class="kpi-badge">Indirect Énergie</span>
-                </div>
-                <div class="kpi-label">Scope 2 · Énergie Achetée</div>
-                <div class="kpi-value">{{ stats.scope2 | number }}<span class="kpi-unit-inline">tCO₂eq</span></div>
-                <div class="mini-progress"><div class="mini-progress-fill fill-2" [style.width]="(stats.scope2 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div></div>
-                <div class="kpi-percent">{{ (stats.scope2 / (stats.scope1+stats.scope2+stats.scope3) * 100) | number:'1.0-1' }}% de l'empreinte totale</div>
-            </div>
+              <!-- Pastilles interactives : survoler la légende met en avant le
+                   segment correspondant, et réciproquement. -->
+              <div class="empile-legende" *ngIf="segments.length">
+                <button type="button" class="empile-leg pilule" *ngFor="let seg of segments"
+                        [attr.data-scope]="zoom.code" [attr.data-rang]="seg.rang"
+                        [class.survole]="estSurvole(seg.clef)"
+                        [class.estompe]="estEstompe(seg.clef)"
+                        [class.pilule-nulle]="seg.pct < 0.05"
+                        (mouseenter)="survoler(seg.clef)" (mouseleave)="survoler(null)"
+                        (focus)="survoler(seg.clef)" (blur)="survoler(null)">
+                  <i class="empile-pastille"
+                     [attr.data-scope]="zoom.code" [attr.data-rang]="seg.rang"></i>
+                  <span class="pilule-nom">{{ seg.nom }}</span>
+                  <span class="pilule-pct">{{ seg.pct | number:'1.0-1' }} %</span>
+                </button>
+              </div>
 
-            <div class="kpi-card kpi-scope scope-3">
-                <div class="kpi-top">
-                    <span class="kpi-icon">🚛</span>
-                    <span class="kpi-badge">Chaîne de Valeur</span>
-                </div>
-                <div class="kpi-label">Scope 3 · Amont & Aval</div>
-                <div class="kpi-value">{{ stats.scope3 | number }}<span class="kpi-unit-inline">tCO₂eq</span></div>
-                <div class="mini-progress"><div class="mini-progress-fill fill-3" [style.width]="(stats.scope3 / (stats.scope1+stats.scope2+stats.scope3) * 100) + '%'"></div></div>
-                <div class="kpi-percent">{{ (stats.scope3 / (stats.scope1+stats.scope2+stats.scope3) * 100) | number:'1.0-1' }}% de l'empreinte totale</div>
-            </div>
+              <p class="doc-vide" *ngIf="!segments.length">
+                Aucun poste chiffré sur ce scope pour le périmètre consulté.
+              </p>
+            </ng-container>
+          </div>
         </div>
 
-        <!-- PERFORMANCE COMMERCIALE + PRODUCTION -->
-        <div class="business-grid">
-            <div class="business-card">
-                <div class="business-header">
-                    <h3>📈 Performance Société <span class="muted">(Cumul 4 ans)</span></h3>
-                </div>
-                <div class="business-figures">
-                    <div>
-                        <p class="figure-label">CA Global Précédent</p>
-                        <p class="figure-value muted-value">{{ donneesMisfatSociete.caPrecedent | number }} TND</p>
-                    </div>
-                    <div class="figure-right">
-                        <p class="figure-label figure-label-green">🚀 Performance Actuelle</p>
-                        <p class="figure-value green-value">{{ donneesMisfatSociete.caActuel | number }} TND</p>
-                    </div>
-                </div>
-                <div class="bars-chart">
-                    <div *ngFor="let ca of donneesMisfatSociete.historiqueCA" class="bar-col">
-                        <div class="bar-value">{{ ca.hauteurBarre }}</div>
-                        <div class="bar-visual" [style.height.px]="ca.hauteurBarre"></div>
-                        <span class="bar-year">{{ ca.annee }}</span>
-                    </div>
-                </div>
+        <!-- 4 KPI : libellé, valeur, tendance et courbe en aire -->
+        <div class="kpi-trend-grid">
+          <div class="kpi-trend-card" *ngFor="let kpi of kpisEntreprise" [attr.data-accent]="kpi.id">
+
+            <!-- Libellé à gauche, mention de l'exercice provisoire à droite -->
+            <div class="kpi-trend-header">
+              <span class="kpi-trend-label">
+                <span class="kpi-trend-glyphe" aria-hidden="true">{{ kpi.icone }}</span>{{ kpi.label }}
+              </span>
+              <span *ngIf="getValeurActuelle(kpi).provisoire" class="badge-provisoire"
+                    [title]="'Exercice ' + getValeurActuelle(kpi).annee + ' provisoire'">Provisoire</span>
             </div>
 
-            <div class="business-card">
-                <div class="business-header">
-                    <h3>📦 Volumes de Production</h3>
-                </div>
-                <div class="production-list">
-                    <div *ngFor="let f of donneesMisfatSociete.filtresProduction" class="production-item">
-                        <div class="production-row">
-                            <span class="production-type">{{ f.type }}</span>
-                            <span class="production-volume">{{ f.volume }}%</span>
-                        </div>
-                        <div class="mini-progress">
-                            <div class="mini-progress-fill fill-prod" [style.width]="f.volume + '%'"></div>
-                        </div>
-                    </div>
-                </div>
+            <div class="kpi-trend-value-row">
+              <span class="kpi-trend-value">{{ getValeurActuelle(kpi).valeur | number:'1.0-1' }}</span>
+              <span class="kpi-trend-unit">{{ kpi.unite }}</span>
             </div>
+
+            <div class="kpi-trend-growth" [class.negative]="getCroissance(kpi) < 0">
+              <span class="growth-arrow" aria-hidden="true">{{ getCroissance(kpi) >= 0 ? '▲' : '▼' }}</span>
+              <strong>{{ getCroissance(kpi) | number:'1.1-1' }}%</strong>
+              <span class="growth-context" *ngIf="kpi.donnees.length >= 3">vs {{ kpi.donnees[kpi.donnees.length - 3].annee }}→{{ kpi.donnees[kpi.donnees.length - 2].annee }}</span>
+            </div>
+
+            <!-- Courbe en aire sur les cinq derniers exercices. Les teintes des
+                 arrêts viennent de la feuille de style ; le gabarit ne pose que
+                 l'identifiant du dégradé, qui doit rester unique par carte.
+                 Sous deux exercices renseignés il n'y a pas de tracé : la zone
+                 est retirée plutôt que laissée vide. -->
+            <svg *ngIf="kpi.donnees.length >= 2"
+                 class="kpi-spark" viewBox="0 0 100 26" preserveAspectRatio="none" role="img"
+                 [attr.aria-label]="'Évolution ' + kpi.label">
+              <defs>
+                <linearGradient [attr.id]="'aire-' + kpi.id" x1="0" y1="0" x2="0" y2="1">
+                  <stop class="kpi-spark-haut" offset="0%"></stop>
+                  <stop class="kpi-spark-bas" offset="100%"></stop>
+                </linearGradient>
+              </defs>
+              <path [attr.d]="getAire(kpi)" [attr.fill]="'url(#aire-' + kpi.id + ')'"></path>
+              <path class="kpi-spark-ligne" [attr.d]="getCourbe(kpi)" fill="none" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+            </svg>
+          </div>
         </div>
 
-        <!-- DÉTAIL DES SCOPES — GHG PROTOCOL BREAKDOWN -->
-        <div class="scopes-detail">
+      </div>
 
-            <!-- SCOPE 1 -->
-            <div class="scope-block scope-block-1">
-                <div class="scope-block-header">
-                    <div class="scope-block-title">
-                        <span class="scope-block-icon">🏭</span>
-                        <div>
-                            <h3>Scope 1 — Émissions Directes</h3>
-                            <p>Sources détenues ou contrôlées directement par Misfat</p>
-                        </div>
-                    </div>
-                    <span class="scope-block-total total-1">{{ stats.scope1 | number }} tCO₂eq</span>
-                </div>
-                <div class="category-grid">
-                    <div *ngFor="let item of categoriesScope1" class="category-item">
-                        <div class="category-row">
-                            <span class="category-name">{{ item.nom }}</span>
-                            <span class="category-total total-1">{{ item.total | number }} <small>tCO₂eq</small></span>
-                        </div>
-                        <div class="mini-progress">
-                            <div class="mini-progress-fill fill-1" [style.width]="(item.total / stats.scope1 * 100) + '%'"></div>
-                        </div>
-                        <div class="category-quarters">
-                            <span>Q1 : {{ item.q1 | number }}</span>
-                            <span>Q2 : {{ item.q2 | number }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <!-- LIGNE 4 : RÉPARTITION GLOBALE ET VENTILATION PAR SCOPE -->
+      <div class="details-section">
+        <h2 class="details-title">
+          Répartition des Postes d'Émission
+          <span class="details-unit">{{ uniteStats }}</span>
+        </h2>
 
-            <!-- SCOPE 2 -->
-            <div class="scope-block scope-block-2">
-                <div class="scope-block-header">
-                    <div class="scope-block-title">
-                        <span class="scope-block-icon">⚡</span>
-                        <div>
-                            <h3>Scope 2 — Énergie Achetée</h3>
-                            <p>Émissions indirectes liées à l'électricité consommée</p>
-                        </div>
-                    </div>
-                    <span class="scope-block-total total-2">{{ stats.scope2 | number }} tCO₂eq</span>
-                </div>
-                <div class="category-grid">
-                    <div *ngFor="let item of categoriesScope2" class="category-item">
-                        <div class="category-row">
-                            <span class="category-name">{{ item.nom }}</span>
-                            <span class="category-total total-2">{{ item.total | number }} <small>tCO₂eq</small></span>
-                        </div>
-                        <div class="mini-progress">
-                            <div class="mini-progress-fill fill-2" [style.width]="(item.total / stats.scope2 * 100) + '%'"></div>
-                        </div>
-                        <div class="category-quarters">
-                            <span>Q1 : {{ item.q1 | number }}</span>
-                            <span>Q2 : {{ item.q2 | number }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Classement à barres horizontales, identique sur les trois scopes.
+             Une forme unique s'accommode de 1 comme de 15 catégories, là où les
+             anneaux imposaient une mise en page différente par carte. -->
+        <div class="rank-grid">
 
-            <!-- SCOPE 3 -->
-            <div class="scope-block scope-block-3">
-                <div class="scope-block-header">
-                    <div class="scope-block-title">
-                        <span class="scope-block-icon">🚛</span>
-                        <div>
-                            <h3>Scope 3 — Chaîne de Valeur Amont & Aval</h3>
-                            <p>Matières premières, fret, déplacements, fin de vie des filtres</p>
-                        </div>
-                    </div>
-                    <span class="scope-block-total total-3">{{ stats.scope3 | number }} tCO₂eq</span>
+          <!-- Tracé Tabler outline, inline : aucune librairie d'icônes dans le projet -->
+          <svg class="rank-icon-defs" aria-hidden="true" focusable="false">
+            <symbol id="ti-flame" viewBox="0 0 24 24">
+              <path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a6 6 0 1 0 12 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3.24 -2.791 3.79 -4 2z"/>
+            </symbol>
+            <symbol id="ti-bolt" viewBox="0 0 24 24">
+              <path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/>
+            </symbol>
+            <symbol id="ti-package" viewBox="0 0 24 24">
+              <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5"/>
+              <path d="M12 12l8 -4.5"/><path d="M12 12l0 9"/><path d="M12 12l-8 -4.5"/>
+            </symbol>
+          </svg>
+
+          <!-- SCOPE 1 -->
+          <div class="glass-card rank-card rank-s1">
+            <h3 class="rank-head">
+              <span class="rank-head-nom">Scope 1 — Directes</span>
+              <span class="rank-total">{{ stats.scope1 | number:'1.0-2' }} {{ uniteStats }}</span>
+            </h3>
+            <div class="rank-body" role="img" aria-label="Répartition du Scope 1 par catégorie">
+              <div class="rank-row" *ngFor="let b of scope1Postes" [class.rank-zero]="b.valeur === 0">
+                <svg class="rank-icon" aria-hidden="true"><use href="#ti-flame"></use></svg>
+                <span class="rank-label" [title]="b.nom">{{ b.nom }}</span>
+                <div class="rank-track">
+                  <div class="rank-fill" [style.width.%]="b.pct"></div>
                 </div>
-                <div class="category-grid">
-                    <div *ngFor="let item of categoriesScope3" class="category-item">
-                        <div class="category-row">
-                            <span class="category-name">{{ item.nom }}</span>
-                            <span class="category-total total-3">{{ item.total | number }} <small>tCO₂eq</small></span>
-                        </div>
-                        <div class="mini-progress">
-                            <div class="mini-progress-fill fill-3" [style.width]="(item.total / stats.scope3 * 100) + '%'"></div>
-                        </div>
-                        <div class="category-quarters">
-                            <span>Q1 : {{ item.q1 | number }}</span>
-                            <span>Q2 : {{ item.q2 | number }}</span>
-                        </div>
-                    </div>
-                </div>
+                <span class="rank-pct">{{ b.pct | number:'1.0-0' }}%</span>
+              </div>
             </div>
+          </div>
+
+          <!-- SCOPE 2 -->
+          <div class="glass-card rank-card rank-s2">
+            <h3 class="rank-head">
+              <span class="rank-head-nom">Scope 2 — Énergie</span>
+              <span class="rank-total">{{ stats.scope2 | number:'1.0-2' }} {{ uniteStats }}</span>
+            </h3>
+            <div class="rank-body" role="img" aria-label="Répartition du Scope 2 par catégorie">
+              <div class="rank-row" *ngFor="let b of scope2Postes" [class.rank-zero]="b.valeur === 0">
+                <svg class="rank-icon" aria-hidden="true"><use href="#ti-bolt"></use></svg>
+                <span class="rank-label" [title]="b.nom">{{ b.nom }}</span>
+                <div class="rank-track">
+                  <div class="rank-fill" [style.width.%]="b.pct"></div>
+                </div>
+                <span class="rank-pct">{{ b.pct | number:'1.0-0' }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SCOPE 3 : quinze catégories, seule la liste défile -->
+          <div class="glass-card rank-card rank-s3">
+            <h3 class="rank-head">
+              <span class="rank-head-nom">Scope 3 — Chaîne de valeur</span>
+              <span class="rank-total">{{ stats.scope3 | number:'1.0-2' }} {{ uniteStats }}</span>
+            </h3>
+            <div class="rank-body rank-body-scroll" role="img" aria-label="Répartition du Scope 3 par catégorie">
+              <div class="rank-row" *ngFor="let b of scope3Postes" [class.rank-zero]="b.valeur === 0">
+                <svg class="rank-icon" aria-hidden="true"><use href="#ti-package"></use></svg>
+                <span class="rank-label" [title]="b.nom">{{ b.nom }}</span>
+                <div class="rank-track">
+                  <div class="rank-fill" [style.width.%]="b.pct"></div>
+                </div>
+                <span class="rank-pct">{{ b.pct | number:'1.0-0' }}%</span>
+              </div>
+            </div>
+          </div>
 
         </div>
+
+        <!-- Détail exhaustif : toutes les catégories du référentiel, 0 compris -->
+        <h2 class="details-title details-title-sub">Détails Analytiques des Postes d'Émission</h2>
+
+        <div class="details-grid">
+          <div class="glass-card detail-card detail-scope-1 pastel-s1">
+            <h3 class="detail-card-title">
+              <span>🏭 Scope 1 — Directes</span>
+              <span class="detail-card-total">{{ stats.scope1 | number:'1.0-2' }} {{ uniteStats }}</span>
+            </h3>
+            <div class="detail-list detail-list-scroll">
+              <div *ngFor="let item of scope1Postes" class="detail-row" [class.detail-row-zero]="item.valeur === 0">
+                <span class="detail-row-name detail-row-truncate" [title]="item.nom">
+                  <i class="detail-row-icon" aria-hidden="true">{{ item.icone }}</i>{{ item.nom }}
+                </span>
+                <span class="detail-row-value">{{ item.valeur | number:'1.0-2' }} {{ uniteStats }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card detail-card detail-scope-2 pastel-s2">
+            <h3 class="detail-card-title">
+              <span>⚡ Scope 2 — Indirect Énergie</span>
+              <span class="detail-card-total">{{ stats.scope2 | number:'1.0-2' }} {{ uniteStats }}</span>
+            </h3>
+            <div class="detail-list detail-list-scroll">
+              <div *ngFor="let item of scope2Postes" class="detail-row" [class.detail-row-zero]="item.valeur === 0">
+                <span class="detail-row-name detail-row-truncate" [title]="item.nom">
+                  <i class="detail-row-icon" aria-hidden="true">{{ item.icone }}</i>{{ item.nom }}
+                </span>
+                <span class="detail-row-value">{{ item.valeur | number:'1.0-2' }} {{ uniteStats }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scope 3 : les 15 catégories du GHG Protocol, sans exception -->
+          <div class="glass-card detail-card detail-scope-3 pastel-s3">
+            <h3 class="detail-card-title">
+              <span>📦 Scope 3 — Chaîne de Valeur</span>
+              <span class="detail-card-total">{{ stats.scope3 | number:'1.0-2' }} {{ uniteStats }}</span>
+            </h3>
+            <div class="detail-list detail-list-scroll">
+              <div *ngFor="let item of scope3Postes; let i = index" class="detail-row" [class.detail-row-zero]="item.valeur === 0">
+                <span class="detail-row-name detail-row-truncate" [title]="item.nom">
+                  <i class="detail-row-rank" aria-hidden="true">{{ i + 1 }}</i>{{ item.nom }}
+                </span>
+                <span class="detail-row-value">{{ item.valeur | number:'1.0-2' }} {{ uniteStats }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TABLEAU DE SYNTHÈSE EXÉCUTIF DES SOURCES D'ÉMISSION ===== -->
+      <section class="synthese-section">
+        <div class="synthese-head">
+          <div>
+            <h2 class="details-title">
+              Synthèse des Sources d'Émission
+              <span class="info-hint"
+                    tabindex="0"
+                    role="img"
+                    aria-label="Les trois scopes et l'intégralité des catégories du GHG Protocol, rapprochées de leur source métier et de leur base de données."
+                    title="Les trois scopes et l'intégralité des catégories du GHG Protocol, rapprochées de leur source métier et de leur base de données.">i</span>
+            </h2>
+          </div>
+          <!-- Filtres de scope : au clic, le tableau ne montre plus que ce scope -->
+          <div class="synthese-legend" role="group" aria-label="Filtrer par scope">
+            <button type="button" class="scope-toggle sc-1"
+                    [class.actif]="scopeFiltre === 'SCOPE_1'"
+                    [attr.aria-pressed]="scopeFiltre === 'SCOPE_1'"
+                    (click)="basculerScopeFiltre('SCOPE_1')">Scope 1 · Direct</button>
+
+            <button type="button" class="scope-toggle sc-2"
+                    [class.actif]="scopeFiltre === 'SCOPE_2'"
+                    [attr.aria-pressed]="scopeFiltre === 'SCOPE_2'"
+                    (click)="basculerScopeFiltre('SCOPE_2')">Scope 2 · Énergie</button>
+
+            <button type="button" class="scope-toggle sc-3"
+                    [class.actif]="scopeFiltre === 'SCOPE_3'"
+                    [attr.aria-pressed]="scopeFiltre === 'SCOPE_3'"
+                    (click)="basculerScopeFiltre('SCOPE_3')">Scope 3 · Chaîne de valeur</button>
+
+            <button type="button" class="scope-toggle scope-toggle-reset"
+                    *ngIf="scopeFiltre"
+                    (click)="scopeFiltre = null">↺ Tous</button>
+          </div>
+        </div>
+
+        <div class="glass-card synthese-table-card">
+          <div class="synthese-table-wrap">
+            <table class="synthese-table">
+              <thead>
+                <tr>
+                  <th>Scope</th>
+                  <th>Catégorie GHGP</th>
+                  <th>Source d'Émission Métier</th>
+                  <th>Base BDD Rattachée</th>
+                  <th class="ta-right">Quantité &amp; Unité</th>
+                  <th class="ta-right">Émissions ({{ uniteStats }})</th>
+                  <th class="ta-right">% du Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let l of syntheseFiltrees" [class.ligne-zero]="l.valeur === 0">
+                  <td><span class="scope-chip" [ngClass]="l.classe">{{ l.scopeLabel }}</span></td>
+                  <td class="cat-cell" [title]="l.categorie">{{ l.categorie }}</td>
+                  <td class="metier-cell">{{ l.metier }}</td>
+                  <td><span class="base-tag">{{ l.base }}</span></td>
+                  <td class="ta-right num-cell">{{ l.quantite }}</td>
+                  <td class="ta-right num-cell num-fort">{{ l.valeur | number:'1.0-2' }}</td>
+                  <td class="ta-right">
+                    <div class="part-cell">
+                      <span class="part-valeur">{{ l.pct | number:'1.0-1' }}%</span>
+                      <div class="part-barre">
+                        <div class="part-remplissage" [ngClass]="l.classe" [style.width.%]="l.pct"></div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <!-- Le total suit le filtre : sous une vue restreinte, un total
+                     groupe ne correspondrait pas à la somme des lignes visibles. -->
+                <tr>
+                  <td colspan="5">
+                    Total {{ scopeFiltre ? 'du scope filtré' : 'périmètre' }} — {{ filialeLabel }}
+                  </td>
+                  <td class="ta-right num-fort">{{ syntheseTotal | number:'1.0-2' }}</td>
+                  <td class="ta-right num-fort">{{ syntheseTotalPct | number:'1.0-1' }} %</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </div>
 
   </main>

@@ -1,0 +1,210 @@
+.factor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+.page-title {
+  color: #092c5c;
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 5px 0;
+}
+
+.page-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* TABS SCOPE */
+.scope-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tab-btn {
+  background: white;
+  border: 2px solid #e2e8f0;
+  color: #475569;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: #092c5c;
+  color: white;
+  border-color: #092c5c;
+}
+
+/* CATÉGORIES PILLS */
+.category-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill-btn {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.pill-btn.active {
+  background: #f17a22;
+  color: white;
+  border-color: #f17a22;
+}
+
+/* CARDS */
+.card-box {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+}
+
+.card-title {
+  color: #092c5c;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+}
+
+/* FORM GRID */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13.5px;
+  outline: none;
+  background: #f8fafc;
+}
+
+.custom-input:focus {
+  border-color: #092c5c;
+  background: white;
+}
+
+.btn-submit {
+  background: #092c5c;
+  color: white;
+  border: none;
+  padding: 11px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-submit:hover {
+  background: #061f42;
+}
+
+/* TABLEAU */
+.misfat-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.misfat-table th {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+  padding: 12px 15px;
+  font-weight: 700;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.misfat-table td {
+  padding: 14px 15px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13.5px;
+}
+
+.text-navy { color: #092c5c; }
+.text-orange { color: #f17a22; }
+.font-bold { font-weight: 700; }
+.text-right { text-align: right; }
+
+/* BADGES DE BASE */
+.badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.badge-defra { background: #dcfce7; color: #166534; }
+.badge-ecoinvent { background: #e0f2fe; color: #075985; }
+.badge-ipcc { background: #fef3c7; color: #92400e; }
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.empty-msg {
+  text-align: center;
+  color: #94a3b8;
+  padding: 25px;
+}
+
+/* TOAST — manquait dans ton fichier */
+.toast-box {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  color: white;
+  padding: 14px 24px;
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+  font-weight: 600;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toast-success { background: #10b981; }
+.toast-danger { background: #ef4444; }
+.toast-info { background: #092c5c; }

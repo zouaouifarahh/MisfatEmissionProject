@@ -1,18 +1,65 @@
-﻿import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+﻿import { ChangeDetectorRef, Component, OnInit, inject, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 // Composants métiers
 import { ProfileComponent } from '../profile/profile.component';
 import { EmissionListComponent } from '../../../components/emission-list/emission-list';
-import { EmissionMeasureComponent } from '../../../components/emission-measure/emission-measure';
 import { CombustionVehiculesComponent } from '../../../components/combustion-vehicules/combustion-vehicules';
+import { EmissionsRefrigerantsComponent } from '../../../components/emissions-refrigerants/emissions-refrigerants';
+import { ElectriciteAcheteeComponent } from '../../../components/electricite-achetee/electricite-achetee';
+import { BiensServicesComponent } from '../../../components/biens-services/biens-services';
+import { BiensEquipementComponent } from '../../../components/biens-equipement/biens-equipement';
+import { ActivitesEnergieComponent } from '../../../components/activites-energie/activites-energie';
+import { TransportAmontComponent } from '../../../components/transport-amont/transport-amont';
+import { DechetsComponent } from '../../../components/dechets/dechets';
+import { VoyagesAffairesComponent } from '../../../components/voyages-affaires/voyages-affaires';
+import { DeplacementsEmployesComponent } from '../../../components/deplacements-employes/deplacements-employes';
+import { ActifsLouesAmontComponent } from '../../../components/actifs-loues-amont/actifs-loues-amont';
+import { TransportAvalComponent } from '../../../components/transport-aval/transport-aval';
+import { TransformationProduitsComponent } from '../../../components/transformation-produits/transformation-produits';
+import { UtilisationProduitsComponent } from '../../../components/utilisation-produits/utilisation-produits';
+import { FinDeVieProduitsComponent } from '../../../components/fin-de-vie-produits/fin-de-vie-produits';
+import { ActifsLouesAvalComponent } from '../../../components/actifs-loues-aval/actifs-loues-aval';
+import { FranchisesComponent } from '../../../components/franchises/franchises';
+import { InvestissementsComponent } from '../../../components/investissements/investissements';
+import { SauvegardeDonneesComponent } from '../../../components/sauvegarde-donnees/sauvegarde-donnees';
 import { ReferentielCarboneComponent } from '../../../components/referentiel-carbone/referentiel-carbone';
+import { AppHeaderComponent } from '../../../shared/app-header/app-header.component';
+import { EmissionFactorsComponent } from '../../../components/emission-factors/emission-factors.component';
+import { ImportDataComponent } from '../../../components/import-data/import-data.component';
+import { CurrencyTrendComponent } from '../../../components/currency-trend/currency-trend.component';
+import { ExchangeTickerComponent } from '../../../components/exchange-ticker/exchange-ticker.component';
+import { GestionSocietesComponent } from '../../../components/gestion-societes/gestion-societes.component';
+import { ReportingComponent } from '../../../components/reporting/reporting.component';
+import { GestionEquipeComponent } from '../../../components/gestion-equipe/gestion-equipe.component';
+import { ActivityDataComponent } from '../../../components/activity-data/activity-data.component';
 
 // Services et Modèles
+import { RolesService, DroitsAcces, droitsPourRole } from '../../../core/roles.service';
+import {
+  AFFECTATIONS_PROPOSEES,
+  Compte,
+  ComptesService,
+  ROLES_PROPOSES
+} from '../../../core/comptes.service';
+import { SessionService } from '../../../core/session.service';
 import { OrganizationService } from '../../../services/organization.service';
 import { Filiale, Usine, AnneeReference } from '../../../models/organization.model';
+import { EntityContextService } from '../../../core/entity-context.service';
+import { EmissionStatsService, EmissionStats, StatsMode } from '../../../services/emission-stats.service';
+import { DispatchStore } from '../../../shared/dispatch/dispatch-store';
+import { libelleEcran } from '../../../shared/dispatch/regles-dispatch';
+import { totauxLocaux, totauxLocauxParEtablissement } from '../../../shared/dispatch/mesures-locales';
+import { PerimetreOrganisation } from '../../../core/perimetre';
+import { BilanCarboneService } from '../../../core/bilan-carbone.service';
+import { ActivityDataService, ChampActivite } from '../../../core/activity-data.service';
+import { kgVersTonnes, tonnesVersKg } from '../../../core/unites-carbone';
+import { ReportFiltersService } from '../../../core/report-filters.service';
+import { TCo2ePipe } from '../../../shared/tco2e.pipe';
+import { catchError, forkJoin, of } from 'rxjs';
+import { RecalculFacteursService } from '../../../shared/dispatch/recalcul-facteurs';
 
 interface DonneeAnnuelle {
   annee: number;
@@ -30,6 +77,40 @@ interface KpiEntreprise {
   donnees: DonneeAnnuelle[];
 }
 
+interface PeriodeOption {
+  code: string;
+  label: string;
+  court: string;
+  cumul: string;
+  reference: string;
+  facteur: number;
+}
+
+interface ProfilFiliale {
+  pays: string;
+  devise: string;
+}
+
+/** Empreinte d'un exercice, telle que l'histogramme pluriannuel la trace. */
+/**
+ * Exercice de l'historique pluriannuel.
+ *
+ * <p>Les émissions sont en <strong>tCO₂e</strong>, comme les agrégats du serveur
+ * et comme l'étiquette que le tableau de bord affiche. La conversion depuis les
+ * kilogrammes du bilan a lieu une seule fois, au chargement.</p>
+ */
+interface PointHistorique {
+  annee: number;
+  scope1: number;
+  scope2: number;
+  scope3: number;
+  total: number;
+  /** Hauteurs des trois segments empilés, en pourcentage de la colonne. */
+  h1: number;
+  h2: number;
+  h3: number;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -38,38 +119,156 @@ interface KpiEntreprise {
     FormsModule,
     ProfileComponent,
     EmissionListComponent,
-    EmissionMeasureComponent,
     CombustionVehiculesComponent,
-    ReferentielCarboneComponent
+    EmissionsRefrigerantsComponent,
+    ElectriciteAcheteeComponent,
+    BiensServicesComponent,
+    BiensEquipementComponent,
+    ActivitesEnergieComponent,
+    TransportAmontComponent,
+    DechetsComponent,
+    VoyagesAffairesComponent,
+    DeplacementsEmployesComponent,
+    ActifsLouesAmontComponent,
+    TransportAvalComponent,
+    TransformationProduitsComponent,
+    UtilisationProduitsComponent,
+    FinDeVieProduitsComponent,
+    ActifsLouesAvalComponent,
+    FranchisesComponent,
+    InvestissementsComponent,
+    SauvegardeDonneesComponent,
+    ReferentielCarboneComponent,
+    AppHeaderComponent,
+    EmissionFactorsComponent,
+    ImportDataComponent,
+    CurrencyTrendComponent,
+    ExchangeTickerComponent,
+    GestionSocietesComponent,
+    ReportingComponent,
+    GestionEquipeComponent,
+    ActivityDataComponent,
+    TCo2ePipe
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
 export class DashboardComponent implements OnInit {
 
+  /**
+   * Rôle et droits de navigation de l'utilisateur connecté.
+   *
+   * <p>Le rôle est déposé par l'authentification dans le stockage de session ;
+   * aucun mot de passe ne transite ici. La navigation latérale s'y conforme :
+   * un lecteur ne voit ni les écrans de saisie, ni les paramètres.</p>
+   */
+  private readonly rolesService = inject(RolesService);
+  private readonly comptesService = inject(ComptesService);
+  private readonly sessionService = inject(SessionService);
+
   userRole: string = 'ADMINISTRATEUR';
+  droits: DroitsAcces = droitsPourRole(null);
   isSidebarCollapsed: boolean = false;
+
+  /**
+   * Droit requis par chaque écran de la console.
+   *
+   * <p>Masquer une entrée du menu ne suffit pas : l'onglet actif survit à un
+   * changement de rôle, et une console rechargée sur un écran interdit
+   * l'afficherait encore. La table sert donc aussi de garde à
+   * {@link setActive}.</p>
+   */
+  private readonly droitParEcran: Record<string, keyof DroitsAcces> = {
+    'dashboard-home': 'tableauDeBord',
+    'import-data': 'importDonnees',
+    'facteurs': 'emissionCarbone',
+    'referentiel-carbone': 'emissionCarbone',
+    'mesure': 'emissionCarbone',
+    'reporting-executif': 'reporting',
+    'ghg': 'reporting',
+    'societes': 'parametres',
+    'sauvegarde-donnees': 'parametres',
+    'donnees-activite': 'donneesActivite',
+    'm-prof': 'monProfil',
+    'm-equipe': 'membresEquipe',
+    'acces': 'demandesAcces'
+  };
+
+  /** L'écran demandé relève-t-il des droits du rôle actif ? */
+  ecranAutorise(sub: string): boolean {
+    // Les catégories de mesure partagent le droit du module d'émission plutôt
+    // que d'être énumérées une à une : la nomenclature évolue, pas la règle.
+    const droit = this.droitParEcran[sub] ?? (this.isCategory(sub) ? 'emissionCarbone' : null);
+    if (!droit) return this.droits.profil === 'MASTER_ADMIN';
+    return this.droits[droit] === true;
+  }
+
+  /**
+   * Ramène l'utilisateur sur un écran auquel il a droit.
+   *
+   * <p>Le tableau de bord est ouvert aux trois profils : il fait un repli sûr,
+   * là où une page blanche laisserait croire à une panne.</p>
+   */
+  private recadrerEcranActif(): void {
+    if (!this.ecranAutorise(this.activeSub)) this.activeSub = 'dashboard-home';
+
+    if (!this.droits.emissionCarbone) {
+      this.menus.emissions = false;
+      this.menus.mesureCategories = false;
+      this.activeScope = null;
+    }
+    if (!this.droits.parametres) this.menus.parametres = false;
+    if (!this.droits.monProfil && !this.droits.membresEquipe) this.menus.utilisateurs = false;
+  }
 
   // ---------- FILTRES UI & MOTEUR DE RECHERCHE ----------
   filtreActif: string | number = 'ALL';
   selectedFilialeId: number | 'ALL' = 'ALL';
   selectedUsineId: number | 'ALL' = 'ALL';
   selectedAnnee: number | null = null;
-  selectedDate: string | null = null; // Date précise
-  selectedPeriode: string = 'ANNEE'; // 'JOUR' | 'MOIS' | 'ANNEE'
+  selectedDate: string = new Date().toISOString().slice(0, 10); // Date précise
+  selectedPeriode: string = 'ANNEE';
+
+  // Périodes : le facteur ramène l'empreinte annuelle à la fenêtre choisie.
+  periodes: PeriodeOption[] = [
+    { code: 'JOUR',      label: "Aujourd'hui",   court: 'Auj.',   cumul: 'cumul journalier',    reference: 'Référence journalière',    facteur: 1 / 365 },
+    { code: 'SEMAINE',   label: 'Cette semaine', court: 'Sem.',   cumul: 'cumul hebdomadaire',  reference: 'Référence hebdomadaire',   facteur: 7 / 365 },
+    { code: 'MOIS',      label: 'Ce mois',       court: 'Mois',   cumul: 'cumul mensuel',       reference: 'Référence mensuelle',      facteur: 1 / 12 },
+    { code: 'TRIMESTRE', label: 'Ce trimestre',  court: 'Trim.',  cumul: 'cumul trimestriel',   reference: 'Référence trimestrielle',  facteur: 1 / 4 },
+    { code: 'SEMESTRE',  label: 'Ce semestre',   court: 'Sem.',   cumul: 'cumul semestriel',    reference: 'Référence semestrielle',   facteur: 1 / 2 },
+    { code: 'ANNEE',     label: 'Cette année',   court: 'Année',  cumul: 'cumul annuel',        reference: 'Référence annuelle',       facteur: 1 }
+  ];
+
+  /**
+   * Profil pays / devise de la filiale active.
+   *
+   * <p>Lu sur la société elle-même : le pays et la devise sont des colonnes de
+   * `filiale`, éditables depuis la gestion des sociétés. Une société créée par
+   * l'utilisateur est donc traitée comme les autres, sans table de
+   * correspondance à tenir à jour dans le code.</p>
+   */
+  private profilDe(filiale: Filiale | undefined): ProfilFiliale | null {
+    if (!filiale) return null;
+    return {
+      pays: filiale.pays?.trim() || '—',
+      devise: filiale.devise?.trim().toUpperCase() || 'TND'
+    };
+  }
 
   // ---------- MENUS & NAVIGATION ----------
   menus = {
     emissions: true,
     mesureCategories: false,
-    reporting: false,
+    // Déployé d'office : c'est la seule entrée, avec le tableau de bord, que
+    // tous les profils voient — la replier la rendrait introuvable au lecteur.
+    reporting: true,
     parametres: false,
     utilisateurs: false
   };
 
-  activeSub: string = 'apercu';
+  activeSub: string = 'dashboard-home';
   activeScope: string | null = null;
-  modulesGeneriques: string[] = ['ghg', 'p-op', 'p-org', 'm-equipe'];
+  modulesGeneriques: string[] = ['ghg', 'm-equipe'];
 
   // ---------- DONNÉES D'ORGANISATION ----------
   filiales: Filiale[] = [];
@@ -82,7 +281,7 @@ export class DashboardComponent implements OnInit {
       id: 'scope1',
       name: 'Scope 1',
       categories: [
-        { id: 'combustion-etablissements', nom: 'Combustion dans les établissements', icone: '🏭' },
+        { id: 'combustion-etablissements', nom: 'Combustion dans les usines', icone: '🏭' },
         { id: 'combustion-vehicules', nom: 'Combustion des véhicules', icone: '🚗' },
         { id: 'emissions-refrigerants', nom: 'Émissions de réfrigérants', icone: '❄️' }
       ]
@@ -109,7 +308,7 @@ export class DashboardComponent implements OnInit {
         { id: 'transport-aval', nom: 'Transport en aval', icone: '🚛' },
         { id: 'transformation-produits', nom: 'Transformation des produits', icone: '🏭' },
         { id: 'utilisation-produits', nom: 'Utilisation des produits', icone: '🛒' },
-        { id: 'fin-de-vie', nom: 'Fin de vie des produits', icone: '♻️' },
+        { id: 'fin-de-vie-produits', nom: 'Fin de vie des produits', icone: '♻️' },
         { id: 'actifs-loues-aval', nom: 'Actifs loués en aval', icone: '🏢' },
         { id: 'franchises', nom: 'Franchises', icone: '🤝' },
         { id: 'investissements', nom: 'Investissements', icone: '💰' }
@@ -117,103 +316,1791 @@ export class DashboardComponent implements OnInit {
     }
   ];
 
-  demandesEnAttente = [
-    { id: 3, username: 'f.zwawi', email: 'farah.zwawi06@gmail.com', firstName: 'Farah', lastName: 'Zwawi', role: 'CONTRIBUTEUR', status: 'EN_ATTENTE', usine: 'MISFAT_1' },
-    { id: 4, username: 'a.bayan', email: 'bayan.rse@misfat.com', firstName: 'Ahmed', lastName: 'Bayan', role: 'RESPONSABLE_RSE', status: 'EN_ATTENTE', usine: 'MISFAT_2' }
-  ];
+  /**
+   * Demandes d'accès en attente, lues en direct dans l'annuaire.
+   *
+   * <p>La liste n'est plus un jeu d'exemple : approuver une demande ici ouvre
+   * réellement la connexion de l'intéressé sur l'écran de connexion, au
+   * rafraîchissement suivant de sa page.</p>
+   */
+  demandesEnAttente: Compte[] = [];
+
+  /** Rôles et périmètres que le Master Admin peut affecter à une demande. */
+  readonly rolesAffectables = ROLES_PROPOSES;
+  readonly affectationsProposees = AFFECTATIONS_PROPOSEES;
+
+  /**
+   * Décision en cours de saisie, par identifiant de demande.
+   *
+   * <p>Le rôle porté par la demande n'est qu'une proposition : l'écran l'offre
+   * comme valeur de départ, et c'est ce que le Master Admin laisse ou change ici
+   * qui sera appliqué à l'approbation.</p>
+   */
+  decisions: Record<number, { role: string; affectation: string }> = {};
 
   // ---------- STATISTIQUES & KPIS ----------
-  donneesParFiltre: { [key: number]: { stats: { totalCO2: number; scope1: number; scope2: number; scope3: number } } } = {
-    1: { stats: { totalCO2: 53300, scope1: 5200, scope2: 3100, scope3: 45000 } },
-    2: { stats: { totalCO2: 35300, scope1: 2100, scope2: 1200, scope3: 32000 } },
-    3: { stats: { totalCO2: 33725, scope1: 3113, scope2: 1818, scope3: 28794 } },
-    4: { stats: { totalCO2: 12500, scope1: 900, scope2: 600, scope3: 11000 } },
-    5: { stats: { totalCO2: 11000, scope1: 500, scope2: 500, scope3: 10000 } }
-  };
+  // Les agrégats carbone (scopes, catégories, filiales) sont exclusivement
+  // servis par emission-service ; voir chargerStats().
 
-  statsGlobales = { totalCO2: 145825, scope1: 11813, scope2: 7218, scope3: 126794 };
-  statsAnneePrecedente = { scope1: 10520, scope2: 6890, scope3: 118300 };
-
-  kpisEntreprise: KpiEntreprise[] = [
-    this.construireKpi('ca', 'Chiffre d\'Affaires', '💰', '#1e293b', 'M TND', [
-      { annee: 2022, valeur: 38.2 },
-      { annee: 2023, valeur: 41.75 },
-      { annee: 2024, valeur: 45.0 },
-      { annee: 2025, valeur: 27.4, provisoire: true }
-    ]),
-    this.construireKpi('effectifs', 'Effectif Employés', '👥', '#4f46e5', 'employés', [
-      { annee: 2022, valeur: 398 },
-      { annee: 2023, valeur: 432 },
-      { annee: 2024, valeur: 465 },
-      { annee: 2025, valeur: 480, provisoire: true }
-    ]),
-    this.construireKpi('production', 'Volume de Production', '📦', '#b45309', 'M unités', [
-      { annee: 2022, valeur: 7.8 },
-      { annee: 2023, valeur: 8.6 },
-      { annee: 2024, valeur: 9.4 },
-      { annee: 2025, valeur: 5.9, provisoire: true }
-    ]),
-    this.construireKpi('ventes', 'Ventes', '🛒', '#0f766e', 'M unités', [
-      { annee: 2022, valeur: 7.5 },
-      { annee: 2023, valeur: 8.3 },
-      { annee: 2024, valeur: 9.1 },
-      { annee: 2025, valeur: 5.7, provisoire: true }
-    ])
-  ];
-
-  filtresProduction = [
-    { type: 'Filtres à Huile', volume: 40 },
-    { type: 'Filtres à Air', volume: 30 },
-    { type: 'Filtres à Carburant', volume: 20 },
-    { type: 'Filtres d\'Habitacle', volume: 10 }
-  ];
-
-  categoriesScope1 = [
-    { nom: 'Combustion Stationnaire', total: 8500, q1: 4100, q2: 4400 },
-    { nom: 'Combustion Mobile', total: 2000, q1: 900, q2: 1100 },
-    { nom: 'Émissions Fugitives', total: 1313, q1: 600, q2: 713 }
-  ];
-
-  categoriesScope2 = [
-    { nom: 'Électricité Achetée', total: 7218, q1: 3400, q2: 3818 }
-  ];
-
-  categoriesScope3 = [
-    { nom: 'Achats de Biens et Services', total: 80000, q1: 39000, q2: 41000 },
-    { nom: 'Transport et Distribution en Amont', total: 26794, q1: 13000, q2: 13794 },
-    { nom: 'Transport et Distribution en Aval', total: 10000, q1: 4800, q2: 5200 },
-    { nom: 'Déplacements Domicile-Travail', total: 5000, q1: 2400, q2: 2600 },
-    { nom: 'Voyages d\'Affaires', total: 3000, q1: 1400, q2: 1600 },
-    { nom: 'Déchets Générés par les Opérations', total: 2000, q1: 900, q2: 1100 },
-    { nom: 'Biens d\'Équipement', total: 0, q1: 0, q2: 0 },
-    { nom: 'Activités Liées à l\'Énergie (non-S1 & S2)', total: 0, q1: 0, q2: 0 },
-    { nom: 'Actifs Loués en Amont', total: 0, q1: 0, q2: 0 },
-    { nom: 'Transformation des Produits Vendus', total: 0, q1: 0, q2: 0 },
-    { nom: 'Utilisation des Produits Vendus', total: 0, q1: 0, q2: 0 },
-    { nom: 'Fin de Vie des Produits Vendus', total: 0, q1: 0, q2: 0 },
-    { nom: 'Actifs Loués en Aval', total: 0, q1: 0, q2: 0 },
-    { nom: 'Franchises', total: 0, q1: 0, q2: 0 },
-    { nom: 'Investissements', total: 0, q1: 0, q2: 0 }
-  ];
+  /**
+   * Séries extra-financières : chiffre d'affaires, effectif, production, ventes.
+   *
+   * <p>Elles étaient codées en dur, et se lisaient donc comme des chiffres
+   * réels alors qu'aucun ne l'était. Elles viennent désormais de l'écran
+   * « Données d'Activité & KPI », seul endroit où elles sont tenues, et sont
+   * cloisonnées par société comme le reste du périmètre.</p>
+   */
+  private readonly activiteService = inject(ActivityDataService);
 
   selectedScopeSlice: string | null = null;
   selectedScope3Slice: string | null = null;
 
+  // Palette calibrée pour un fond clair : teintes assez soutenues pour rester
+  // lisibles sur blanc (cyan / vert / orange / violet), sans jaune.
   scope3Palette: string[] = [
-    '#4f46e5', '#0f766e', '#b45309', '#7c3aed', '#0891b2',
-    '#be123c', '#4d7c0f', '#c026d3', '#0369a1', '#a16207',
-    '#059669', '#9333ea', '#ea580c', '#64748b', '#0284c7'
+    '#0284c7', '#16a34a', '#ea580c', '#9333ea', '#0891b2',
+    '#059669', '#c2410c', '#7c3aed', '#0369a1', '#15803d',
+    '#d97706', '#6d28d9', '#0e7490', '#166534', '#a21caf'
   ];
+
+  /**
+   * Route active, quand il y en a une.
+   *
+   * <p>La console s'affiche aussi hors routage — bancs d'essai, intégration
+   * dans un hôte. L'injection est donc facultative : exiger un routeur
+   * configuré ferait échouer un montage qui n'a que faire de l'URL.</p>
+   */
+  private readonly route = inject(ActivatedRoute, { optional: true });
 
   constructor(
     private router: Router,
     private organizationService: OrganizationService,
+    private entityService: EntityContextService,
+    private statsService: EmissionStatsService,
+    private dispatchStore: DispatchStore,
+    private recalculService: RecalculFacteursService,
     private cdr: ChangeDetectorRef
   ) {}
 
+  /** Incrémenté après un import réussi : force le rechargement des vues filles. */
+  refreshToken = 0;
+
+  // ---------- AGRÉGATS RÉELS ----------
+  /** Mode de valorisation : tCO2e ou devise. */
+  modeStats: StatsMode = 'PHYSIQUE';
+  statsReelles: EmissionStats | null = null;
+
+  /** Compte rendu de la reprise des lignes sans facteur, affiché une fois. */
+  messageRecalcul = '';
+  chargementStats = false;
+
+  /** Devise de restitution en mode monétaire ; TND en consolidation groupe. */
+  deviseMonetaire: string = 'TND';
+
+  /**
+   * Écarte les entrées de stockage devenues sans objet.
+   *
+   * <p>Les agrégats ne sont jamais mémorisés : ils sont recalculés à chaque
+   * passage. Seules d'anciennes clés d'un format abandonné sont retirées — les
+   * mesures des écrans et la répartition, elles, sont la source du repli et ne
+   * doivent surtout pas être effacées.</p>
+   */
+  private purgerCachesObsoletes(): void {
+    if (typeof localStorage === 'undefined') return;
+
+    const obsoletes = ['statsDashboard', 'dashboardStatsCache', 'emissionStatsCache',
+                       'repartitionGlobaleMisfat'];
+
+    for (const cle of obsoletes) {
+      if (localStorage.getItem(cle) !== null) {
+        localStorage.removeItem(cle);
+        if (isDevMode()) console.log('[dashboard] cache obsolète écarté :', cle);
+      }
+    }
+
+    if (typeof sessionStorage !== 'undefined') {
+      for (const cle of obsoletes) sessionStorage.removeItem(cle);
+    }
+  }
+
+  /**
+   * Périmètre organisationnel consulté, tel que les replis locaux l'appliquent.
+   *
+   * <p>Les écrans de saisie nomment leur usine, jamais leur société : la liste
+   * des usines rattachées à la société sélectionnée est donc le seul moyen de
+   * cloisonner les relevés locaux. Sur la vue consolidée groupe, aucune
+   * restriction n'est posée — c'est le périmètre le plus large, et il est
+   * explicitement demandé.</p>
+   */
+  private get organisationActive(): PerimetreOrganisation {
+    const entityId = typeof this.selectedFilialeId === 'number' ? this.selectedFilialeId : null;
+    const societe = this.filiales.find(f => f.id === entityId);
+    const usines = societe?.usines?.length ? societe.usines : this.usines;
+
+    return {
+      entityId,
+      etablissements: usines.map(u => u.nom).filter(Boolean),
+      societeUnique: this.filiales.length <= 1
+    };
+  }
+
+  // ---------- HISTORIQUE PLURIANNUEL ----------
+
+  private readonly bilanService = inject(BilanCarboneService);
+
+  /** Référentiel des pays d'implantation, partagé avec le rapport. */
+  private readonly filtresRapport = inject(ReportFiltersService);
+
+  /** Empreinte de chaque exercice ouvert, du plus ancien au plus récent. */
+  historique: PointHistorique[] = [];
+  chargementHistorique = false;
+
+  /** Périmètre et liste d'exercices du dernier chargement, pour ne pas le rejouer. */
+  private clefHistorique = '';
+
+  /**
+   * Trace l'empreinte de tous les exercices ouverts.
+   *
+   * <p>L'axe des abscisses suit la table des exercices : ouvrir une année dans
+   * les paramètres la fait apparaître ici sans toucher au code. Chaque année
+   * est calculée par le même service que le rapport — serveur, ventilation
+   * comptable et saisies des écrans — pour qu'une colonne de l'histogramme et
+   * la carte du haut ne racontent jamais deux histoires différentes.</p>
+   *
+   * <p>Le rechargement n'a lieu que si la société, l'usine ou la liste des
+   * exercices ont bougé : changer d'année consultée ne redessine pas un
+   * graphique qui les montre déjà toutes.</p>
+   */
+  chargerHistorique(): void {
+    const filtre = this.entityService.filter;
+    const annees = this.annees.map(a => a.valeur).sort((a, b) => a - b);
+
+    const clef = `${filtre.entityId}|${filtre.usineId}|${annees.join(',')}`;
+    if (!annees.length || clef === this.clefHistorique) return;
+
+    this.clefHistorique = clef;
+    this.chargementHistorique = true;
+
+    forkJoin(
+      annees.map(annee => this.bilanService
+        .charger(filtre.entityId, filtre.usineId, annee)
+        .pipe(catchError(() => of(null))))
+    ).subscribe(bilans => {
+      // Le bilan est tenu en kilogrammes, l'historique en tonnes : c'est
+      // l'unité que le tableau de bord annonce (`uniteStats`) et celle des
+      // agrégats du serveur. Sans cette conversion, la mini-carte affichait des
+      // kilogrammes sous une étiquette « tCO₂eq » — mille fois trop lourds.
+      const points = bilans.map((bilan, i) => ({
+        annee: annees[i],
+        scope1: kgVersTonnes(bilan?.scope1Kg ?? 0),
+        scope2: kgVersTonnes(bilan?.scope2Kg ?? 0),
+        scope3: kgVersTonnes(bilan?.scope3Kg ?? 0),
+        total: kgVersTonnes(bilan?.totalKg ?? 0),
+        h1: 0, h2: 0, h3: 0
+      }));
+
+      // Hauteurs rapportées à l'exercice le plus chargé : une échelle fondée
+      // sur la somme des années écraserait toutes les colonnes.
+      const maximum = Math.max(...points.map(p => p.total), 0);
+      this.historique = points.map(point => ({
+        ...point,
+        h1: maximum > 0 ? (point.scope1 / maximum) * 100 : 0,
+        h2: maximum > 0 ? (point.scope2 / maximum) * 100 : 0,
+        h3: maximum > 0 ? (point.scope3 / maximum) * 100 : 0
+      }));
+
+      this.chargementHistorique = false;
+      this.cdr.markForCheck();
+    });
+  }
+
+  /** Le graphique a-t-il au moins un exercice chiffré à montrer ? */
+  get historiqueRenseigne(): boolean {
+    return this.historique.some(point => point.total > 0);
+  }
+
+  // ---------- TRACÉ DES AIRES EMPILÉES ----------
+
+  /**
+   * Repère du tracé, en unités de la zone de dessin.
+   *
+   * <p>Le graphique est un SVG et non une toile : il se rend côté serveur au
+   * pré-rendu, s'imprime sans dépendre d'une option du navigateur, et n'ajoute
+   * aucune librairie au paquet. La zone est étirée par la feuille de style,
+   * les tracés portant {@code non-scaling-stroke} pour que l'étirement
+   * n'épaississe pas les courbes.</p>
+   */
+  readonly svgLarg = 600;
+  readonly svgHaut = 260;
+  private readonly margeHaut = 16;
+  private readonly margeBas = 12;
+
+  /**
+   * Empreinte de l'exercice le plus chargé ; échelle du graphique.
+   *
+   * <p>La cible n'entre pas dans le calcul : elle vaut 70 % du premier
+   * exercice et lui est donc toujours inférieure. L'y faire entrer créerait
+   * surtout un cycle, l'ordonnée de la cible dépendant elle-même de cette
+   * échelle.</p>
+   */
+  private get maxHistorique(): number {
+    return Math.max(...this.historique.map(p => p.total), 0);
+  }
+
+  private xPour(index: number): number {
+    const n = this.historique.length;
+    return n <= 1 ? this.svgLarg / 2 : (index * this.svgLarg) / (n - 1);
+  }
+
+  private yPour(valeur: number): number {
+    const max = this.maxHistorique;
+    const utile = this.svgHaut - this.margeHaut - this.margeBas;
+    if (max <= 0) return this.svgHaut - this.margeBas;
+    return this.margeHaut + (1 - valeur / max) * utile;
+  }
+
+  /** Position horizontale d'un exercice, en pourcentage de la largeur. */
+  positionX(index: number): number {
+    const n = this.historique.length;
+    return n <= 1 ? 50 : (index / (n - 1)) * 100;
+  }
+
+  /**
+   * Segments d'une courbe lissée, à tangente horizontale.
+   *
+   * <p>Deux cubiques par intervalle, comme pour les courbes des KPI de la même
+   * page : le rendu reste souple sans jamais dépasser les points mesurés, ce
+   * qu'une spline plus libre ferait sur une série en dents de scie.</p>
+   */
+  private segmentsLisses(points: { x: number; y: number }[]): string {
+    let trace = '';
+    for (let i = 0; i < points.length - 1; i++) {
+      const milieu = +((points[i].x + points[i + 1].x) / 2).toFixed(2);
+      trace += ` C ${milieu} ${points[i].y}, ${milieu} ${points[i + 1].y},`
+        + ` ${points[i + 1].x} ${points[i + 1].y}`;
+    }
+    return trace;
+  }
+
+  private lisser(points: { x: number; y: number }[]): string {
+    if (!points.length) return '';
+    return `M ${points[0].x} ${points[0].y}${this.segmentsLisses(points)}`;
+  }
+
+  /** Points d'un niveau d'empilement, cumul des scopes jusqu'au rang demandé. */
+  private niveau(rang: 0 | 1 | 2 | 3): { x: number; y: number }[] {
+    return this.historique.map((point, i) => {
+      const cumul = (rang >= 1 ? point.scope1 : 0)
+        + (rang >= 2 ? point.scope2 : 0)
+        + (rang >= 3 ? point.scope3 : 0);
+      return { x: +this.xPour(i).toFixed(2), y: +this.yPour(cumul).toFixed(2) };
+    });
+  }
+
+  /**
+   * Aires empilées des trois scopes, du bas vers le haut.
+   *
+   * <p>Chaque aire est fermée sur la frontière du scope inférieur, et non sur
+   * la ligne de base : c'est ce qui empile les contributions au lieu de les
+   * superposer, et permet de lire le total à la hauteur de la courbe
+   * supérieure.</p>
+   */
+  get airesHistorique(): { id: string; nom: string; couleur: string; aire: string; ligne: string }[] {
+    if (this.historique.length < 1) return [];
+
+    const definitions: { id: string; nom: string; couleur: string; rang: 1 | 2 | 3 }[] = [
+      { id: 's1', nom: 'Scope 1', couleur: '#3FA96B', rang: 1 },
+      { id: 's2', nom: 'Scope 2', couleur: '#E0803F', rang: 2 },
+      { id: 's3', nom: 'Scope 3', couleur: '#4A96C4', rang: 3 }
+    ];
+
+    return definitions.map(definition => {
+      const haut = this.niveau(definition.rang);
+      const bas = this.niveau((definition.rang - 1) as 0 | 1 | 2);
+      const retour = [...bas].reverse();
+
+      return {
+        ...definition,
+        ligne: this.lisser(haut),
+        aire: `${this.lisser(haut)} L ${retour[0].x} ${retour[0].y}`
+          + `${this.segmentsLisses(retour)} Z`
+      };
+    });
+  }
+
+  /** Repères horizontaux et leur valeur, pour donner l'échelle. */
+  get grilleHistorique(): { y: number; libelle: string }[] {
+    const max = this.maxHistorique;
+    if (max <= 0) return [];
+
+    return [1, 0.66, 0.33, 0].map(part => ({
+      y: +this.yPour(max * part).toFixed(2),
+      libelle: this.formatCompact(max * part)
+    }));
+  }
+
+  /**
+   * Trajectoire cible : 30 % sous l'empreinte du premier exercice collecté.
+   *
+   * <p>Elle est rendue à plat, au niveau à atteindre, plutôt qu'en pente vers
+   * 2030 : l'axe s'arrête au dernier exercice connu, et prolonger le trait
+   * au-delà donnerait à lire des années qui ne figurent pas au graphique.</p>
+   */
+  get cibleHistorique(): { y: number; valeur: number; libelle: string } | null {
+    const references = this.historique.filter(point => point.total > 0);
+    if (references.length < 1) return null;
+
+    const valeur = references[0].total * 0.7;
+    return {
+      valeur,
+      y: +this.yPour(valeur).toFixed(2),
+      libelle: `Cible −30 % (2030) · ${this.formatCompact(valeur)}`
+    };
+  }
+
+  /** Points de la courbe supérieure, marqués sur chaque exercice. */
+  get marqueursHistorique(): { x: number; y: number; annee: number; actif: boolean }[] {
+    return this.niveau(3).map((point, i) => ({
+      ...point,
+      annee: this.historique[i].annee,
+      actif: this.estAnneeActive(this.historique[i].annee)
+    }));
+  }
+
+  // ---------- MINI-CARTES DE SYNTHÈSE ----------
+
+  /** Exercice dont les mini-cartes rendent compte : celui qui est consulté. */
+  private get pointCourant(): PointHistorique | null {
+    return this.historique.find(p => p.annee === this.selectedAnnee)
+      ?? this.historique[this.historique.length - 1]
+      ?? null;
+  }
+
+  get anneeCarte(): number | null {
+    return this.pointCourant?.annee ?? this.selectedAnnee;
+  }
+
+  get totalCarte(): number {
+    return this.pointCourant?.total ?? this.totalEmissions;
+  }
+
+  /**
+   * Variation entre l'exercice consulté et le précédent exercice collecté.
+   *
+   * <p>Un exercice antérieur non collecté n'est pas un exercice à zéro : la
+   * carte reste alors vide plutôt que d'annoncer une progression qui ne
+   * mesurerait que l'avancement de la collecte.</p>
+   */
+  get variationCarte(): { pct: number; precedent: number; hausse: boolean } | null {
+    const courant = this.pointCourant;
+    if (!courant || courant.total <= 0) return null;
+
+    const anterieurs = this.historique.filter(p => p.annee < courant.annee && p.total > 0);
+    if (!anterieurs.length) return null;
+
+    const precedent = anterieurs[anterieurs.length - 1];
+    const pct = ((courant.total - precedent.total) / precedent.total) * 100;
+    if (!Number.isFinite(pct)) return null;
+
+    return { pct, precedent: precedent.annee, hausse: pct >= 0 };
+  }
+
+  /** Scope majoritaire de l'exercice consulté, tel que la carte l'annonce. */
+  get scopeDominantCarte(): { libelle: string; pct: number; couleur: string } | null {
+    const courant = this.pointCourant;
+    if (!courant || courant.total <= 0) return null;
+
+    const parts = [
+      { libelle: 'Scope 1', valeur: courant.scope1, couleur: '#3FA96B' },
+      { libelle: 'Scope 2', valeur: courant.scope2, couleur: '#E0803F' },
+      { libelle: 'Scope 3', valeur: courant.scope3, couleur: '#4A96C4' }
+    ];
+
+    const dominant = parts.reduce((max, part) => (part.valeur > max.valeur ? part : max));
+    if (dominant.valeur <= 0) return null;
+
+    return {
+      libelle: dominant.libelle,
+      pct: (dominant.valeur / courant.total) * 100,
+      couleur: dominant.couleur
+    };
+  }
+
+  /**
+   * Nombre abrégé : milliers, millions, milliards.
+   *
+   * <p>Une empreinte à neuf chiffres déborde d'une mini-carte et ne se lit pas
+   * d'un coup d'œil ; l'ordre de grandeur, si.</p>
+   *
+   * <p>Le palier des milliers porte deux décimales, comme les suivants : sur une
+   * empreinte de quelques milliers de tonnes — le cas courant d'un site
+   * industriel — une seule décimale confondait 8 850 et 8 949 sous le même
+   * « 8,9 k ».</p>
+   */
+  formatCompact(valeur: number): string {
+    const absolu = Math.abs(valeur);
+    const format = (nombre: number, decimales: number) =>
+      nombre.toLocaleString('fr-FR', {
+        minimumFractionDigits: decimales, maximumFractionDigits: decimales
+      });
+
+    if (absolu >= 1e9) return `${format(valeur / 1e9, 2)} Md`;
+    if (absolu >= 1e6) return `${format(valeur / 1e6, 2)} M`;
+    if (absolu >= 1e3) return `${format(valeur / 1e3, 2)} k`;
+    return format(valeur, absolu >= 10 ? 0 : 2);
+  }
+
+  // ---------- JALONS DE TRAJECTOIRE (SBTi) ----------
+
+  /**
+   * Jalons de réduction posés sur le graphique d'évolution.
+   *
+   * <p>Les pourcentages sont ceux d'une trajectoire alignée 1,5 °C ; ils
+   * s'appliquent au <strong>premier exercice collecté</strong>, qui fait office
+   * d'année de base. Un jalon dont la valeur sortirait de l'échelle du graphique
+   * n'est pas tracé : une ligne hors cadre ne documente rien.</p>
+   */
+  get jalonsHistorique(): { annee: number; pct: number; y: number; libelle: string }[] {
+    const references = this.historique.filter(point => point.total > 0);
+    if (!references.length) return [];
+
+    const base = references[0].total;
+    const maximum = this.maxHistorique;
+
+    return [
+      { annee: 2028, pct: 25 },
+      { annee: 2030, pct: 50 }
+    ]
+      .map(jalon => {
+        const valeur = base * (1 - jalon.pct / 100);
+        return {
+          annee: jalon.annee,
+          pct: jalon.pct,
+          y: +this.yPour(valeur).toFixed(2),
+          libelle: `−${jalon.pct} % en ${jalon.annee} · ${this.formatCompact(valeur)}`,
+          valeur
+        };
+      })
+      .filter(jalon => jalon.valeur <= maximum)
+      .map(({ annee, pct, y, libelle }) => ({ annee, pct, y, libelle }));
+  }
+
+  // ---------- JAUGE D'INTENSITÉ CARBONE ----------
+
+  /**
+   * Seuil sectoriel de l'intensité produit, en kgCO₂e par unité.
+   *
+   * <p>Ordre de grandeur de la transformation plastique et métallique pour une
+   * pièce de l'ordre du kilogramme. <strong>Ce n'est pas une donnée auditée</strong> :
+   * il sert de repère de lecture, et reste un paramètre pour que le lecteur
+   * puisse le contester.</p>
+   */
+  seuilIntensiteSectoriel = 5;
+
+  /**
+   * Jauge de l'intensité carbone, en arc de cercle.
+   *
+   * <p>L'échelle court jusqu'à deux fois le seuil : au-delà, l'aiguille se
+   * bloque en butée plutôt que de sortir du cadran, et le libellé dit le
+   * dépassement. Un cadran dont l'aiguille sort ne se lit plus.</p>
+   */
+  get jaugeIntensite(): {
+    valeur: number; seuil: number; pctEchelle: number; angle: number;
+    arc: string; statut: 'BON' | 'VIGILANCE' | 'CRITIQUE'; libelle: string;
+    renseignee: boolean;
+  } {
+    const valeur = this.intensiteCarbone;
+    const seuil = this.seuilIntensiteSectoriel;
+    const echelle = seuil * 2;
+
+    const pctEchelle = echelle > 0 ? Math.min((valeur / echelle) * 100, 100) : 0;
+
+    // Demi-cadran : 180° de gauche à droite.
+    const angle = -90 + (pctEchelle / 100) * 180;
+
+    const statut: 'BON' | 'VIGILANCE' | 'CRITIQUE' =
+      valeur <= seuil * 0.6 ? 'BON' : valeur <= seuil ? 'VIGILANCE' : 'CRITIQUE';
+
+    const libelle = valeur <= 0
+      ? 'Production non renseignée : intensité non calculable'
+      : valeur > echelle
+        ? `Hors échelle — plus de ${this.formatCompact(echelle)} kgCO₂e / unité`
+        : `${valeur.toFixed(2)} kgCO₂e / unité pour un repère de ${seuil}`;
+
+    return {
+      valeur, seuil, pctEchelle, angle,
+      arc: this.arcJauge(pctEchelle),
+      statut, libelle,
+      renseignee: valeur > 0
+    };
+  }
+
+  /**
+   * Tracé de l'arc rempli de la jauge.
+   *
+   * <p>Demi-cercle de rayon 70 centré en (80, 80), parcouru de la gauche vers la
+   * droite. Le tracé est calculé plutôt que dessiné pour que le remplissage
+   * suive exactement la valeur.</p>
+   */
+  private arcJauge(pct: number): string {
+    if (pct <= 0) return '';
+
+    const rayon = 70;
+    const cx = 80;
+    const cy = 80;
+
+    const angle = Math.PI * (pct / 100);
+    const x = +(cx - rayon * Math.cos(angle)).toFixed(2);
+    const y = +(cy - rayon * Math.sin(angle)).toFixed(2);
+
+    // Un demi-tour exact impose le grand arc ; en dessous, le petit suffit.
+    const grandArc = pct >= 100 ? 1 : 0;
+    return `M ${cx - rayon} ${cy} A ${rayon} ${rayon} 0 ${grandArc} 1 ${x} ${y}`;
+  }
+
+  // ---------- COMPARATIF MULTI-PAYS ----------
+
+  /** Bilans consolidés par pays, pour le comparatif inter-implantations. */
+  comparatifPays: {
+    pays: string; drapeau: string; societes: number;
+    totalT: number; scope1T: number; scope2T: number; scope3T: number;
+    largeur: number; pctScope1: number; pctScope2: number; pctScope3: number;
+  }[] = [];
+
+  chargementComparatif = false;
+
+  /**
+   * Charge un bilan consolidé par pays d'implantation.
+   *
+   * <p>La Tunisie réunit trois sociétés : son bilan est la fusion des leurs, par
+   * la même règle que le rapport — les émissions s'additionnent, les quotes-parts
+   * se recalculent. Sans cette consolidation, comparer « MISFAT Tunisie » à
+   * « MISFAT Maroc » opposerait une société à un pays entier.</p>
+   */
+  private chargerComparatifPays(): void {
+    const pays = this.filtresRapport.paysDisponibles();
+    if (!pays.length) return;
+
+    this.chargementComparatif = true;
+    const annee = this.entityService.filter.year;
+
+    forkJoin(
+      pays.map(option => this.bilanService
+        .chargerConsolide(option.filiales.map(f => f.id), annee, {
+          libelleSociete: option.nom,
+          pays: option.nom,
+          devise: option.devise,
+          annee,
+          libelleExercice: annee === null ? 'Tous exercices' : String(annee)
+        })
+        .pipe(catchError(() => of(null))))
+    ).subscribe(bilans => {
+      const lignes = bilans.map((bilan, i) => ({
+        pays: pays[i].nom,
+        drapeau: pays[i].drapeau,
+        societes: pays[i].filiales.length,
+        totalT: kgVersTonnes(bilan?.totalKg ?? 0),
+        scope1T: kgVersTonnes(bilan?.scope1Kg ?? 0),
+        scope2T: kgVersTonnes(bilan?.scope2Kg ?? 0),
+        scope3T: kgVersTonnes(bilan?.scope3Kg ?? 0)
+      }));
+
+      const maximum = Math.max(...lignes.map(l => l.totalT), 0);
+
+      this.comparatifPays = lignes
+        .map(ligne => ({
+          ...ligne,
+          // Plancher de 1,5 % : une barre nulle disparaîtrait sous son socle.
+          largeur: maximum > 0 ? Math.max((ligne.totalT / maximum) * 100, 1.5) : 0,
+          pctScope1: ligne.totalT > 0 ? (ligne.scope1T / ligne.totalT) * 100 : 0,
+          pctScope2: ligne.totalT > 0 ? (ligne.scope2T / ligne.totalT) * 100 : 0,
+          pctScope3: ligne.totalT > 0 ? (ligne.scope3T / ligne.totalT) * 100 : 0
+        }))
+        .sort((a, b) => b.totalT - a.totalT);
+
+      this.chargementComparatif = false;
+      this.cdr.markForCheck();
+    });
+  }
+
+  /** Le comparatif porte-t-il au moins un pays chiffré ? */
+  get comparatifRenseigne(): boolean {
+    return this.comparatifPays.some(ligne => ligne.totalT > 0);
+  }
+
+  // ---------- SURVOL ET INFOBULLES ----------
+
+  /**
+   * Segment survolé, tous graphiques confondus.
+   *
+   * <p>Une seule variable pour l'ensemble : survoler une pastille de légende met
+   * en avant le segment correspondant, et réciproquement. Deux états séparés
+   * laisseraient les deux vues se contredire.</p>
+   */
+  segmentSurvole: string | null = null;
+
+  survoler(clef: string | null): void {
+    this.segmentSurvole = clef;
+  }
+
+  /** Le segment est-il celui que le pointeur désigne ? */
+  estSurvole(clef: string): boolean {
+    return this.segmentSurvole === clef;
+  }
+
+  /** Un autre segment est-il survolé ? Sert à estomper le reste du graphique. */
+  estEstompe(clef: string): boolean {
+    return this.segmentSurvole !== null && this.segmentSurvole !== clef;
+  }
+
+  /**
+   * Écart d'un scope avec l'exercice précédent, en pourcentage.
+   *
+   * <p>L'historique porte les trois scopes par exercice : la variation est donc
+   * calculable au niveau du scope. Elle ne l'est pas au niveau des
+   * sous-catégories, que l'historique n'individualise pas — l'infobulle d'un
+   * poste ne l'annonce donc pas plutôt que d'afficher un tiret trompeur.</p>
+   *
+   * @returns la variation, ou `null` quand aucun exercice antérieur n'est chiffré.
+   */
+  ecartScopeN1(scopeCode: string): number | null {
+    const courant = this.historique.find(p => p.annee === this.selectedAnnee)
+      ?? this.historique[this.historique.length - 1];
+    if (!courant) return null;
+
+    const anterieurs = this.historique.filter(p => p.annee < courant.annee && p.total > 0);
+    const precedent = anterieurs[anterieurs.length - 1];
+    if (!precedent) return null;
+
+    const valeurDe = (point: PointHistorique): number =>
+      scopeCode === 'SCOPE_1' ? point.scope1
+        : scopeCode === 'SCOPE_2' ? point.scope2
+        : point.scope3;
+
+    const avant = valeurDe(precedent);
+    if (avant <= 0) return null;
+
+    return ((valeurDe(courant) - avant) / avant) * 100;
+  }
+
+  /**
+   * Contenu de l'infobulle d'un segment de scope.
+   *
+   * <p>Catégorie, valeur, part, puis variation lorsqu'elle existe. Le texte est
+   * assemblé ici plutôt que dans le gabarit : une interpolation de six termes
+   * répétée sur trois graphiques deviendrait illisible.</p>
+   */
+  infobulleScope(nom: string, scopeCode: string, valeurT: number, pct: number): string {
+    const lignes = [
+      nom,
+      `${valeurT.toFixed(2)} ${this.uniteStats}`,
+      `${pct.toFixed(1)} % du périmètre`
+    ];
+
+    const ecart = this.ecartScopeN1(scopeCode);
+    if (ecart !== null) {
+      lignes.push(`${ecart >= 0 ? '▲ +' : '▼ '}${ecart.toFixed(1)} % vs exercice précédent`);
+    }
+
+    return lignes.join(' · ');
+  }
+
+  /** Infobulle d'un poste : sans variation, l'historique ne l'individualise pas. */
+  infobullePoste(nom: string, valeurT: number, pct: number): string {
+    return `${nom} · ${valeurT.toFixed(2)} ${this.uniteStats} · ${pct.toFixed(1)} % du scope`;
+  }
+
+  // ---------- VENTILATION EMPILÉE PAR SCOPE ----------
+
+  /**
+   * Ventilation interne d'un scope, en segments empilés.
+   *
+   * <p>Les barres de rang disent quel poste domine ; l'empilement dit comment le
+   * scope se compose. Les deux lectures sont complémentaires : l'une classe,
+   * l'autre montre la structure.</p>
+   */
+  ventilationEmpilee(scopeCode: string): {
+    nom: string; valeur: number; pct: number; rang: number; clef: string;
+  }[] {
+    const details = this.detailsDuScope(scopeCode);
+    const total = details.reduce((somme, poste) => somme + poste.valeur, 0);
+    if (total <= 0) return [];
+
+    // Les teintes viennent de la feuille de style : chaque segment reçoit son
+    // rang, et le CSS décline le dégradé du scope. Poser des couleurs ici
+    // dupliquerait la palette entre le composant et la feuille de style.
+    return details
+      .filter(poste => poste.valeur > 0)
+      .slice(0, 6)
+      .map((poste, index) => ({
+        nom: poste.nom,
+        valeur: poste.valeur,
+        pct: (poste.valeur / total) * 100,
+        rang: index + 1,
+        clef: `${scopeCode}|${poste.nom}`
+      }));
+  }
+
+  /** Exercice consulté, mis en avant dans l'histogramme. */
+  estAnneeActive(annee: number): boolean {
+    return this.selectedAnnee === annee;
+  }
+
+  /** Un clic sur une colonne bascule tout le tableau de bord sur cet exercice. */
+  choisirAnnee(annee: number): void {
+    this.entityService.selectYear(annee);
+  }
+
+  // ---------- ANALYSE DÉCISIONNELLE ----------
+
+  /**
+   * Pourcentage à la française, virgule décimale comprise.
+   *
+   * <p>{@code toFixed} écrit « 50.0 » : un point décimal au milieu d'un tableau
+   * de bord entièrement francophone se lit comme une coquille.</p>
+   */
+  private pourcentFr(valeur: number): string {
+    return valeur.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+
+  /** Scope le plus contributeur de l'exercice consulté. */
+  private get scopeDominant(): { nom: string; valeur: number; pct: number } | null {
+    const retenus = this.scopesStats.filter(s => s.valeur > 0 && s.code !== 'NON_CLASSE');
+    if (!retenus.length) return null;
+
+    const dominant = retenus.reduce((max, s) => (s.valeur > max.valeur ? s : max));
+    return { nom: dominant.nom, valeur: dominant.valeur, pct: dominant.pct };
+  }
+
+  /** Poste le plus lourd du scope dominant, cité comme cause principale. */
+  private get posteDominant(): string | null {
+    const dominant = this.scopeDominant;
+    if (!dominant) return null;
+
+    const code = dominant.nom.startsWith('Scope 1') ? 'SCOPE_1'
+      : dominant.nom.startsWith('Scope 2') ? 'SCOPE_2' : 'SCOPE_3';
+    const id = code === 'SCOPE_1' ? 'scope1' : code === 'SCOPE_2' ? 'scope2' : 'scope3';
+
+    const postes = this.postesDuScope(id, code).filter(p => p.valeur > 0);
+    if (!postes.length) return null;
+
+    return postes.reduce((max, p) => (p.valeur > max.valeur ? p : max)).nom;
+  }
+
+  /**
+   * Lecture de l'exercice consulté, en une phrase.
+   *
+   * <p>Chaque élément est repris du calcul affiché juste au-dessus : le texte
+   * commente le tableau de bord, il n'ajoute aucune donnée qui n'y figure
+   * pas.</p>
+   */
+  get analyseExercice(): string {
+    const exercice = this.selectedAnnee ?? '—';
+
+    if (!this.statsSontReelles || this.totalEmissions <= 0) {
+      return `Aucune émission n'est chiffrée sur le périmètre ${this.filialeLabel} pour `
+        + `l'exercice ${exercice}. Les catégories restent à collecter : le tableau de bord `
+        + `atteste du périmètre examiné, non d'une empreinte nulle.`;
+    }
+
+    const total = this.totalEmissions.toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+    const dominant = this.scopeDominant;
+    if (!dominant) return `En ${exercice}, l'empreinte globale s'élève à ${total} ${this.uniteStats}.`;
+
+    const poste = this.posteDominant;
+    const cause = poste ? `, tiré principalement par ${poste.toLowerCase()}` : '';
+
+    return `En ${exercice}, l'empreinte globale s'élève à ${total} ${this.uniteStats}. `
+      + `Le ${dominant.nom.split(' · ')[0]} représente le poste majeur avec `
+      + `${this.pourcentFr(dominant.pct)} % des émissions${cause}.`;
+  }
+
+  /**
+   * Variation par rapport à l'exercice précédent de l'historique.
+   *
+   * <p>Rendue vide quand la comparaison n'a pas de sens : un exercice
+   * précédent non collecté n'est pas un exercice à zéro, et annoncer une
+   * hausse de 100 % ne dirait rien de la trajectoire.</p>
+   */
+  get analyseVariation(): string {
+    const courant = this.historique.find(p => p.annee === this.selectedAnnee);
+    if (!courant || courant.total <= 0) return '';
+
+    const anterieurs = this.historique.filter(p => p.annee < courant.annee && p.total > 0);
+    if (!anterieurs.length) return '';
+
+    const precedent = anterieurs[anterieurs.length - 1];
+    const variation = ((courant.total - precedent.total) / precedent.total) * 100;
+    if (!Number.isFinite(variation)) return '';
+
+    const sens = variation >= 0 ? 'hausse' : 'baisse';
+    const lecture = variation >= 0
+      ? "marquant une augmentation de l'intensité carbone"
+      : "marquant une amélioration de l'intensité carbone";
+
+    return `Les émissions sont en ${sens} de ${this.pourcentFr(Math.abs(variation))} % par rapport à `
+      + `${precedent.annee}, ${lecture}.`;
+  }
+
+  /** Flèche du bandeau d'analyse : elle suit le sens de la variation. */
+  get iconeVariation(): string {
+    return this.analyseVariation.includes('hausse') ? '📈' : '📉';
+  }
+
+  /** Recharge les agrégats depuis la base pour le périmètre courant. */
+  chargerStats(): void {
+    const f = this.entityService.filter;
+    this.chargementStats = true;
+    this.selectedFilialeSlice = null;
+
+    // Le magasin suit le même périmètre : une balance de 2025 ne doit pas
+    // remonter sur 2026, ni la ventilation d'une société sur une autre.
+    this.dispatchStore.suivrePerimetre(f.year ?? null, f.entityId ?? null);
+
+    this.statsService.aggregate(this.modeStats, f.entityId, f.usineId, f.year, this.deviseMonetaire).subscribe({
+      next: stats => {
+        this.statsReelles = this.fusionnerVentilation(stats);
+        this.chargementStats = false;
+        // Le recalcul est complet : on force le rendu plutôt que d'attendre le
+        // prochain cycle, que rien ne garantit après une réponse réseau.
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        // Le serveur est muet : la ventilation locale reste seule à porter le
+        // bilan de l'exercice consulté, plutôt que de tout ramener à zéro.
+        this.statsReelles = this.fusionnerVentilation(null);
+        this.chargementStats = false;
+        this.cdr.markForCheck();
+      }
+    });
+
+  }
+
+  /**
+   * Ajoute la ventilation comptable aux agrégats du serveur.
+   *
+   * <p>Les lignes ventilées vivent dans le navigateur : sans cette fusion, le
+   * Scope 3 resterait à zéro sur le tableau de bord alors que les catégories
+   * les affichent. Elles ne sont ajoutées qu'en restitution physique — un
+   * ratio en kgCO₂e ne se convertit pas en dinars.</p>
+   */
+  /**
+   * Libellé de la nomenclature portant le même identifiant qu'un écran.
+   *
+   * <p>Les écrans destinataires de la ventilation reprennent l'identifiant de
+   * leur catégorie : la correspondance est donc exacte, sans rapprochement de
+   * chaînes qui pourrait se tromper.</p>
+   */
+  private nomNomenclature(ecran: string): string | null {
+    for (const scope of this.scopesData) {
+      const trouvee = scope.categories.find(categorie => categorie.id === ecran);
+      if (trouvee) return trouvee.nom;
+    }
+
+    // Rapprochement de repli, insensible à la casse et aux accents : « dechets »,
+    // « DECHETS » et « Déchets » désignent la même catégorie.
+    const recherche = this.clefComparable(ecran);
+    for (const scope of this.scopesData) {
+      const trouvee = scope.categories.find(
+        categorie => this.clefComparable(categorie.id) === recherche
+          || this.clefComparable(categorie.nom) === recherche
+      );
+      if (trouvee) return trouvee.nom;
+    }
+
+    return null;
+  }
+
+  /** Forme comparable d'une clé : sans accents, sans ponctuation, en minuscules. */
+  private clefComparable(valeur: string): string {
+    return String(valeur ?? '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '')
+      .toLowerCase();
+  }
+
+  private fusionnerVentilation(stats: EmissionStats | null): EmissionStats | null {
+    // Les deux replis sont indépendants : la ventilation d'un classeur et les
+    // saisies des écrans. Sortir ici quand la première est vide priverait le
+    // tableau de bord de la seconde — c'est ce qui laissait le Scope 3 à zéro.
+    const lignes = this.modeStats === 'PHYSIQUE' ? this.dispatchStore.lignesActives : [];
+
+    const base: EmissionStats = stats ?? {
+      mode: this.modeStats, unit: 'tCO2e', currency: null, measureCount: 0,
+      total: 0, scope1: 0, scope2: 0, scope3: 0,
+      byScope: {}, byCategory: {}, byScopeCategory: {}, byFiliale: [],
+      byCurrency: {}, unconvertedCurrencies: []
+    };
+
+    const fusion: EmissionStats = {
+      ...base,
+      byScope: { ...base.byScope },
+      byCategory: { ...base.byCategory },
+      byScopeCategory: Object.fromEntries(
+        Object.entries(base.byScopeCategory ?? {}).map(([cle, valeur]) => [cle, { ...valeur }])
+      )
+    };
+
+    for (const ligne of lignes) {
+      if (!ligne.ecran || !ligne.scope) continue;
+
+      const scope = ligne.scope;
+      // Le libellé de la nomenclature, quand l'écran destinataire en est une
+      // catégorie : sans cela, la ventilation créerait un poste parallèle au
+      // lieu d'alimenter celui que le tableau de bord affiche déjà.
+      const categorie = this.nomNomenclature(ligne.ecran) ?? libelleEcran(ligne.ecran);
+
+      // Les lignes ventilées sont tenues en kgCO₂e, `EmissionStats` en tCO₂e :
+      // sans cette conversion, chaque apport local pèse mille fois son poids.
+      const valeur = kgVersTonnes(ligne.emissionKg);
+
+      fusion.total += valeur;
+      fusion.measureCount += 1;
+      fusion.byScope[scope] = (fusion.byScope[scope] ?? 0) + valeur;
+      fusion.byCategory[categorie] = (fusion.byCategory[categorie] ?? 0) + valeur;
+
+      const parScope = fusion.byScopeCategory[scope] ?? {};
+      parScope[categorie] = (parScope[categorie] ?? 0) + valeur;
+      fusion.byScopeCategory[scope] = parScope;
+
+      if (scope === 'SCOPE_1') fusion.scope1 += valeur;
+      else if (scope === 'SCOPE_2') fusion.scope2 += valeur;
+      else fusion.scope3 += valeur;
+    }
+
+    const finale = this.reventilerParFiliale(this.completerParMesuresLocales(fusion));
+    this.tracerCalcul(stats, finale);
+    return finale;
+  }
+
+  /**
+   * Trace le détail du calcul dans la console, en développement seulement.
+   *
+   * <p>Le tableau de bord additionne trois sources — le serveur, la
+   * ventilation d'un classeur et les saisies des écrans. Quand un poste
+   * surprend, seule cette trace dit laquelle l'a alimenté.</p>
+   */
+  private tracerCalcul(serveur: EmissionStats | null, finale: EmissionStats): void {
+    if (!isDevMode()) return;
+
+    // Une réponse serveur incomplète ne doit pas faire tomber le rendu sur une
+    // trace de mise au point : le journal cède, jamais le tableau de bord.
+    const parFiliale = (finale.byFiliale ?? []).map(part => ({
+      filiale: this.filiales.find(f => f.id === part.filialeId)?.libelle ?? 'Non affectée',
+      filialeId: part.filialeId,
+      valeur: Math.round(part.value),
+      part: `${part.share.toFixed(1)} %`
+    }));
+
+    console.log('[dashboard] Stats calculées filiales :', parFiliale);
+
+    console.log('[dashboard] Stats calculées catégories :', {
+      scope1: Math.round(finale.scope1),
+      scope2: Math.round(finale.scope2),
+      scope3: Math.round(finale.scope3),
+      total: Math.round(finale.total),
+      parScopeEtCategorie: finale.byScopeCategory
+    });
+
+    console.log('[dashboard] Origine des apports :', {
+      serveur: Math.round(serveur?.total ?? 0),
+      ventilation: Math.round(
+        this.dispatchStore.lignesActives
+          .filter(l => l.ecran)
+          .reduce((somme, l) => somme + l.emissionKg, 0)
+      ),
+      mesuresDesEcrans: totauxLocaux(this.entityService.filter.year ?? null, this.organisationActive),
+      exercice: this.entityService.filter.year,
+      societe: this.entityService.filter.entityId
+    });
+  }
+
+  /**
+   * Complète les agrégats par les mesures saisies dans les écrans.
+   *
+   * <p>Chaque catégorie conserve ses lignes dans le navigateur. Le serveur ne
+   * les connaît pas tant qu'elles ne lui ont pas été soumises : sans ce repli,
+   * une catégorie renseignée à l'écran resterait à zéro sur le tableau de
+   * bord. Le repli ne s'applique que là où le serveur ne rapporte rien — une
+   * catégorie qu'il documente n'est jamais écrasée, ni doublée.</p>
+   */
+  private completerParMesuresLocales(stats: EmissionStats): EmissionStats {
+    // Un ratio en kgCO₂e ne se convertit pas en dinars : le repli ne vaut
+    // qu'en restitution physique.
+    if (this.modeStats !== 'PHYSIQUE') return stats;
+
+    const exercice = this.entityService.filter.year ?? null;
+    const locaux = totauxLocaux(exercice, this.organisationActive);
+
+    if (isDevMode()) {
+      console.log('[dashboard] Mesures relevées dans les écrans :', {
+        exercice,
+        categoriesRenseignees: locaux.length,
+        totalKgCO2e: Math.round(locaux.reduce((s, l) => s + l.emissionKg, 0)),
+        detail: locaux
+      });
+
+      if (!locaux.length) {
+        console.warn(
+          '[dashboard] Aucune mesure locale retenue. Causes possibles : aucune saisie '
+          + `enregistrée, ou des lignes hors de l'exercice ${exercice ?? '(tous)'}, `
+          + 'ou des lignes dont le facteur reste non résolu (émission à 0).'
+        );
+      }
+    }
+
+    if (!locaux.length) return stats;
+
+    const fusion: EmissionStats = {
+      ...stats,
+      byScope: { ...stats.byScope },
+      byCategory: { ...stats.byCategory },
+      byScopeCategory: Object.fromEntries(
+        Object.entries(stats.byScopeCategory ?? {}).map(([cle, valeur]) => [cle, { ...valeur }])
+      )
+    };
+
+    for (const local of locaux) {
+      const nom = this.nomNomenclature(local.categorie);
+      if (!nom || !local.emissionKg) continue;
+
+      const parScope = fusion.byScopeCategory[local.scope] ?? {};
+
+      // Le serveur ne fait foi que s'il rapporte une valeur non nulle. Un poste
+      // présent mais à zéro — le cas de Déchets — est bien surchargé par le
+      // relevé local, sans quoi la catégorie resterait muette.
+      const valeurServeur = Number(parScope[nom] ?? 0);
+      if (valeurServeur > 0) continue;
+
+      // Les relevés d'écran sont tenus en kgCO₂e, `EmissionStats` en tCO₂e.
+      const valeur = kgVersTonnes(local.emissionKg);
+
+      parScope[nom] = valeur;
+      fusion.byScopeCategory[local.scope] = parScope;
+
+      fusion.byCategory[nom] = (fusion.byCategory[nom] ?? 0) + valeur;
+      fusion.byScope[local.scope] = (fusion.byScope[local.scope] ?? 0) + valeur;
+      fusion.total += valeur;
+      fusion.measureCount += local.lignes;
+
+      if (local.scope === 'SCOPE_1') fusion.scope1 += valeur;
+      else if (local.scope === 'SCOPE_2') fusion.scope2 += valeur;
+      else fusion.scope3 += valeur;
+    }
+
+    // Le calcul est terminé : on force le rendu plutôt que d'attendre un cycle
+    // que rien ne garantit après une réponse réseau.
+    this.cdr.detectChanges();
+
+    return fusion;
+  }
+
+  /**
+   * Réaffecte la ventilation à sa filiale et recalcule les quotes-parts.
+   *
+   * <p>Le serveur calcule les parts sur ses seules mesures : sans ce
+   * réajustement, la carte « Distribution par filiale » afficherait 0 % pour
+   * une société dont tout le bilan vient d'un classeur comptable.</p>
+   */
+  private reventilerParFiliale(stats: EmissionStats): EmissionStats {
+    const apports = new Map<number | null, number>();
+
+    const ajouter = (filialeId: number | null, valeur: number) => {
+      if (!valeur) return;
+      apports.set(filialeId, (apports.get(filialeId) ?? 0) + valeur);
+    };
+
+    // 1. La ventilation d'un classeur : société déclarée, à défaut celle du
+    //    filtre, à défaut l'unique société du groupe.
+    const ventile = this.dispatchStore.lignesActives
+      .filter(ligne => ligne.ecran)
+      .reduce((somme, ligne) => somme + ligne.emissionKg, 0);
+
+    ajouter(
+      this.dispatchStore.instantane.entityId
+        ?? (typeof this.selectedFilialeId === 'number' ? this.selectedFilialeId : null)
+        ?? (this.filiales.length === 1 ? this.filiales[0].id : null),
+      ventile
+    );
+
+    // 2. Les saisies des écrans : chacune nomme son usine, et l'organigramme
+    //    donne la filiale. Sans ce rapprochement, tout resterait « non
+    //    affecté » alors que la réponse figure dans les données.
+    for (const [usine, valeur] of totauxLocauxParEtablissement(
+      this.entityService.filter.year ?? null, this.organisationActive
+    )) {
+      ajouter(this.filialeDeLUsine(usine), valeur);
+    }
+
+    // La répartition par filiale peut manquer d'une réponse partielle : on la
+    // normalise plutôt que de la propager telle quelle aux vues qui l'attendent.
+    if (!apports.size) return { ...stats, byFiliale: stats.byFiliale ?? [] };
+
+    const parts = (stats.byFiliale ?? []).map(part => ({ ...part }));
+
+    for (const [filialeId, valeur] of apports) {
+      const existante = parts.find(part => part.filialeId === filialeId);
+      if (existante) {
+        existante.value += valeur;
+        existante.measureCount += 1;
+      } else {
+        parts.push({ filialeId, value: valeur, share: 0, measureCount: 1 });
+      }
+    }
+
+    const total = parts.reduce((somme, part) => somme + part.value, 0);
+    const byFiliale = parts
+      .filter(part => part.value > 0)
+      .map(part => ({ ...part, share: total ? (part.value / total) * 100 : 0 }));
+
+    return { ...stats, byFiliale };
+  }
+
+  /**
+   * Filiale portant une usine donnée.
+   *
+   * <p>Le rapprochement se fait sur le nom, seule donnée que les écrans de
+   * saisie conservent. Une usine inconnue de l'organigramme retombe sur la
+   * société sélectionnée, puis sur l'unique société du groupe : la
+   * « non affectée » n'est retenue qu'en dernier ressort.</p>
+   */
+  private filialeDeLUsine(nomUsine: string): number | null {
+    const recherche = this.motCleOrganisation(nomUsine);
+
+    if (recherche) {
+      // Correspondance exacte d'abord : « MISFAT 1 » doit rejoindre l'usine
+      // « MISFAT I » avant que la souplesse ne s'en mêle.
+      for (const filiale of this.filiales) {
+        const exacte = (filiale.usines ?? []).some(
+          usine => this.motCleOrganisation(usine.nom ?? '') === recherche
+        );
+        if (exacte) return filiale.id;
+      }
+
+      // Puis rapprochement souple : le mot clé principal suffit, « Misfat »
+      // rejoignant « TN MISFAT TUNISIE » comme « MISFAT 1 ».
+      for (const filiale of this.filiales) {
+        const candidats = [
+          this.motCleOrganisation(filiale.libelle ?? ''),
+          ...(filiale.usines ?? []).map(usine => this.motCleOrganisation(usine.nom ?? ''))
+        ].filter(Boolean);
+
+        const proche = candidats.some(
+          candidat => candidat.includes(recherche) || recherche.includes(candidat)
+        );
+        if (proche) return filiale.id;
+      }
+    }
+
+    // Une ligne sans rattachement trouvé revient au périmètre consulté, puis à
+    // la société principale du groupe : « non affectée » n'apprend rien à
+    // l'utilisateur et fausse toutes les quotes-parts.
+    if (typeof this.selectedFilialeId === 'number') return this.selectedFilialeId;
+    return this.filiales.length ? this.filiales[0].id : null;
+  }
+
+  /**
+   * Mot clé d'un libellé d'organisation.
+   *
+   * <p>Les saisies écrivent « Misfat 1 », l'organigramme « TN MISFAT TUNISIE » :
+   * chiffres, chiffres romains, indicatifs de pays et ponctuation sont ôtés
+   * pour ne garder que l'enseigne. Sans cela, aucune des deux formes ne
+   * rejoindrait l'autre et tout finirait « non affecté ».</p>
+   */
+  private motCleOrganisation(libelle: string): string {
+    const nettoye = String(libelle ?? '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, ' ')
+      .trim();
+
+    if (!nettoye) return '';
+
+    const mots = nettoye.split(' ').filter(mot => {
+      if (/^\d+$/.test(mot)) return false;                    // numéro de site
+      if (/^[IVX]+$/.test(mot)) return false;                 // chiffre romain
+      if (/^(TN|FR|MA|DZ|EU|SA|SARL|SAS|SPA|GROUPE|USINE|SITE)$/.test(mot)) return false;
+      return mot.length >= 3;
+    });
+
+    if (!mots.length) return nettoye.replace(/\s+/g, '');
+
+    // Le mot le plus long porte l'enseigne : « SOLAUFIL » dans
+    // « FR SOLAUFIL FRANCE », « MISFAT » dans « TN MISFAT TUNISIE ».
+    return mots.reduce((plusLong, mot) => (mot.length > plusLong.length ? mot : plusLong));
+  }
+
+  basculerMode(mode: StatsMode): void {
+    if (this.modeStats === mode) return;
+    this.modeStats = mode;
+    this.chargerStats();
+  }
+
+  /** Change la devise de restitution du mode monétaire. */
+  changerDeviseMonetaire(devise: string): void {
+    this.deviseMonetaire = devise;
+    if (this.modeStats === 'MONETAIRE') this.chargerStats();
+  }
+
+  /** Ventilation par catégorie, triée par contribution décroissante. */
+  get categoriesStats(): {
+    nom: string; valeur: number; pct: number; couleur: string;
+    nonResolu?: boolean; lignes?: number
+  }[] {
+    const carte = this.statsReelles?.byCategory ?? {};
+    const total = Object.values(carte).reduce((s, v) => s + v, 0);
+
+    const valorisees = Object.entries(carte)
+      .map(([nom, valeur]) => ({ nom, valeur, pct: total ? (valeur / total) * 100 : 0, couleur: '' }))
+      .sort((a, b) => b.valeur - a.valeur)
+      .map((item, i) => ({ ...item, couleur: this.scope3Palette[i % this.scope3Palette.length] }));
+
+    // Une catégorie renseignée mais sans facteur pèse zéro : l'omettre la
+    // ferait passer pour absente, alors qu'elle attend d'être complétée.
+    const connues = new Set(valorisees.map(c => c.nom));
+    const enAttente = totauxLocaux(this.entityService.filter.year ?? null, this.organisationActive)
+      .filter(local => local.emissionKg === 0 && local.lignes > 0)
+      .map(local => ({
+        nom: this.nomNomenclature(local.categorie) ?? local.categorie,
+        valeur: 0, pct: 0, couleur: '#CBD5E1',
+        nonResolu: true, lignes: local.lignes
+      }))
+      .filter(c => !connues.has(c.nom));
+
+    return [...valorisees, ...enAttente];
+  }
+
+  /**
+   * Ventilation par scope, alimentée par la base.
+   *
+   * <p>Les trois scopes sont toujours représentés, y compris à zéro : un scope
+   * absent du graphique se lirait comme non couvert par le périmètre, alors
+   * qu'il l'est simplement sans émission mesurée.</p>
+   */
+  get scopesStats(): { code: string; nom: string; valeur: number; pct: number; couleur: string }[] {
+    const carte = this.statsReelles?.byScope ?? {};
+    const total = Object.values(carte).reduce((s, v) => s + v, 0);
+
+    const socle = [
+      { code: 'SCOPE_1', nom: 'Scope 1 · Direct', couleur: '#16a34a' },
+      { code: 'SCOPE_2', nom: 'Scope 2 · Énergie', couleur: '#ea580c' },
+      { code: 'SCOPE_3', nom: 'Scope 3 · Chaîne de valeur', couleur: '#0284c7' }
+    ].map(s => ({ ...s, valeur: carte[s.code] ?? 0 }));
+
+    // Les mesures dont le facteur n'est pas rattaché au référentiel.
+    const nonClasse = carte['NON_CLASSE'] ?? 0;
+    if (nonClasse > 0) {
+      socle.push({ code: 'NON_CLASSE', nom: 'Non classé', couleur: '#94a3b8', valeur: nonClasse });
+    }
+
+    return socle.map(s => ({ ...s, pct: total ? (s.valeur / total) * 100 : 0 }));
+  }
+
+  // ---------- HISTOGRAMME GLOBAL PAR CATÉGORIE ----------
+
+  /**
+   * Barres de l'histogramme des catégories.
+   *
+   * <p>La hauteur est relative au poste le plus élevé, et non au total : sur une
+   * répartition très déséquilibrée, une échelle sur le total écraserait tous les
+   * postes secondaires contre la ligne de base.</p>
+   *
+   * <p>Sur un périmètre sans mesure, la structure du graphique est conservée
+   * avec les catégories du référentiel à zéro : une zone vide ferait douter du
+   * chargement, là où des barres à plat montrent que la collecte reste à faire.</p>
+   */
+  get categorieBarres(): { nom: string; valeur: number; pct: number; hauteur: number; couleur: string }[] {
+    const mesurees = this.categoriesStats.filter(c => c.valeur > 0);
+
+    if (!mesurees.length) {
+      const attendues = this.scopesData.flatMap(s => s.categories).slice(0, 8);
+      return attendues.map((categorie, i) => ({
+        nom: categorie.nom,
+        valeur: 0,
+        pct: 0,
+        hauteur: 0,
+        couleur: this.scope3Palette[i % this.scope3Palette.length]
+      }));
+    }
+
+    // Toutes les catégories renseignées sont montrées, du plus fort
+    // contributeur au plus faible. Tronquer la liste retirait des données sans
+    // le dire ; c'est la barre qui s'affine et le libellé qui s'incline.
+    const retenues = mesurees;
+    const maximum = Math.max(...retenues.map(c => c.valeur));
+
+    return retenues.map(c => ({
+      nom: c.nom,
+      valeur: c.valeur,
+      pct: c.pct,
+      // Plancher de 4 % : une barre nulle en hauteur disparaîtrait sous son socle.
+      hauteur: maximum > 0 ? Math.max((c.valeur / maximum) * 100, 4) : 0,
+      couleur: c.couleur
+    }));
+  }
+
+  // ---------- DÉTAIL EXHAUSTIF DES POSTES PAR SCOPE ----------
+
+  /**
+   * Rattache un libellé de catégorie à la nomenclature interne.
+   *
+   * <p>La base stocke les intitulés du classeur GHG (« Category 2: Capital
+   * Goods ») alors que le tableau de bord raisonne en catégories françaises.
+   * Le numéro de catégorie est le seul repère univoque entre les deux
+   * nomenclatures ; à défaut, on compare les libellés normalisés.</p>
+   */
+  private categorieCanonique(scopeId: string, brute: string): string {
+    const cle = brute
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+    const numeroGhg = /^category\s*(\d{1,2})\b/.exec(cle);
+    if (numeroGhg) {
+      const scope3 = this.scopesData.find(s => s.id === 'scope3');
+      const categorie = scope3?.categories[Number(numeroGhg[1]) - 1];
+      if (categorie) return categorie.nom;
+    }
+
+    const connue = this.scopesData
+      .flatMap(s => s.categories)
+      .find(c => c.nom.toLowerCase() === cle || c.id === cle);
+
+    return connue ? connue.nom : brute.trim();
+  }
+
+  /**
+   * Postes d'un scope, nomenclature complète.
+   *
+   * <p>Toutes les catégories prévues par le référentiel sont listées, y compris
+   * celles sans mesure, affichées à zéro. Masquer une catégorie non collectée
+   * la ferait disparaître du bilan : sur le Scope 3, où 15 catégories sont
+   * attendues par le GHG Protocol, l'absence d'un poste est une information de
+   * pilotage — elle signale une collecte à lancer, pas une émission nulle.</p>
+   *
+   * <p>Les catégories présentes en base mais hors nomenclature sont ajoutées en
+   * fin de liste, pour qu'aucune mesure ne sorte du total affiché.</p>
+   */
+  private postesDuScope(scopeId: string, scopeCode: string): { nom: string; icone: string; valeur: number; pct: number }[] {
+    const carte = this.statsReelles?.byScopeCategory?.[scopeCode] ?? {};
+
+    const mesures = new Map<string, number>();
+    for (const [brute, valeur] of Object.entries(carte)) {
+      const nom = this.categorieCanonique(scopeId, brute);
+      mesures.set(nom, (mesures.get(nom) ?? 0) + valeur);
+    }
+
+    const nomenclature = this.scopesData.find(s => s.id === scopeId)?.categories ?? [];
+    const postes = nomenclature.map(categorie => ({
+      nom: categorie.nom,
+      icone: categorie.icone,
+      valeur: mesures.get(categorie.nom) ?? 0
+    }));
+
+    const attendues = new Set(nomenclature.map(c => c.nom));
+    for (const [nom, valeur] of mesures) {
+      if (!attendues.has(nom)) postes.push({ nom, icone: '•', valeur });
+    }
+
+    const total = postes.reduce((s, p) => s + p.valeur, 0);
+    return postes.map(p => ({ ...p, pct: total ? (p.valeur / total) * 100 : 0 }));
+  }
+
+  get scope1Postes() { return this.postesDuScope('scope1', 'SCOPE_1'); }
+  get scope2Postes() { return this.postesDuScope('scope2', 'SCOPE_2'); }
+  get scope3Postes() { return this.postesDuScope('scope3', 'SCOPE_3'); }
+
+  // ---------- TABLEAU DE SYNTHÈSE EXÉCUTIF ----------
+
+  /**
+   * Source d'émission métier et base de données rattachée, par catégorie.
+   *
+   * <p>La catégorie GHG désigne une famille normative ; l'exploitant, lui,
+   * raisonne en périmètres opérationnels (« Parc Auto », « STEG »). Cette
+   * correspondance donne au tableau la lecture métier attendue en comité, sans
+   * altérer la classification GHG qui reste celle du référentiel.</p>
+   */
+  private readonly correspondanceMetier: { [categorie: string]: { metier: string; base: string } } = {
+    'Combustion dans les usines': { metier: 'Chaufferies & fours', base: 'Relevés énergie site' },
+    'Combustion des véhicules': { metier: 'Parc Auto', base: 'Cartes carburant' },
+    'Émissions de réfrigérants': { metier: 'Groupes froid & clim', base: 'Fiches maintenance' },
+    'Électricité achetée': { metier: 'STEG — Électricité', base: 'Factures STEG' },
+    'Biens et services achetés': { metier: 'Achats Acier & Consommables', base: 'Achats ERP' },
+    "Biens d'équipement": { metier: 'Immobilisations', base: 'Registre immobilisations' },
+    "Activités liées à l'énergie": { metier: 'Amont énergétique', base: 'Facteurs amont' },
+    'Transport en amont': { metier: 'Fret entrant', base: 'Transporteurs amont' },
+    'Déchets': { metier: 'Déchets industriels', base: 'Bordereaux déchets' },
+    "Voyages d'affaires": { metier: 'Missions & déplacements', base: 'Notes de frais' },
+    'Déplacements des employés': { metier: 'Domicile–Travail', base: 'Enquête mobilité' },
+    'Actifs loués en amont': { metier: 'Actifs loués amont', base: 'Contrats de location' },
+    'Transport en aval': { metier: 'Fret sortant', base: 'Transporteurs aval' },
+    'Transformation des produits': { metier: 'Transformation aval', base: 'Données clients' },
+    'Utilisation des produits': { metier: 'Usage produits vendus', base: 'Modèle d\'usage' },
+    'Fin de vie des produits': { metier: 'Fin de vie filtres', base: 'Filière recyclage' },
+    'Actifs loués en aval': { metier: 'Actifs loués aval', base: 'Contrats de location' },
+    'Franchises': { metier: 'Réseau franchisé', base: 'Reporting franchises' },
+    'Investissements': { metier: 'Portefeuille participations', base: 'Consolidation financière' }
+  };
+
+  /**
+   * Lignes du tableau de synthèse, tous scopes confondus.
+   *
+   * <p>La nomenclature complète est reprise, Scope 3 compris avec ses quinze
+   * catégories : un poste à zéro atteste que la catégorie a été examinée, alors
+   * que son absence laisserait penser qu'elle a été omise du périmètre.</p>
+   */
+  get syntheseSources(): {
+    scope: string;
+    scopeLabel: string;
+    classe: string;
+    categorie: string;
+    metier: string;
+    base: string;
+    quantite: string;
+    valeur: number;
+    pct: number;
+  }[] {
+    const total = this.statsReelles?.total ?? 0;
+
+    const groupes = [
+      { id: 'scope1', code: 'SCOPE_1', label: 'Scope 1', classe: 'sc-1' },
+      { id: 'scope2', code: 'SCOPE_2', label: 'Scope 2', classe: 'sc-2' },
+      { id: 'scope3', code: 'SCOPE_3', label: 'Scope 3', classe: 'sc-3' }
+    ];
+
+    return groupes.flatMap(groupe =>
+      this.postesDuScope(groupe.id, groupe.code).map(poste => {
+        const metier = this.correspondanceMetier[poste.nom];
+        return {
+          scope: groupe.code,
+          scopeLabel: groupe.label,
+          classe: groupe.classe,
+          categorie: poste.nom,
+          metier: metier?.metier ?? poste.nom,
+          base: metier?.base ?? 'Saisie manuelle',
+          // La quantité d'origine n'est pas agrégée par catégorie côté serveur ;
+          // le tableau restitue donc l'unité de restitution du mode courant.
+          quantite: poste.valeur > 0 ? `${this.formaterNombre(poste.valeur)} ${this.uniteStats}` : `0 ${this.uniteStats}`,
+          valeur: poste.valeur,
+          pct: total ? (poste.valeur / total) * 100 : 0
+        };
+      })
+    );
+  }
+
+  private formaterNombre(valeur: number): string {
+    return valeur.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  /**
+   * Scope retenu par les boutons au-dessus du tableau ; null pour tout afficher.
+   *
+   * <p>Simple état d'affichage : le filtre s'applique aux lignes déjà calculées,
+   * sans nouvel appel au serveur.</p>
+   */
+  scopeFiltre: string | null = null;
+
+  basculerScopeFiltre(code: string): void {
+    this.scopeFiltre = this.scopeFiltre === code ? null : code;
+  }
+
+  /** Lignes du tableau après application du filtre de scope. */
+  get syntheseFiltrees() {
+    const lignes = this.syntheseSources;
+    return this.scopeFiltre ? lignes.filter(l => l.scope === this.scopeFiltre) : lignes;
+  }
+
+  /**
+   * Total du tableau tel qu'il est affiché.
+   *
+   * <p>Il suit le filtre : afficher le total groupe sous une vue restreinte à un
+   * seul scope laisserait croire que la somme des lignes visibles ne correspond
+   * pas au pied de tableau.</p>
+   */
+  get syntheseTotal(): number {
+    return this.syntheseFiltrees.reduce((somme, ligne) => somme + ligne.valeur, 0);
+  }
+
+  get syntheseTotalPct(): number {
+    const general = this.statsReelles?.total ?? 0;
+    return general ? (this.syntheseTotal / general) * 100 : 0;
+  }
+
+  get uniteStats(): string {
+    return this.modeStats === 'MONETAIRE'
+      ? (this.statsReelles?.currency ?? this.devise)
+      : 'tCO₂eq';
+  }
+
+  // ---------- DISTRIBUTION PAR FILIALE / PAYS ----------
+  /** Palette des filiales, stable d'un rendu à l'autre. */
+  private readonly filialePalette = ['#0284c7', '#16a34a', '#f97316', '#9333ea', '#0891b2', '#c2410c'];
+
+  selectedFilialeSlice: string | null = null;
+
+  /**
+   * Affichage des postes et sociétés sans émission.
+   *
+   * <p>Les deux listes couvrent volontairement toute la nomenclature — une
+   * catégorie absente se lirait comme hors périmètre alors qu'elle est
+   * seulement en attente de collecte. Mais quinze lignes à 0 % noient les trois
+   * qui portent le bilan : elles sont donc repliées par défaut, et restent à un
+   * clic.</p>
+   */
+  afficherScope3Zero = false;
+  afficherFilialesZero = false;
+
+  /** Postes du Scope 3 réellement montrés, selon l'état du dépliant. */
+  get scope3Affiches(): { nom: string; total: number; pct: number; couleur: string }[] {
+    return this.afficherScope3Zero ? this.scope3Full : this.scope3Full.filter(p => p.total > 0);
+  }
+
+  get scope3Masques(): number {
+    return this.scope3Full.length - this.scope3Full.filter(p => p.total > 0).length;
+  }
+
+  /** Sociétés réellement montrées dans la distribution. */
+  get filialesAffichees(): { nom: string; pays: string; drapeau: string; valeur: number; pct: number; couleur: string }[] {
+    return this.afficherFilialesZero ? this.filialesStats : this.filialesStats.filter(f => f.valeur > 0);
+  }
+
+  get filialesMasquees(): number {
+    return this.filialesStats.length - this.filialesStats.filter(f => f.valeur > 0).length;
+  }
+
+  toggleFilialeSlice(nom: string): void {
+    this.selectedFilialeSlice = this.selectedFilialeSlice === nom ? null : nom;
+  }
+
+  /**
+   * Distribution des émissions par filiale, telle que renvoyée par la base.
+   *
+   * <p>Le nom et le pays viennent d'organization-service : emission-service ne
+   * connaît que l'identifiant de filiale porté par la mesure, et le rapprochement
+   * se fait donc ici, où la liste des filiales est déjà chargée.</p>
+   */
+  /**
+   * Distribution par filiale, couvrant tout le périmètre organisationnel.
+   *
+   * <p>Toutes les sociétés en base sont représentées, y compris celles sans
+   * mesure : en vue consolidée, une filiale absente du graphique se lirait
+   * comme hors périmètre de reporting, alors qu'elle est seulement en attente
+   * de collecte. Une part à 0 % est une information de pilotage, pas un vide.</p>
+   *
+   * <p>Quand une société est sélectionnée, seule celle-ci est retenue : le
+   * graphique suit alors le périmètre demandé.</p>
+   */
+  get filialesStats(): { nom: string; pays: string; drapeau: string; valeur: number; pct: number; couleur: string }[] {
+    const parts = this.statsReelles?.byFiliale ?? [];
+    const total = parts.reduce((s, p) => s + p.value, 0);
+
+    const perimetre = this.selectedFilialeId === 'ALL'
+      ? this.filiales
+      : this.filiales.filter(f => f.id === this.selectedFilialeId);
+
+    const lignes = perimetre.map(filiale => {
+      const part = parts.find(p => p.filialeId === filiale.id);
+      const valeur = part?.value ?? 0;
+      const pays = filiale.pays?.trim() || '—';
+
+      return {
+        nom: filiale.libelle,
+        pays,
+        drapeau: this.drapeauDe(pays),
+        valeur,
+        // La part est recalculée sur le total affiché : restreindre le périmètre
+        // à une société doit la porter à 100 %, pas conserver sa quote-part groupe.
+        pct: total ? (valeur / total) * 100 : 0,
+        couleur: ''
+      };
+    });
+
+    // Part rattachée à aucune société. Elle vient presque toujours de la
+    // ventilation d'un classeur consultée sur « toutes les sociétés » : aucune
+    // société n'est alors déterminable, et « Non affectée » laisse croire à une
+    // donnée perdue là où il ne manque qu'une sélection. Le libellé dit donc
+    // quoi faire, plutôt que de constater.
+    const orpheline = parts.find(p => p.filialeId == null);
+    if (orpheline && this.selectedFilialeId === 'ALL') {
+      const ventilee = this.dispatchStore.lignesActives.some(ligne => ligne.ecran);
+
+      lignes.push({
+        nom: ventilee
+          ? 'Ventilation non rattachée — sélectionnez une société'
+          : 'Non affectée',
+        pays: '—',
+        drapeau: ventilee ? '🔀' : '🏳️',
+        valeur: orpheline.value,
+        pct: total ? (orpheline.value / total) * 100 : 0,
+        couleur: ''
+      });
+    }
+
+    return lignes
+      .sort((a, b) => b.valeur - a.valeur)
+      .map((ligne, i) => ({ ...ligne, couleur: this.filialePalette[i % this.filialePalette.length] }));
+  }
+
+  get filialeDonutGradient(): string {
+    const items = this.filialesStats.filter(f => f.valeur > 0);
+    if (!items.length) return 'conic-gradient(#e2e8f0 0% 100%)';
+
+    let curseur = 0;
+    const stops = items.map(item => {
+      const debut = curseur;
+      curseur += item.pct;
+      const couleur = (this.selectedFilialeSlice && this.selectedFilialeSlice !== item.nom)
+        ? '#e2e8f0'
+        : item.couleur;
+      return `${couleur} ${debut}% ${curseur}%`;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  get filialeDonutCenter(): { valeur: number; label: string; pct: number | null } {
+    if (this.selectedFilialeSlice) {
+      const item = this.filialesStats.find(f => f.nom === this.selectedFilialeSlice);
+      if (item) return { valeur: item.valeur, label: item.nom, pct: item.pct };
+    }
+    const total = this.filialesStats.reduce((s, f) => s + f.valeur, 0);
+    return { valeur: total, label: `${this.filialesStats.length} filiale(s)`, pct: null };
+  }
+
   ngOnInit(): void {
+    this.purgerCachesObsoletes();
+
+    // Le rôle commande la navigation : il est lu avant tout le reste, pour
+    // qu'aucun écran interdit ne s'affiche même le temps d'un cycle de rendu.
+    this.rolesService.droits$.subscribe(droits => {
+      this.droits = droits;
+      this.userRole = this.rolesService.role ?? 'ADMINISTRATEUR';
+      this.recadrerEcranActif();
+      this.cdr.markForCheck();
+    });
+
+    // Les demandes d'accès suivent l'annuaire : approuver ici doit se voir
+    // immédiatement dans le tableau, sans rechargement de la console.
+    this.comptesService.enAttente$.subscribe(demandes => {
+      this.demandesEnAttente = demandes;
+
+      // La ligne s'ouvre sur ce que la demande propose. Une saisie déjà commencée
+      // n'est pas écrasée : l'annuaire se rafraîchit à chaque écriture, y compris
+      // pendant que le Master Admin choisit un rôle dans la liste.
+      for (const demande of demandes) {
+        this.decisions[demande.id] ??= {
+          role: demande.role || 'MODERATEUR',
+          affectation: demande.affectation || 'GROUPE_MISFAT'
+        };
+      }
+
+      this.cdr.markForCheck();
+    });
+
+    // Une correction saisie dans l'écran de pilotage — ou dans un autre onglet —
+    // recalcule aussitôt l'intensité carbone et la productivité.
+    this.activiteService.donnees$.subscribe(() => this.cdr.markForCheck());
+
+    // Écran demandé par l'URL — /settings/profile, /settings/team. Il est lu
+    // après les droits : setActive refuse ce que le rôle n'autorise pas, et la
+    // console retombe alors sur le tableau de bord.
+    const ecran = this.route?.snapshot.data['ecran'];
+    if (typeof ecran === 'string' && ecran) this.setActive(ecran);
+
+    // Les lignes enregistrées avant que leur catégorie ne soit documentée
+    // portent « non résolu » et pèsent zéro. Le référentiel désormais complet,
+    // on les reprend une fois, puis on recalcule les agrégats.
+    this.recalculService.reprendreLignesNonResolues().then(bilan => {
+      if (!bilan.length) return;
+
+      const reprises = bilan.reduce((somme, b) => somme + b.reprises, 0);
+      const emissionKg = bilan.reduce((somme, b) => somme + b.emissionKg, 0);
+
+      // Décompte mesuré, catégorie par catégorie : plus aucun chiffre d'exemple.
+      console.log('[dashboard] Reprise des facteurs — bilan par catégorie :',
+        bilan.map(b => ({
+          catégorie: b.categorie,
+          reprises: b.reprises,
+          kgCO2e: Math.round(b.emissionKg),
+          motif: b.ecartees.sansCandidat === -1
+            ? 'catégorie sans facteur candidat au référentiel'
+            : b.ecartees.sansQuantite
+              ? `${b.ecartees.sansQuantite} ligne(s) sans quantité exploitable`
+              : b.reprises ? '—' : 'rien à reprendre'
+        }))
+      );
+
+      // Une reprise nulle ne mérite pas de bandeau : le log suffit.
+      if (!reprises) { this.chargerStats(); this.cdr.detectChanges(); return; }
+
+      this.messageRecalcul =
+        `${reprises} ligne(s) sans facteur ont été reprises et valorisées `
+        + `(${(emissionKg / 1000).toFixed(2)} tCO₂e).`;
+
+      if (isDevMode()) console.log('[dashboard] Reprise des lignes non résolues :', bilan);
+
+      this.chargerStats();
+      this.cdr.detectChanges();
+    });
+
     this.chargerFiliales();
     this.chargerAnnees();
+
+    // Recalcul complet dès l'initialisation : les agrégats ne sont jamais
+    // mémorisés, mais un premier passage garantit que les replis — mesures des
+    // écrans et ventilation — sont pris en compte sans attendre une action.
+    this.chargerStats();
+
+    // Le header pilote le périmètre : le dashboard s'y aligne au lieu de
+    // maintenir ses propres sélections en parallèle.
+    this.entityService.filter$.subscribe(filtre => {
+      this.selectedFilialeId = filtre.entityId ?? 'ALL';
+      this.selectedUsineId = filtre.usineId ?? 'ALL';
+      if (filtre.year !== null && filtre.year !== this.selectedAnnee) {
+        this.selectedAnnee = filtre.year;
+        // Le bandeau des taux suit l'exercice retenu dans l'en-tête.
+        this.alignerDateSurAnnee(filtre.year);
+      }
+      if (filtre.entityId !== null) {
+        this.organizationService.getUsinesByFiliale(filtre.entityId).subscribe({
+          next: data => {
+            this.usines = data;
+            this.cdr.markForCheck();
+          },
+          error: err => console.error('Erreur lors du chargement des usines', err)
+        });
+      } else {
+        this.usines = [];
+      }
+      this.chargerStats();
+      this.chargerHistorique();
+      this.chargerComparatifPays();
+      this.cdr.markForCheck();
+    });
+  }
+
+  /** Un import réussi rafraîchit les tableaux ET recalcule les agrégats. */
+  onImported(): void {
+    this.refreshToken++;
+    this.chargerStats();
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Une écriture sur le référentiel des sociétés recharge les filtres.
+   *
+   * <p>Le donut par filiale et les badges de contexte lisent le pays, la devise
+   * et le libellé sur la liste locale : sans ce rechargement, une société
+   * créée n'apparaîtrait qu'au prochain démarrage de l'application.</p>
+   */
+  onSocietesModifiees(): void {
+    this.chargerFiliales();
+    this.chargerAnnees();
+    this.chargerStats();
   }
 
   // ---------- GESTION DES FILTRES ----------
@@ -251,10 +2138,87 @@ export class DashboardComponent implements OnInit {
 
   onAnneeChange(annee: number): void {
     this.selectedAnnee = annee;
+    this.alignerDateSurAnnee(annee);
   }
 
   onDateChange(date: string): void {
     this.selectedDate = date;
+  }
+
+  /**
+   * Ramène la date de référence dans l'exercice sélectionné.
+   *
+   * <p>La date pilote la semaine du bandeau des taux : consulter l'exercice
+   * 2025 avec une date de 2026 afficherait des cours postérieurs à la période
+   * analysée, et valoriserait un bilan 2025 à des taux 2026. Le jour et le mois
+   * sont conservés pour que l'utilisateur retrouve son repère saisonnier.</p>
+   *
+   * <p>L'exercice en cours fait exception : on y garde la date du jour, seule
+   * date pour laquelle un cours est effectivement publié.</p>
+   */
+  private alignerDateSurAnnee(annee: number | null): void {
+    if (annee == null) return;
+
+    const aujourdhui = new Date();
+    if (annee === aujourdhui.getFullYear()) {
+      this.selectedDate = aujourdhui.toISOString().slice(0, 10);
+      return;
+    }
+
+    const courante = new Date(`${this.selectedDate}T00:00:00`);
+    const repere = isNaN(courante.getTime()) ? aujourdhui : courante;
+    if (repere.getFullYear() === annee) return;
+
+    // Le 29 février n'existe pas tous les ans : `Date` le reporte au 1er mars,
+    // ce qui reste une date valide de l'exercice visé.
+    const cible = new Date(annee, repere.getMonth(), repere.getDate());
+    this.selectedDate = this.versIso(cible);
+  }
+
+  // ---------- REPÈRE TEMPOREL DE LA BANNIÈRE ----------
+
+  /** Date de référence du périmètre, à défaut aujourd'hui. */
+  private get jourReference(): Date {
+    const date = new Date(`${this.selectedDate}T00:00:00`);
+    return isNaN(date.getTime()) ? new Date() : date;
+  }
+
+  /** « Lundi 03 août 2026 ». */
+  get libelleJour(): string {
+    const jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const jour = this.jourReference;
+    return `${jours[jour.getDay()]} ${jour.toLocaleDateString('fr-FR', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    })}`;
+  }
+
+  /** « Semaine 32 · 03/08 → 09/08 ». */
+  get libelleSemaine(): string {
+    const jour = this.jourReference;
+    const lundi = new Date(jour);
+    // getDay() place dimanche à 0 : on le ramène en fin de semaine ISO.
+    lundi.setDate(lundi.getDate() - ((lundi.getDay() + 6) % 7));
+    const dimanche = new Date(lundi);
+    dimanche.setDate(dimanche.getDate() + 6);
+
+    const court = (d: Date) => d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    return `Semaine ${this.numeroSemaineIso(jour)} · ${court(lundi)} → ${court(dimanche)}`;
+  }
+
+  /** Numéro de semaine ISO 8601, celui qu'utilise le contrôle de gestion. */
+  private numeroSemaineIso(jour: Date): number {
+    const repere = new Date(Date.UTC(jour.getFullYear(), jour.getMonth(), jour.getDate()));
+    // Le jeudi de la semaine détermine l'année ISO de rattachement.
+    repere.setUTCDate(repere.getUTCDate() + 4 - (repere.getUTCDay() || 7));
+    const premierJanvier = new Date(Date.UTC(repere.getUTCFullYear(), 0, 1));
+    return Math.ceil(((repere.getTime() - premierJanvier.getTime()) / 86400000 + 1) / 7);
+  }
+
+  /** Format `AAAA-MM-JJ` en heure locale ; `toISOString` décalerait d'un jour. */
+  private versIso(date: Date): string {
+    const mois = `${date.getMonth() + 1}`.padStart(2, '0');
+    const jour = `${date.getDate()}`.padStart(2, '0');
+    return `${date.getFullYear()}-${mois}-${jour}`;
   }
 
   onPeriodeChange(periode: string): void {
@@ -264,7 +2228,7 @@ export class DashboardComponent implements OnInit {
   resetFiltres(): void {
     this.selectedFilialeId = 'ALL';
     this.selectedUsineId = 'ALL';
-    this.selectedDate = null;
+    this.selectedDate = new Date().toISOString().slice(0, 10);
     this.selectedPeriode = 'ANNEE';
     this.filtreActif = 'ALL';
     if (this.annees.length > 0) {
@@ -290,6 +2254,9 @@ export class DashboardComponent implements OnInit {
         this.annees = data;
         const enCours = data.find(a => a.statut === 'EN_COURS');
         this.selectedAnnee = enCours ? enCours.valeur : (data.length ? data[data.length - 1].valeur : null);
+        // L'axe des abscisses de l'histogramme suit cette liste : un exercice
+        // ouvert depuis les paramètres y apparaît sans intervention.
+        this.chargerHistorique();
         this.cdr.markForCheck();
       },
       error: (err) => console.error('Erreur lors du chargement des années', err)
@@ -299,7 +2266,9 @@ export class DashboardComponent implements OnInit {
   // ---------- MÉTHODES D'ANALYSE & KPIS ----------
   private construireKpi(id: string, label: string, icone: string, couleur: string, unite: string,
                         valeurs: { annee: number; valeur: number; provisoire?: boolean }[]): KpiEntreprise {
-    const max = Math.max(...valeurs.map(v => v.valeur));
+    // Une série vide donnerait `-Infinity` : le maximum est borné à zéro, et
+    // la carte affiche son état vide plutôt qu'une hauteur de barre absurde.
+    const max = valeurs.length ? Math.max(...valeurs.map(v => v.valeur)) : 0;
     const donnees: DonneeAnnuelle[] = valeurs.map(v => ({
       ...v,
       hauteurBarre: max > 0 ? Math.max((v.valeur / max) * 100, 8) : 8
@@ -315,15 +2284,185 @@ export class DashboardComponent implements OnInit {
     return avantDernier !== 0 ? ((dernier - avantDernier) / avantDernier) * 100 : 0;
   }
 
+  /** Dernier point de la série ; un point neutre quand elle est vide. */
   getValeurActuelle(kpi: KpiEntreprise): DonneeAnnuelle {
-    return kpi.donnees[kpi.donnees.length - 1];
+    return kpi.donnees[kpi.donnees.length - 1]
+      ?? { annee: this.selectedAnnee ?? new Date().getFullYear(), valeur: 0, hauteurBarre: 8 };
   }
 
-  get stats() {
-    if (this.selectedUsineId === 'ALL') {
-      return this.statsGlobales;
+  // ---------- CONTEXTE ACTIF : PAYS, DEVISE, PÉRIODE ----------
+  get profilActif(): ProfilFiliale | null {
+    if (this.selectedFilialeId === 'ALL') return null;
+    return this.profilDe(this.filiales.find(f => f.id === this.selectedFilialeId));
+  }
+
+  /** Devise de restitution des montants (TND en consolidation groupe). */
+  get devise(): string {
+    return this.profilActif ? this.profilActif.devise : 'TND';
+  }
+
+  /** Libellé du badge devise : multi-devise tant qu'aucune filiale n'est choisie. */
+  get deviseBadge(): string {
+    return this.profilActif ? this.profilActif.devise : 'Multi-devise';
+  }
+
+  get paysActif(): string {
+    return this.profilActif ? this.profilActif.pays : 'Groupe MISFAT';
+  }
+
+  /** Emoji drapeau d'un pays ; pavillon neutre pour un pays non répertorié. */
+  drapeauDe(pays: string | null | undefined): string {
+    const parPays: { [pays: string]: string } = {
+      Tunisie: '🇹🇳', Maroc: '🇲🇦', France: '🇫🇷', Algérie: '🇩🇿', Italie: '🇮🇹', Espagne: '🇪🇸'
+    };
+    return parPays[(pays ?? '').trim()] ?? '🏳️';
+  }
+
+  /**
+   * Drapeaux affichés dans l'en-tête.
+   *
+   * <p>En vue consolidée, seuls les pays où le groupe est réellement implanté
+   * sont montrés : la liste suit les sociétés en base et s'étend d'elle-même à
+   * chaque nouvelle implantation.</p>
+   */
+  get drapeaux(): string[] {
+    if (this.profilActif) return [this.drapeauDe(this.profilActif.pays)];
+
+    const pays = [...new Set(
+      this.filiales.map(f => f.pays?.trim()).filter((p): p is string => !!p)
+    )];
+    return pays.length ? pays.map(p => this.drapeauDe(p)) : ['🏳️'];
+  }
+
+  get vueActive(): string {
+    if (this.selectedUsineId === 'ALL') return 'Toutes les usines';
+    const usine = this.usines.find(u => u.id === this.selectedUsineId);
+    return usine ? usine.nom : 'Toutes les usines';
+  }
+
+  get periodeActive(): PeriodeOption {
+    return this.periodes.find(p => p.code === this.selectedPeriode) || this.periodes[this.periodes.length - 1];
+  }
+
+  get filialeLabel(): string {
+    if (this.selectedFilialeId === 'ALL') return 'Tous les pays';
+    const filiale = this.filiales.find(f => f.id === this.selectedFilialeId);
+    return filiale ? filiale.libelle : 'Tous les pays';
+  }
+
+  // ---------- STATISTIQUES FILTRÉES ----------
+  /**
+   * Empreinte du périmètre courant, telle que calculée par la base.
+   *
+   * <p>Aucun repli de démonstration : sur un périmètre sans mesure, le tableau
+   * de bord affiche des zéros et le signale explicitement. Un jeu fictif se
+   * confondrait avec de vrais chiffres et fausserait toute lecture de la
+   * trajectoire carbone.</p>
+   */
+  get stats(): { totalCO2: number; scope1: number; scope2: number; scope3: number } {
+    const r = this.statsReelles;
+    return {
+      totalCO2: r?.total ?? 0,
+      scope1: r?.scope1 ?? 0,
+      scope2: r?.scope2 ?? 0,
+      scope3: r?.scope3 ?? 0
+    };
+  }
+
+  /** Indique si l'affichage repose sur des mesures effectivement enregistrées. */
+  get statsSontReelles(): boolean {
+    return !!this.statsReelles && this.statsReelles.measureCount > 0;
+  }
+
+  // ---------- KPIS ENTREPRISE ----------
+
+  /**
+   * Séries extra-financières du périmètre, telles que l'écran de pilotage les
+   * tient.
+   *
+   * <p>Elles ne sont plus codées en dur : l'écran « Données d'Activité & KPI »
+   * en est la source unique, et une correction saisie là se répercute ici sans
+   * délai. Un exercice non renseigné n'apparaît pas dans la série — l'y porter
+   * à zéro ferait chuter toutes les courbes sans qu'aucune activité n'ait
+   * baissé.</p>
+   */
+  private serieActivite(champ: ChampActivite, diviseur = 1): { annee: number; valeur: number }[] {
+    return this.activiteService.liste(this.entiteActive)
+      .map(releve => ({ annee: releve.annee, valeur: releve[champ] }))
+      .filter((point): point is { annee: number; valeur: number } =>
+        typeof point.valeur === 'number' && Number.isFinite(point.valeur))
+      .map(point => ({ annee: point.annee, valeur: point.valeur / diviseur }));
+  }
+
+  /** Société consultée, sous la forme attendue par l'annuaire d'activité. */
+  private get entiteActive(): number | null {
+    return typeof this.selectedFilialeId === 'number' ? this.selectedFilialeId : null;
+  }
+
+  /**
+   * Exercices présents dans les données affichées.
+   *
+   * <p>La plage se lit sur l'historique qui alimente le graphique d'évolution.
+   * Elle retombe sur les exercices de référence tant que les bilans ne sont
+   * pas revenus : l'en-tête ne doit pas afficher de plage vide pendant le
+   * chargement.</p>
+   */
+  private get anneesConnues(): number[] {
+    const source = this.historique.length
+      ? this.historique.map(point => point.annee)
+      : this.annees.map(annee => annee.valeur);
+    return source.filter(annee => Number.isFinite(annee));
+  }
+
+  /** Exercice le plus ancien présent dans les données, s'il en existe un. */
+  get anneeMin(): number | null {
+    const annees = this.anneesConnues;
+    return annees.length ? Math.min(...annees) : null;
+  }
+
+  /** Exercice le plus récent présent dans les données, s'il en existe un. */
+  get anneeMax(): number | null {
+    const annees = this.anneesConnues;
+    return annees.length ? Math.max(...annees) : null;
+  }
+
+  /**
+   * Plage inscrite derrière « Performance MISFAT ».
+   *
+   * <p>Un exercice unique s'écrit sans tiret : « 2026 » et non
+   * « 2026–2026 ». Aucun exercice connu n'écrit rien plutôt qu'un tiret
+   * orphelin.</p>
+   */
+  get plageAnnees(): string {
+    const min = this.anneeMin;
+    const max = this.anneeMax;
+    if (min === null || max === null) {
+      return '';
     }
-    return this.donneesParFiltre[this.selectedUsineId as number]?.stats || this.statsGlobales;
+    return min === max ? `${min}` : `${min}–${max}`;
+  }
+
+  get kpisEntreprise(): KpiEntreprise[] {
+    const arrondir = (serie: { annee: number; valeur: number }[], decimales: number) => {
+      const f = Math.pow(10, decimales);
+      return serie.map(v => ({ ...v, valeur: Math.round(v.valeur * f) / f }));
+    };
+
+    return [
+      this.construireKpi('ca', 'Chiffre d\'Affaires', '💰', '#9333ea', `M ${this.devise}`,
+        arrondir(this.serieActivite('chiffreAffairesM'), 2)),
+      this.construireKpi('effectifs', 'Effectif Employés', '👥', '#0284c7', 'employés',
+        arrondir(this.serieActivite('effectif'), 0)),
+      this.construireKpi('production', 'Volume de Production', '📦', '#ea580c', 'M unités',
+        arrondir(this.serieActivite('production', 1_000_000), 2)),
+      this.construireKpi('ventes', 'Ventes', '🛒', '#16a34a', 'M unités',
+        arrondir(this.serieActivite('ventes', 1_000_000), 2))
+    ];
+  }
+
+  /** Vrai tant qu'aucune donnée d'activité n'a été saisie pour ce périmètre. */
+  get activiteAbsente(): boolean {
+    return this.activiteService.liste(this.entiteActive).length === 0;
   }
 
   get totalEmissions(): number {
@@ -337,64 +2476,205 @@ export class DashboardComponent implements OnInit {
     return this.usines.filter(u => u.filialeId === this.selectedFilialeId);
   }
 
+  /** Postes d'un scope relevés en base, triés par contribution décroissante. */
+  private detailsDuScope(code: string): { nom: string; valeur: number }[] {
+    const carte = this.statsReelles?.byScopeCategory?.[code] ?? {};
+    return Object.entries(carte)
+      .map(([nom, valeur]) => ({ nom, valeur }))
+      .sort((a, b) => b.valeur - a.valeur);
+  }
+
   get scope1Details(): { nom: string; valeur: number }[] {
-    return this.categoriesScope1.map(c => ({ nom: c.nom, valeur: c.total }));
+    return this.detailsDuScope('SCOPE_1');
   }
 
   get scope2Details(): { nom: string; valeur: number }[] {
-    return this.categoriesScope2.map(c => ({ nom: c.nom, valeur: c.total }));
+    return this.detailsDuScope('SCOPE_2');
   }
 
+  /**
+   * Intensité carbone : kg CO₂e par unité produite.
+   *
+   * <p>La production est lue sur l'exercice consulté, et non sur le dernier
+   * exercice renseigné : rapporter l'empreinte de 2024 à la production de 2026
+   * donnerait une intensité qui ne documente aucune année.</p>
+   */
   get intensiteCarbone(): number {
     const totalEmissionsKg = (this.stats.scope1 + this.stats.scope2 + this.stats.scope3) * 1000;
-    const production = this.kpisEntreprise.find(k => k.id === 'production');
-    if (!production) return 0;
-    const uniteProduites = this.getValeurActuelle(production).valeur * 1_000_000;
-    return uniteProduites > 0 ? totalEmissionsKg / uniteProduites : 0;
+    const production = this.activiteService.valeur(this.entiteActive, this.selectedAnnee, 'production');
+    return production && production > 0 ? totalEmissionsKg / production : 0;
   }
 
-  get intensiteGaugePct(): number {
-    const cible = 20;
-    const pct = (this.intensiteCarbone / cible) * 100;
-    return Math.min(Math.max(pct, 0), 100);
-  }
+  /**
+   * Productivité : chiffre d'affaires par salarié, et son évolution.
+   *
+   * <p>Le chiffre d'affaires est tenu en millions ; il est ramené à l'unité
+   * pour que la productivité s'exprime dans la devise du périmètre, comme le
+   * lecteur l'attend.</p>
+   */
+  get productiviteEmploye(): { valeur: number; evolution: number; annee: number } {
+    const releves = this.activiteService.liste(this.entiteActive)
+      .filter(r => typeof r.chiffreAffairesM === 'number' && typeof r.effectif === 'number'
+        && r.effectif > 0);
 
-  get intensiteGaugeOffset(): number {
-    const circumference = 2 * Math.PI * 54;
-    return circumference - (this.intensiteGaugePct / 100) * circumference;
-  }
+    const parSalarie = (index: number) =>
+      (releves[index].chiffreAffairesM! * 1_000_000) / releves[index].effectif!;
 
-  get productiviteEmploye() {
-    const ca = this.kpisEntreprise.find(k => k.id === 'ca')?.donnees.filter(d => !d.provisoire) || [];
-    const eff = this.kpisEntreprise.find(k => k.id === 'effectifs')?.donnees.filter(d => !d.provisoire) || [];
-    if (ca.length < 2 || eff.length < 2) return { valeur: 0, evolution: 0, annee: 2024 };
+    if (!releves.length) {
+      return { valeur: 0, evolution: 0, annee: this.selectedAnnee ?? new Date().getFullYear() };
+    }
 
-    const dernierCa = ca[ca.length - 1].valeur * 1_000_000;
-    const dernierEff = eff[eff.length - 1].valeur;
-    const dernier = dernierEff > 0 ? dernierCa / dernierEff : 0;
+    const dernier = parSalarie(releves.length - 1);
 
-    const precedentCa = ca[ca.length - 2].valeur * 1_000_000;
-    const precedentEff = eff[eff.length - 2].valeur;
-    const precedent = precedentEff > 0 ? precedentCa / precedentEff : 0;
+    // Un seul exercice renseigné : la productivité se lit, l'évolution non.
+    if (releves.length < 2) {
+      return { valeur: dernier, evolution: 0, annee: releves[releves.length - 1].annee };
+    }
+
+    const precedent = parSalarie(releves.length - 2);
 
     return {
       valeur: dernier,
       evolution: precedent > 0 ? ((dernier - precedent) / precedent) * 100 : 0,
-      annee: ca[ca.length - 1].annee
+      annee: releves[releves.length - 1].annee
     };
   }
 
-  getSparklinePoints(kpi: KpiEntreprise): string {
-    const vals = kpi.donnees.map(d => d.valeur);
+  // ---------- CARTES DE SYNTHÈSE : SÉRIES ET TENDANCES ----------
+
+  /**
+   * Intensité carbone par exercice, en kg CO₂e par unité produite.
+   *
+   * <p>L'empreinte est lue sur l'historique déjà chargé pour le graphique
+   * d'évolution — {@code PointHistorique.total} est en tonnes, ramenées au
+   * kilogramme pour que le ratio s'exprime en kgCO₂e — et la production sur les
+   * relevés d'activité. Un exercice sans production renseignée est écarté : le
+   * ratio n'aurait pas de dénominateur.</p>
+   */
+  private get serieIntensite(): { annee: number; valeur: number }[] {
+    const serie: { annee: number; valeur: number }[] = [];
+    for (const point of this.historique) {
+      const production = this.activiteService.valeur(this.entiteActive, point.annee, 'production');
+      if (production && production > 0) {
+        serie.push({ annee: point.annee, valeur: tonnesVersKg(point.total) / production });
+      }
+    }
+    return serie;
+  }
+
+  /**
+   * Productivité par exercice : chiffre d'affaires ramené à l'effectif.
+   *
+   * <p>Même filtre et même formule que {@link productiviteEmploye}, étendus à
+   * toute la série pour que la variation se calcule sur l'exercice consulté.</p>
+   */
+  private get serieProductivite(): { annee: number; valeur: number }[] {
+    return this.activiteService.liste(this.entiteActive)
+      .filter(releve => typeof releve.chiffreAffairesM === 'number'
+        && typeof releve.effectif === 'number' && releve.effectif > 0)
+      .map(releve => ({
+        annee: releve.annee,
+        valeur: (releve.chiffreAffairesM! * 1_000_000) / releve.effectif!
+      }));
+  }
+
+  /**
+   * Variation d'une série entre l'exercice consulté et le précédent renseigné.
+   *
+   * <p>Le point de référence est l'exercice sélectionné dans le tableau de
+   * bord ; faute de relevé cette année-là, c'est le dernier exercice de la
+   * série, celui que la carte affiche déjà. La variation est enveloppée dans un
+   * objet pour qu'une variation nulle reste distincte de son absence :
+   * {@code null} fait masquer le badge.</p>
+   */
+  private tendanceSerie(serie: { annee: number; valeur: number }[]): { pct: number } | null {
+    if (serie.length < 2) return null;
+
+    const consulte = serie.findIndex(point => point.annee === this.selectedAnnee);
+    const index = consulte >= 0 ? consulte : serie.length - 1;
+    if (index < 1) return null;
+
+    const precedent = serie[index - 1].valeur;
+    if (precedent <= 0) return null;
+
+    return { pct: ((serie[index].valeur - precedent) / precedent) * 100 };
+  }
+
+  /** Variations affichées par les trois cartes de synthèse. */
+  get tendanceIntensite(): { pct: number } | null {
+    return this.tendanceSerie(this.serieIntensite);
+  }
+
+  get tendanceProduction(): { pct: number } | null {
+    return this.tendanceSerie(this.serieActivite('production', 1_000_000));
+  }
+
+  get tendanceProductivite(): { pct: number } | null {
+    return this.tendanceSerie(this.serieProductivite);
+  }
+
+  /**
+   * Commentaire de la carte de productivité.
+   *
+   * <p>L'exercice cité est celui sélectionné dans le tableau de bord, et non le
+   * dernier relevé de la série : les deux divergent dès qu'on consulte une
+   * année antérieure.</p>
+   */
+  get noteProductivite(): string {
+    const tendance = this.tendanceProductivite;
+    if (tendance === null) {
+      return 'Première année de suivi disponible.';
+    }
+
+    const annee = this.selectedAnnee ?? new Date().getFullYear();
+    return tendance.pct >= 0
+      ? `Évolution positive en ${annee}.`
+      : `Recul en ${annee} par rapport à l'exercice précédent.`;
+  }
+
+  // ---------- COURBES LISSÉES (AREA CHARTS) ----------
+  /**
+   * Repère SVG des séries : viewBox 0 0 100 26, marge verticale de 3.
+   *
+   * <p>Seuls les cinq derniers exercices sont tracés : au-delà, les points se
+   * resserrent au point de rendre la courbe illisible dans une carte de cette
+   * largeur.</p>
+   */
+  private pointsCourbe(kpi: KpiEntreprise): { x: number; y: number }[] {
+    const vals = kpi.donnees.slice(-5).map(d => d.valeur);
+    if (!vals.length) return [];
     const max = Math.max(...vals);
     const min = Math.min(...vals);
-    const range = max - min || 1;
-    const stepX = 100 / (vals.length - 1);
-    return vals.map((v, i) => {
-      const x = i * stepX;
-      const y = 32 - ((v - min) / range) * 28 - 2;
-      return `${x},${y}`;
-    }).join(' ');
+    const amplitude = max - min || 1;
+    const pasX = vals.length > 1 ? 100 / (vals.length - 1) : 100;
+    return vals.map((v, i) => ({
+      x: +(i * pasX).toFixed(2),
+      y: +(23 - ((v - min) / amplitude) * 20).toFixed(2)
+    }));
+  }
+
+  /** Tracé de la courbe, lissé par cubiques de Bézier à tangente horizontale. */
+  getCourbe(kpi: KpiEntreprise): string {
+    const p = this.pointsCourbe(kpi);
+    if (p.length < 2) return '';
+    let d = `M ${p[0].x} ${p[0].y}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const milieuX = +((p[i].x + p[i + 1].x) / 2).toFixed(2);
+      d += ` C ${milieuX} ${p[i].y}, ${milieuX} ${p[i + 1].y}, ${p[i + 1].x} ${p[i + 1].y}`;
+    }
+    return d;
+  }
+
+  /** Même tracé, refermé sur la ligne de base pour le remplissage dégradé. */
+  getAire(kpi: KpiEntreprise): string {
+    const courbe = this.getCourbe(kpi);
+    if (!courbe) return '';
+    const p = this.pointsCourbe(kpi);
+    return `${courbe} L ${p[p.length - 1].x} 26 L ${p[0].x} 26 Z`;
+  }
+
+  getMarqueurs(kpi: KpiEntreprise): { x: number; y: number }[] {
+    return this.pointsCourbe(kpi);
   }
 
   // ---------- GESTION DES GRAPHIQUES (DONUT & SCOPES) ----------
@@ -402,13 +2682,25 @@ export class DashboardComponent implements OnInit {
     this.selectedScopeSlice = this.selectedScopeSlice === nom ? null : nom;
   }
 
-  get scopeDonutItems() {
-    const total = this.stats.scope1 + this.stats.scope2 + this.stats.scope3;
-    return [
-      { nom: 'Scope 1 · Direct', total: this.stats.scope1, pct: total ? (this.stats.scope1 / total * 100) : 0, couleur: '#4f46e5' },
-      { nom: 'Scope 2 · Énergie', total: this.stats.scope2, pct: total ? (this.stats.scope2 / total * 100) : 0, couleur: '#b45309' },
-      { nom: 'Scope 3 · Chaîne', total: this.stats.scope3, pct: total ? (this.stats.scope3 / total * 100) : 0, couleur: '#0f766e' }
-    ];
+  /**
+   * Parts du donut par scope, alimentées par l'agrégat de la base.
+   *
+   * <p>Aucune valeur n'est codée en dur : sur une base sans mesure, les trois
+   * scopes ressortent à zéro et le graphique affiche son état vide plutôt qu'un
+   * jeu de démonstration qui se confondrait avec de vrais chiffres.</p>
+   */
+  get scopeDonutItems(): { nom: string; total: number; pct: number; couleur: string }[] {
+    return this.scopesStats.map(s => ({
+      nom: s.nom,
+      total: s.valeur,
+      pct: s.pct,
+      couleur: s.couleur
+    }));
+  }
+
+  /** Vrai tant qu'aucune mesure du périmètre n'alimente les graphiques. */
+  get aucuneDonneeAgregee(): boolean {
+    return !this.statsReelles || this.statsReelles.measureCount === 0;
   }
 
   get scopeDonutGradient(): string {
@@ -422,84 +2714,72 @@ export class DashboardComponent implements OnInit {
     return `conic-gradient(${stops.join(', ')})`;
   }
 
-  get scopeDonutCenter() {
+  get scopeDonutCenter(): { value: number; label: string; pct: number | null; focused: boolean } {
     if (this.selectedScopeSlice) {
       const it = this.scopeDonutItems.find(i => i.nom === this.selectedScopeSlice);
       if (it) return { value: it.total, label: it.nom, pct: it.pct, focused: true };
     }
-    return { value: this.stats.scope1 + this.stats.scope2 + this.stats.scope3, label: 'tCO₂e total', pct: null, focused: false };
-  }
-
-  get scopeComparaison() {
-    const items = [
-      { nom: 'Scope 1', actuel: this.stats.scope1, precedent: this.statsAnneePrecedente.scope1, couleur: '#4f46e5' },
-      { nom: 'Scope 2', actuel: this.stats.scope2, precedent: this.statsAnneePrecedente.scope2, couleur: '#b45309' },
-      { nom: 'Scope 3', actuel: this.stats.scope3, precedent: this.statsAnneePrecedente.scope3, couleur: '#0f766e' }
-    ];
-    const max = Math.max(...items.map(i => Math.max(i.actuel, i.precedent)));
-    return items.map(i => ({
-      ...i,
-      pctActuel: max ? (i.actuel / max * 100) : 0,
-      pctPrecedent: max ? (i.precedent / max * 100) : 0,
-      evolution: i.precedent ? ((i.actuel - i.precedent) / i.precedent) * 100 : 0
-    }));
+    const total = this.scopeDonutItems.reduce((s, i) => s + i.total, 0);
+    return { value: total, label: `${this.uniteStats} total`, pct: null, focused: false };
   }
 
   toggleScope3Slice(nom: string): void {
     this.selectedScope3Slice = this.selectedScope3Slice === nom ? null : nom;
   }
 
-  get scope3Full() {
-    const total = this.categoriesScope3.reduce((s, c) => s + c.total, 0);
-    return this.categoriesScope3
-      .map((c, i) => ({
-        nom: c.nom,
-        total: c.total,
-        pct: total ? (c.total / total * 100) : 0,
-        couleur: this.scope3Palette[i % this.scope3Palette.length]
-      }))
-      .sort((a, b) => b.total - a.total);
+  /**
+   * Les 15 catégories du Scope 3, triées par contribution décroissante.
+   *
+   * <p>La nomenclature complète est conservée : une catégorie non collectée
+   * ressort à zéro plutôt que de disparaître, ce qui laisserait croire que le
+   * périmètre GHG est couvert alors qu'il ne l'est que partiellement.</p>
+   */
+  get scope3Full(): { nom: string; total: number; pct: number; couleur: string }[] {
+    return this.scope3Postes
+      .map(poste => ({ nom: poste.nom, total: poste.valeur, pct: poste.pct }))
+      .sort((a, b) => b.total - a.total)
+      .map((item, i) => ({ ...item, couleur: this.scope3Palette[i % this.scope3Palette.length] }));
   }
 
-  get scope3Top5() {
-    return this.scope3Full.filter(it => it.total > 0).slice(0, 5);
-  }
-
-  get scope3DonutGradient(): string {
-    let cursor = 0;
-    const stops = this.scope3Full.filter(it => it.total > 0).map(it => {
-      const start = cursor;
-      cursor += it.pct;
-      const color = (this.selectedScope3Slice && this.selectedScope3Slice !== it.nom) ? '#e2e8f0' : it.couleur;
-      return `${color} ${start}% ${cursor}%`;
-    });
-    return `conic-gradient(${stops.join(', ')})`;
-  }
-
-  get scope3DonutCenter() {
-    if (this.selectedScope3Slice) {
-      const it = this.scope3Full.find(i => i.nom === this.selectedScope3Slice);
-      if (it) return { value: it.total, label: it.nom, pct: it.pct, focused: true };
-    }
-    const total = this.categoriesScope3.reduce((s, c) => s + c.total, 0);
-    return { value: total, label: 'tCO₂e Scope 3', pct: null, focused: false };
-  }
 
   // ---------- UI & NAVIGATION LATÉRALE ----------
   toggleSidebar(): void {
     this.isSidebarCollapsed = !this.isSidebarCollapsed;
   }
 
-  accepterDemande(user: any): void {
-    user.status = 'ACTIF';
-    this.demandesEnAttente = this.demandesEnAttente.filter(u => u.id !== user.id);
+  /** Compte rendu de la dernière décision, affiché au-dessus du tableau. */
+  messageAcces = '';
+
+  /** Approuve une demande : l'intéressé peut se connecter dès maintenant. */
+  /**
+   * Valide une demande en affectant le rôle retenu.
+   *
+   * <p>Le rôle et le périmètre appliqués sont ceux choisis dans la ligne, non
+   * ceux que la demande proposait : l'attribution des accès est un acte
+   * administratif, et le demandeur ne se donne pas ses propres droits.</p>
+   */
+  accepterDemande(compte: Compte): void {
+    const decision = this.decisions[compte.id];
+    this.comptesService.approuver(compte.id, decision);
+
+    const role = decision?.role || compte.role;
+    this.messageAcces = `${compte.firstName} ${compte.lastName} peut désormais se connecter `
+      + `avec l'adresse ${compte.email}, en tant que ${role}.`;
+
+    delete this.decisions[compte.id];
+    this.cdr.markForCheck();
   }
 
-  refuserDemande(user: any): void {
-    this.demandesEnAttente = this.demandesEnAttente.filter(u => u.id !== user.id);
+  refuserDemande(compte: Compte): void {
+    this.comptesService.refuser(compte.id);
+    this.messageAcces = `La demande de ${compte.firstName} ${compte.lastName} a été refusée.`;
+    delete this.decisions[compte.id];
+    this.cdr.markForCheck();
   }
 
+  /** Referme la session et ramène à l'écran de connexion. */
   allerAAccueil(): void {
+    this.sessionService.fermer();
     this.router.navigate(['/signin']);
   }
 
@@ -510,7 +2790,9 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  toggleScope(scopeId: string): void {
+  /** Déploie ou replie un scope, sans jamais changer l'onglet actif. */
+  toggleScope(scopeId: string, evenement?: Event): void {
+    evenement?.stopPropagation();
     this.activeScope = this.activeScope === scopeId ? null : scopeId;
   }
 
@@ -518,24 +2800,93 @@ export class DashboardComponent implements OnInit {
     return this.scopesData.some(scope => scope.categories.some(cat => cat.id === id));
   }
 
-  setActive(sub: string): void {
+  /**
+   * Catégories disposant d'un écran de saisie.
+   *
+   * <p>Le menu latéral propose la nomenclature GHG complète, dont toutes les
+   * catégories ne sont pas encore développées. Sans cette liste, cliquer sur
+   * l'une d'elles n'afficherait rien du tout : l'utilisateur ne saurait pas
+   * distinguer un écran manquant d'une panne.</p>
+   */
+  private readonly ecransDisponibles = new Set([
+    'combustion-etablissements', 'combustion-vehicules', 'emissions-refrigerants',
+    'electricite-achetee',
+    'biens-services', 'biens-equipement', 'energie', 'transport-amont', 'dechets',
+    'voyages-affaires', 'deplacements-employes', 'actifs-loues-amont',
+    'transport-aval', 'transformation-produits', 'utilisation-produits',
+    'fin-de-vie-produits', 'actifs-loues-aval', 'franchises', 'investissements'
+  ]);
+
+  /** Vrai quand la catégorie active dispose d'un écran de saisie. */
+  ecranDisponible(sub: string): boolean {
+    return this.ecransDisponibles.has(sub);
+  }
+
+  /** Libellé de la catégorie active, pour l'écran d'attente. */
+  libelleCategorie(sub: string): string {
+    for (const scope of this.scopesData) {
+      const trouvee = scope.categories.find(cat => cat.id === sub);
+      if (trouvee) return `${trouvee.icone} ${trouvee.nom}`;
+    }
+    return sub;
+  }
+
+  /**
+   * Déploie ou replie le sous-menu des catégories de mesure.
+   *
+   * <p>Ce bouton ne pilote qu'un repli : il ne doit jamais devenir l'onglet
+   * actif. Lui laisser écraser {@code activeSub} faisait perdre la catégorie
+   * choisie dès qu'un clic l'atteignait, par propagation ou par recouvrement,
+   * et l'écran retombait sur une valeur sans contenu de saisie.</p>
+   */
+  basculerSousMenuMesure(evenement?: Event): void {
+    evenement?.stopPropagation();
+
+    this.menus.mesureCategories = !this.menus.mesureCategories;
+    if (!this.menus.mesureCategories) this.activeScope = null;
+
+    if (isDevMode()) {
+      console.log('Sous-menu Mesure', this.menus.mesureCategories ? 'déployé' : 'replié',
+                  '| onglet conservé :', this.activeSub);
+    }
+  }
+
+  /**
+   * Retient la catégorie cliquée.
+   *
+   * <p>{@code stopPropagation} garantit qu'aucun gestionnaire parent ne
+   * réagira au même clic et ne réécrira l'onglet juste après.</p>
+   */
+  setActive(sub: string, evenement?: Event): void {
+    evenement?.stopPropagation();
+
+    // « mesure » n'est pas un écran : c'est l'en-tête du sous-menu. L'accepter
+    // comme onglet ferait perdre la catégorie choisie à chaque clic qui
+    // l'atteint, par propagation ou par recouvrement.
+    if (sub === 'mesure') {
+      this.basculerSousMenuMesure();
+      return;
+    }
+
+    // Un écran hors des droits du rôle ne s'ouvre pas, même si un lien y mène
+    // encore : le menu peut avoir été masqué après coup, le clic non.
+    if (!this.ecranAutorise(sub)) {
+      if (isDevMode()) console.warn('[dashboard] Écran refusé au rôle actif :', sub, this.droits.profil);
+      return;
+    }
+
     this.activeSub = sub;
 
-    if (sub === 'apercu') {
+    // Trace de navigation, utile pour rapprocher un écran vide d'un clic.
+    if (isDevMode()) {
+      console.log('Onglet actif changé vers :', sub,
+                  '| écran disponible :', this.ecranDisponible(sub));
+    }
+
+    if (sub === 'facteurs' || sub === 'referentiel-carbone') {
       this.menus.emissions = true;
       this.menus.mesureCategories = false;
       this.activeScope = null;
-    }
-    else if (sub === 'referentiel-carbone') {
-      this.menus.emissions = true;
-      this.menus.mesureCategories = false;
-      this.activeScope = null;
-    }
-    else if (sub === 'mesure') {
-      this.menus.mesureCategories = !this.menus.mesureCategories;
-      if (!this.menus.mesureCategories) {
-        this.activeScope = null;
-      }
     }
     else if (this.isCategory(sub)) {
       this.menus.mesureCategories = true;

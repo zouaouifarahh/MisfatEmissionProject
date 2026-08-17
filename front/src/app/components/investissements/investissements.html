@@ -1,0 +1,420 @@
+<div class="emission-container">
+
+  <!-- Lignes reçues de la répartition automatique -->
+  <app-lignes-dispatchees ecran="investissements"></app-lignes-dispatchees>
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Investissements &amp; CAPEX 💼</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">
+        Note d'information — Scope 3 (Catégorie 15 : Investissements &amp; CAPEX)
+      </p>
+      <p class="note-texte">
+        Cette catégorie comptabilise les émissions de gaz à effet de serre incorporées dans les
+        biens d'équipement, immobilisations et acquisitions financières réalisés par Misfat au
+        cours de l'exercice.
+      </p>
+      <p class="note-regle">
+        <span aria-hidden="true">🔧</span>
+        Traitement des #N/A : une catégorie carbone absente ou en erreur ne rejette jamais
+        l'immobilisation — elle bascule sur « Équipements Ind. » au facteur de sécurité
+        0,250 kgCO₂e/TND, et la ligne porte le statut « Fallback appliqué ».
+      </p>
+    </div>
+  </div>
+
+  <!-- INDICATEURS DE SYNTHÈSE -->
+  <div class="kpi-grille">
+    <div class="kpi-carte kpi-acquisitions">
+      <span class="kpi-icone" aria-hidden="true">💰</span>
+      <div class="kpi-corps">
+        <span class="kpi-libelle">Total Acquisitions</span>
+        <span class="kpi-valeur">{{ totalAcquisitions | number:'1.0-2' }}</span>
+        <span class="kpi-unite">{{ deviseActive }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-carte kpi-emissions">
+      <span class="kpi-icone" aria-hidden="true">🌍</span>
+      <div class="kpi-corps">
+        <span class="kpi-libelle">Total Émissions</span>
+        <span class="kpi-valeur">{{ totalEmissionsTonnes | number:'1.0-3' }}</span>
+        <span class="kpi-unite">tCO₂e · {{ totalEmissionsKg | number:'1.0-2' }} kgCO₂e</span>
+      </div>
+    </div>
+
+    <div class="kpi-carte kpi-nombre">
+      <span class="kpi-icone" aria-hidden="true">🏭</span>
+      <div class="kpi-corps">
+        <span class="kpi-libelle">Nombre d'Immobilisations</span>
+        <span class="kpi-valeur">{{ nombreImmobilisations | number:'1.0-0' }}</span>
+        <span class="kpi-unite">actifs au périmètre</span>
+      </div>
+    </div>
+
+    <div class="kpi-carte kpi-couverture" [class.kpi-alerte]="couvertureCategorisee < 80">
+      <span class="kpi-icone" aria-hidden="true">🎯</span>
+      <div class="kpi-corps">
+        <span class="kpi-libelle">Couverture Catégorisée</span>
+        <span class="kpi-valeur">{{ couvertureCategorisee | number:'1.0-1' }} %</span>
+        <span class="kpi-unite">lignes appariées hors #N/A</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreReplis">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreReplis }} immobilisation(s) sans catégorie carbone exploitable : le facteur de
+    sécurité « Équipements Ind. » leur est appliqué. Complétez la colonne source pour affiner.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par n° d'immobilisation, actif, catégorie ou base…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreCategorie" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes les catégories carbone</option>
+        <option *ngFor="let c of categoriesCarbone" [value]="c">{{ emojiCategorie(c) }} {{ c }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreStatut" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les appariements</option>
+        <option value="Validé">✓ Catégorie appariée</option>
+        <option value="Fallback">⚠ Rattrapée sur #N/A</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreOrigine" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les statuts</option>
+        <option value="MS SQL">✓ Validé MS SQL</option>
+        <option value="Fallback">⚠ Fallback appliqué ADEME</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes les provenances</option>
+        <option value="Réel">✓ Réel</option>
+        <option value="Estimation">≈ Estimation</option>
+        <option value="Import Excel">📄 Import Excel</option>
+      </select>
+
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Ajouter une Immobilisation</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Référence carbone</th>
+            <th>Code article ERP</th>
+            <th class="sortable" (click)="sortData('numeroImmo')">N° Immobilisation</th>
+            <th class="sortable" (click)="sortData('designation')">Désignation de l'actif</th>
+            <th>Catégorie carbone</th>
+            <th class="sortable ta-right" (click)="sortData('montant')">Montant acquisition (TND)</th>
+            <th class="ta-right">Facteur d'émission</th>
+            <th>Base appliquée</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émiss. (kgCO₂e)</th>
+            <th class="ta-right">Émiss. (tCO₂e)</th>
+            <th class="ta-center">Statut / Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-repli]="item.replique">
+            <td>
+              <!-- La référence carbone désigne le facteur ; le numéro d'immobilisation
+                   n'identifie qu'un actif comptable. -->
+              <span class="ref-badge" *ngIf="item.referenceCarbone; else sansRef">{{ item.referenceCarbone }}</span>
+              <ng-template #sansRef><span class="ref-absente">—</span></ng-template>
+            </td>
+            <td class="erp-cell" [title]="item.codeArticle || ''">{{ item.codeArticle || '—' }}</td>
+            <td>
+              <span class="immo-badge">{{ item.numeroImmo }}</span>
+              <span class="badge-ventilation" *ngIf="item.sourceData">{{ item.sourceData }}</span>
+              <span class="prov-badge" [ngClass]="classeProvenance(provenanceDe(item))">{{ libelleProvenance(provenanceDe(item)) }}</span>
+            </td>
+
+            <td class="cell-strong designation-cell" [title]="item.designation">{{ item.designation }}</td>
+
+            <td>
+              <span class="capex-badge" [ngClass]="classeBadgeCategorie(item.categorieCarbone)"
+                    [title]="item.categorieTexte || item.categorieCarbone">
+                <span aria-hidden="true">{{ emojiCategorie(item.categorieCarbone) }}</span>
+                {{ item.categorieCarbone }}
+              </span>
+            </td>
+
+            <td class="ta-right num">
+              <span class="duo-principal">{{ item.montant | number:'1.0-2' }}</span>
+              <span class="duo-second">{{ item.devise }}</span>
+            </td>
+
+            <td class="ta-right num" [title]="item.libelleFacteur">
+              <span class="duo-principal">{{ item.facteur | number:'1.0-6' }}</span>
+              <span class="duo-second">kgCO₂e/{{ item.uniteFacteur }}</span>
+            </td>
+
+            <td class="base-cell" [title]="item.libelleFacteur">
+              <span class="base-badge" [class.base-repli]="item.origineFacteur === 'ADEME Fallback'">
+                {{ item.baseAppliquee }}
+              </span>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-right num num-tonnes">{{ enTonnes(item.emissionCalculee) | number:'1.0-3' }}</td>
+
+            <td class="ta-center">
+              <span class="statut-badge" [class.statut-valide]="!item.replique"
+                    [class.statut-repli]="item.replique">
+                {{ item.replique ? '⚠ Fallback appliqué (#N/A)' : '✓ Validé' }}
+              </span>
+
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="11" class="empty-row">
+              Aucune immobilisation enregistrée sur ce périmètre.
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="5">Total — {{ nombreImmobilisations }} immobilisation(s)</td>
+            <td class="ta-right num-fort">{{ totalAcquisitions | number:'1.0-2' }}</td>
+            <td colspan="2"></td>
+            <td class="ta-right num-fort">{{ totalEmissionsKg | number:'1.0-2' }}</td>
+            <td class="ta-right num-fort">{{ totalEmissionsTonnes | number:'1.0-3' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier l\'immobilisation' : '💼 Ajouter une Immobilisation' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Investissements &amp; CAPEX — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="inv-numero">N° d'immobilisation</label>
+            <input id="inv-numero" type="text" [(ngModel)]="formModel.numeroImmo"
+                   placeholder="Ex : 21580 ou IME-00851">
+          </div>
+
+          <div class="form-group flex-2">
+            <label for="inv-designation">Nom / Désignation de l'actif *</label>
+            <input id="inv-designation" type="text" [(ngModel)]="formModel.designation"
+                   placeholder="Ex : MOULE 25.088 ARGO">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="inv-categorie">Catégorie carbone *</label>
+            <select id="inv-categorie" [(ngModel)]="formModel.categorieCarbone"
+                    (ngModelChange)="onCategorieChange()">
+              <option *ngFor="let c of categoriesCarbone" [value]="c">
+                {{ emojiCategorie(c) }} {{ c }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="inv-montant">Montant d'acquisition ({{ deviseActive }}) *</label>
+            <input id="inv-montant" type="number" step="any" [(ngModel)]="formModel.montant"
+                   (ngModelChange)="onSaisieChange()" placeholder="Ex : 34001">
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="inv-facteur">Facteur MS SQL</label>
+          <select id="inv-facteur" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-6' }} / {{ f.unit }})
+            </option>
+          </select>
+        </div>
+
+        <!-- CALCULATRICE EN DIRECT -->
+        <div class="formule-box">
+          <div class="formule-titre">
+            <span aria-hidden="true">💡</span> Formule appliquée &amp; calcul live
+          </div>
+
+          <p class="formule-enonce">
+            Émissions (kgCO₂e) = Montant Acquisition (TND) × Facteur Monétaire (kgCO₂e/TND)
+          </p>
+
+          <div class="formule-etape" *ngIf="formModel.montant">
+            <span>
+              {{ formModel.montant | number:'1.0-2' }} {{ deviseActive }} ×
+              {{ facteurCourant.valeur | number:'1.0-3' }} kgCO₂e/{{ facteurCourant.unite }}
+              ({{ facteurCourant.origine }}) =
+            </span>
+            <strong>
+              {{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e
+              ({{ emissionPrevisionnelleTonnes | number:'1.0-2' }} tCO₂e)
+            </strong>
+          </div>
+
+          <p class="formule-enonce" *ngIf="!formModel.montant">
+            Renseignez le montant d'acquisition pour voir le calcul.
+          </p>
+
+          <div class="formule-resultat">
+            Émissions estimées
+            <strong>
+              {{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e
+              <span class="resultat-tonnes">= {{ emissionPrevisionnelleTonnes | number:'1.0-3' }} tCO₂e</span>
+            </strong>
+          </div>
+
+          <div class="formule-etape" *ngIf="facteurCourant.origine === 'ADEME Fallback'">
+            <span class="origine-repli">Facteur de repli</span>
+            <span>{{ facteurCourant.libelle }}</span>
+          </div>
+
+          <div class="formule-etape" *ngIf="formModel.categorieCarbone === categorieRepli">
+            <span class="origine-repli">Statut</span>
+            <span>
+              Cette famille est celle des lignes non appariées : la ligne portera
+              « Fallback appliqué (#N/A) ».
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer les immobilisations</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Colonnes attendues : <strong>Numéro d'immobilisation</strong> (ou <em>N° Immo</em>,
+          <em>ID</em>, <em>Code</em>), <strong>Nom</strong> (ou <em>Désignation</em>,
+          <em>Équipement</em>), <strong>Acquisitions</strong> (ou <em>Montant</em>,
+          <em>Valeur</em>) et <strong>Catégorie Carbone</strong>.
+        </p>
+        <p class="import-hint">
+          Les lignes dont la catégorie vaut <strong>#N/A</strong>, reste vide ou n'est pas
+          reconnue ne sont jamais écartées : elles basculent sur « Équipements Ind. » au facteur
+          de sécurité 0,250 kgCO₂e/TND. Seuls les cumuls de fin de tableau sont ignorés.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS D'IMPORT -->
+  <div class="toast-pile" *ngIf="toastMessage">
+    <div class="toast" role="status">
+      <span aria-hidden="true">✅</span>
+      <span>{{ toastMessage }}</span>
+      <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="toast toast-repli" *ngIf="toastSecondaire" role="status">
+      <span aria-hidden="true">⚠️</span>
+      <span>{{ toastSecondaire }}</span>
+    </div>
+  </div>
+
+</div>

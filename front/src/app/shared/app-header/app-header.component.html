@@ -1,0 +1,47 @@
+<header class="top-bar">
+
+  <!-- Marque -->
+  <div class="brand">
+    <span class="brand-mark">MISFAT</span>
+    <span class="brand-sub">Comptabilité carbone</span>
+  </div>
+
+  <!-- Sélecteur de société -->
+  <div class="entity-switcher">
+    <button type="button" class="entity-trigger" (click)="basculerMenu()"
+            [attr.aria-expanded]="menuOuvert" aria-haspopup="listbox">
+      <app-flag-icon [code]="entity.flag" [size]="24" [title]="entity.country"></app-flag-icon>
+      <span class="entity-text">
+        <span class="entity-code">{{ entity.code }}</span>
+        <span class="entity-label">{{ entity.label }}</span>
+      </span>
+      <span class="chevron" [class.chevron-open]="menuOuvert">▾</span>
+    </button>
+
+    <div class="entity-menu" *ngIf="menuOuvert" role="listbox">
+      <button type="button" class="entity-option"
+              *ngFor="let e of entities"
+              [class.entity-option-active]="e.id === entity.id"
+              (click)="choisirEntite(e)"
+              role="option"
+              [attr.aria-selected]="e.id === entity.id">
+        <app-flag-icon [code]="e.flag" [size]="22"></app-flag-icon>
+        <span class="option-text">
+          <span class="option-label">{{ e.label }}</span>
+          <span class="option-meta">{{ e.code }} · {{ e.country }} · {{ e.currency }}</span>
+        </span>
+        <span class="option-check" *ngIf="e.id === entity.id">✓</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Année : seul autre filtre porté par l'en-tête -->
+  <label class="filter">
+    <span class="filter-label">Année</span>
+    <select [ngModel]="annee" (ngModelChange)="changerAnnee($event)">
+      <option *ngFor="let a of annees" [ngValue]="a.valeur">
+        {{ a.valeur }}{{ a.statut === 'EN_COURS' ? ' · en cours' : '' }}
+      </option>
+    </select>
+  </label>
+</header>

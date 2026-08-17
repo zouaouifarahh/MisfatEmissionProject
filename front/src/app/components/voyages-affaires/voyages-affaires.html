@@ -1,0 +1,464 @@
+<div class="emission-container">
+
+  <!-- Lignes reçues de la répartition automatique -->
+  <app-lignes-dispatchees ecran="voyages-affaires"></app-lignes-dispatchees>
+
+  <!-- INDICATEURS DE SYNTHÈSE -->
+  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Voyages d'affaires ✈️</h2>
+  </div>
+
+  <!-- NOTE D'INFORMATION -->
+  <div class="note-categorie">
+    <span class="note-icone" aria-hidden="true">ℹ️</span>
+    <div class="note-corps">
+      <p class="note-titre">Note d'information — Scope 3 (Catégorie 6)</p>
+      <p class="note-texte">
+        Note : Cette catégorie comptabilise les émissions liées aux déplacements professionnels
+        ponctuels des collaborateurs (missions, salons, déplacements clients) effectués en avion,
+        train, voiture de location ou hébergement à l'hôtel.
+      </p>
+    </div>
+  </div>
+
+  <div class="ref-warning" *ngIf="erreurInitialisation">
+    <span aria-hidden="true">⛔</span> Initialisation incomplète : {{ erreurInitialisation }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="nombreSansFacteur">
+    <span aria-hidden="true">⚠️</span>
+    {{ nombreSansFacteur }} mission(s) hors segment documenté : leurs émissions valent 0
+    tant qu'un facteur adapté n'est pas versé au référentiel ou retenu à l'édition.
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
+             placeholder="Recherche par N° OM, employé, destination ou base…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreEtablissement" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Toutes les usines</option>
+        <option *ngFor="let u of usinesDisponibles" [value]="u.nom">{{ u.nom }}</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes provenances</option>
+        <option value="Réel">Réel</option>
+        <option value="Estimation">Estimation</option>
+        <option value="Excel">Excel</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreStatut" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les statuts</option>
+        <option value="MS SQL">✓ Validé MS SQL</option>
+        <option value="Fallback">⚠ Fallback appliqué ADEME</option>
+      </select>
+
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer Excel</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Nouveau voyage</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortData('om')">Réf / N° OM</th>
+            <th class="sortable" (click)="sortData('personne')">Voyageur</th>
+            <th>Moyen de transport</th>
+            <th>Destination</th>
+            <th>Provenance</th>
+            <th class="sortable ta-right" (click)="sortData('distance')">Quantité / Montant</th>
+            <th>Facteur retenu</th>
+            <th>Base appliquée</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.facteur === null">
+            <td class="duo-cell">
+              <span class="duo-principal"><span class="ref-badge">{{ item.numeroOM || '—' }}</span></span>
+              <span class="duo-second" *ngIf="item.reference">{{ item.reference }}</span>
+            </td>
+
+            <td class="duo-cell">
+              <span class="duo-principal" [title]="item.personne">{{ item.personne || '—' }}</span>
+              <span class="duo-second" *ngIf="item.nbrJours !== null">{{ item.nbrJours }} jour(s)</span>
+            </td>
+
+            <td>
+              <span class="mode-badge" [ngClass]="classeBadgeMode(item.mode)">
+                <span aria-hidden="true">{{ emojiMode(item.mode) }}</span>
+                {{ item.mode }}
+              </span>
+              <span class="duo-second" *ngIf="item.segment">{{ item.segment }}</span>
+            </td>
+
+            <td class="duo-cell">
+              <span class="duo-principal">{{ item.destination || '—' }}</span>
+              <span class="duo-second" *ngIf="item.depart">depuis {{ item.depart }}</span>
+            </td>
+
+            <td>
+              <span class="prov-badge"
+                    [class.prov-reel]="item.provenance === 'Réel'"
+                    [class.prov-estim]="item.provenance === 'Estimation'"
+                    [class.prov-excel]="item.provenance === 'Excel'">
+                <span aria-hidden="true">{{ item.provenance === 'Excel' ? '📄'
+                                          : item.provenance === 'Estimation' ? '≈' : '✓' }}</span>
+                {{ item.provenance }}
+              </span>
+            </td>
+
+            <td class="ta-right num">
+              <ng-container *ngIf="item.distanceKm !== null; else montantCell">
+                {{ item.distanceKm | number:'1.0-2' }}
+                <span class="unite-suffixe">{{ item.unite || 'km' }}</span>
+              </ng-container>
+              <ng-template #montantCell>
+                <span class="montant-chip" *ngIf="item.montant !== null; else sansGrandeur">
+                  {{ item.montant | number:'1.0-2' }} {{ item.unite || item.devise }}
+                </span>
+                <ng-template #sansGrandeur>—</ng-template>
+              </ng-template>
+              <span class="duo-second" *ngIf="item.dateDebut">{{ item.dateDebut }} → {{ item.dateFin }}</span>
+            </td>
+
+            <td class="facteur-cell" [title]="item.typeFacteur">
+              <ng-container *ngIf="item.facteur !== null; else sansFacteur">
+                <span class="duo-principal">{{ item.typeFacteur }}</span>
+                <span class="duo-second">
+                  {{ item.facteur | number:'1.0-6' }} / {{ item.uniteFacteur }}
+                </span>
+              </ng-container>
+              <ng-template #sansFacteur>
+                <span class="alerte-facteur">non résolu</span>
+                <span class="duo-second" *ngIf="item.segment">{{ item.segment }}</span>
+              </ng-template>
+            </td>
+
+            <td class="base-cell" [title]="item.baseAppliquee">
+              <span class="base-badge" *ngIf="item.baseAppliquee; else sansBase">{{ item.baseAppliquee }}</span>
+              <ng-template #sansBase>—</ng-template>
+            </td>
+
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="10" class="empty-row">
+              Aucune mission enregistrée sur ce périmètre.
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="5">Total — {{ emissionsFiltrees.length }} mission(s)</td>
+            <td class="ta-right num-fort">{{ totalDistance | number:'1.0-0' }} km</td>
+            <td colspan="2"></td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)"
+                title="Première page">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)"
+                title="Page précédente">‹</button>
+
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages"
+                (click)="allerPage(pageCourante + 1)" title="Page suivante">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages"
+                (click)="allerPage(nombrePages)" title="Dernière page">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier la mission' : '✈️ Nouveau voyage d\'affaires (Scope 3)' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Voyages d'affaires — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Type de donnée</label>
+            <div class="radio-groupe">
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Réel'">
+                <input type="radio" name="prov-voyage" value="Réel" [(ngModel)]="formModel.provenance">
+                <span>✓ Réel</span>
+                <small>Ordre de mission validé</small>
+              </label>
+              <label class="radio-option" [class.radio-actif]="formModel.provenance === 'Estimation'">
+                <input type="radio" name="prov-voyage" value="Estimation" [(ngModel)]="formModel.provenance">
+                <span>≈ Estimation</span>
+                <small>Distance approchée</small>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Base de calcul</label>
+            <div class="toggle-buttons">
+              <button type="button" class="btn-toggle" [class.active]="!formModel.monetaire"
+                      (click)="changerBaseCalcul(false)">Distance</button>
+              <button type="button" class="btn-toggle" [class.active]="formModel.monetaire"
+                      (click)="changerBaseCalcul(true)">Montant facturé</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="vo-usine">Établissement / Usine *</label>
+            <select id="vo-usine" [(ngModel)]="formModel.etablissement">
+              <option value="">— Choisir une usine —</option>
+              <option *ngFor="let u of usinesDisponibles" [value]="u.nom">
+                {{ u.nom }}<span *ngIf="u.emplacement"> — {{ u.emplacement }}</span>
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-om">N° Ordre de Mission *</label>
+            <input id="vo-om" type="text" [(ngModel)]="formModel.numeroOM" placeholder="Ex : OE250001">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-ref">Référence</label>
+            <input id="vo-ref" type="text" [(ngModel)]="formModel.reference" placeholder="Ex : 2025-0001">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="vo-personne">Employé / Personne</label>
+            <input id="vo-personne" type="text" [(ngModel)]="formModel.personne"
+                   placeholder="Ex : NAOUFEL MABROUK">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-depart">Départ / Provenance</label>
+            <input id="vo-depart" type="text" [(ngModel)]="formModel.depart"
+                   placeholder="Ex : Tunis">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-dest">Destination / Pays</label>
+            <input id="vo-dest" type="text" [(ngModel)]="formModel.destination"
+                   placeholder="Ex : France, Allemagne, MAROC">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-mode">Mode de déplacement *</label>
+            <select id="vo-mode" [(ngModel)]="formModel.mode" (ngModelChange)="rechercherFacteur()">
+              <option *ngFor="let m of modesVoyage" [value]="m">{{ emojiMode(m) }} {{ m }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SAISIE PAR DISTANCE -->
+        <div class="form-row" *ngIf="!formModel.monetaire">
+          <div class="form-group flex-1">
+            <label for="vo-dist">Distance (km) *</label>
+            <input id="vo-dist" type="number" step="any" [(ngModel)]="formModel.distanceKm"
+                   (ngModelChange)="onDistanceChange()" placeholder="0.00">
+            <small class="field-hint" *ngIf="segmentCourant">
+              Segment déduit : <strong>{{ segmentCourant }}</strong>
+            </small>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-part">Participants</label>
+            <input id="vo-part" type="number" min="1" step="1" [(ngModel)]="formModel.participants"
+                   (ngModelChange)="onSaisieChange()" placeholder="1">
+            <small class="field-hint">Le facteur porte sur un passager-kilomètre.</small>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="vo-jours">Nombre de jours</label>
+            <input id="vo-jours" type="number" step="1" [(ngModel)]="formModel.nbrJours" placeholder="0">
+          </div>
+        </div>
+
+        <!-- SAISIE MONÉTAIRE -->
+        <div class="form-row" *ngIf="formModel.monetaire">
+          <div class="form-group flex-1">
+            <label for="vo-montant">Montant facturé *</label>
+            <input id="vo-montant" type="number" step="any" [(ngModel)]="formModel.montant"
+                   (ngModelChange)="onSaisieChange()" placeholder="0.00">
+          </div>
+          <div class="form-group flex-1">
+            <label for="vo-devise">Devise</label>
+            <input id="vo-devise" type="text" [value]="formModel.devise" readonly class="readonly-field">
+          </div>
+        </div>
+
+        <div class="mode-warning" *ngIf="avertissementFacteur">
+          <span aria-hidden="true">⚠️</span> {{ avertissementFacteur }}
+        </div>
+
+        <!-- Facteurs MS SQL : liste déroulante dynamique -->
+        <div class="form-group" *ngIf="facteursCompatibles.length">
+          <label for="vo-base">Facteur retenu / Base appliquée *</label>
+          <select id="vo-base" [(ngModel)]="facteurChoisiId" (ngModelChange)="onFacteurChoisiChange()">
+            <option *ngFor="let f of facteursCompatibles" [ngValue]="f.id">
+              {{ f.typeName }} — {{ f.databaseSource }} ({{ f.factorValue | number:'1.0-8' }} / {{ f.unit }})
+            </option>
+          </select>
+          <small class="field-hint">
+            Rapproché automatiquement du référentiel MS SQL d'après le mode et le segment.
+          </small>
+        </div>
+
+        <!-- Récapitulatif temps réel -->
+        <div class="live-preview-box" *ngIf="facteurSelectionne">
+          <div class="preview-title">Facteur rapproché automatiquement</div>
+          <div class="preview-grid">
+            <div><span>Libellé</span><strong>{{ facteurSelectionne.typeName }}</strong></div>
+            <div><span>Référence</span><strong>{{ facteurSelectionne.referenceCode }}</strong></div>
+            <div><span>Base appliquée</span><strong>{{ facteurSelectionne.databaseSource }}</strong></div>
+            <div><span>Valeur</span><strong>{{ facteurSelectionne.factorValue | number:'1.0-8' }} / {{ facteurSelectionne.unit }}</strong></div>
+          </div>
+
+          <p class="formule-hint">
+            <span aria-hidden="true">🧮</span>
+            {{ formModel.monetaire ? 'Montant × Facteur' : 'Distance × Facteur × Participants' }}
+          </p>
+
+          <div class="preview-total">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="vo-debut">Date de début *</label>
+            <input id="vo-debut" type="date" [(ngModel)]="formModel.dateDebut">
+          </div>
+          <div class="form-group flex-1">
+            <label for="vo-fin">Date de fin *</label>
+            <input id="vo-fin" type="date" [(ngModel)]="formModel.dateFin">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer le suivi des ordres de mission</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          La ligne d'en-tête est détectée automatiquement, quels que soient la casse, les accents
+          et les espaces. Colonnes reconnues : <strong>Référence</strong>,
+          <strong>N° Ordre de Mission</strong>, <strong>Personne</strong>,
+          <strong>Destination</strong>, <strong>Date début</strong>, <strong>Date Fin</strong>,
+          <strong>Nbr Jours</strong>, <strong>Distance en Km</strong> ou <strong>Montant</strong>.
+        </p>
+        <p class="import-hint">
+          Les lignes de total en pied de tableau sont écartées, et le facteur est rapproché du
+          référentiel MS SQL selon le segment aérien déduit de la distance. Si une colonne
+          obligatoire manque, l'import s'interrompt avec un message plutôt qu'une erreur.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- NOTIFICATION D'IMPORT -->
+  <div class="toast" *ngIf="toastMessage" role="status">
+    <span aria-hidden="true">✅</span>
+    <span>{{ toastMessage }}</span>
+    <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+  </div>
+
+</div>

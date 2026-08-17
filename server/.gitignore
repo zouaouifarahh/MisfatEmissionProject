@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Journaux d'exécution des microservices, produits localement
+logs/
+*.log

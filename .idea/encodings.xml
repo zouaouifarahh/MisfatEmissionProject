@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/server/api-getway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/server/dataimportservice/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/server/emission-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/server/eureka-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/server/organizationservice/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/server/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/server/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/server/user_service/src/main/java" charset="UTF-8" />

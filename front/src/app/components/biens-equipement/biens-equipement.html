@@ -1,0 +1,319 @@
+<div class="emission-container">
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+  <div class="emission-header">
+    <h2>Biens d'équipement 🏗️</h2>
+    <p class="section-desc">
+      Machines, outillages et équipements immobilisés par MISFAT (Scope 3 — catégorie 2).
+      La catégorie d'équipement détermine le facteur ; le modèle ou la marque sert d'étiquette d'identification.
+    </p>
+  </div>
+
+  <div class="ref-warning ref-migration" *ngIf="messageMigration">
+    <span aria-hidden="true">🔄</span> {{ messageMigration }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementReferentiel">
+    <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
+  </div>
+
+  <div class="ref-warning" *ngIf="avertissementStockage">
+    <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
+  </div>
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+    <div class="table-actions">
+      <input type="text" [(ngModel)]="rechercheTexte"
+             placeholder="Recherche par équipement, étiquette, référence ou usine…" class="search-input">
+
+      <select class="filter-dropdown" [(ngModel)]="filtreEtablissement">
+        <option value="Tous">Toutes les usines</option>
+        <option *ngFor="let u of usinesDisponibles" [value]="u.nom">{{ u.nom }}</option>
+      </select>
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Nouveau</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU DE DONNÉES -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Usine</th>
+            <th class="sortable" (click)="sortData('reference')">Référence carbone</th>
+            <th>Code article ERP</th>
+            <th>Équipement / Catégorie</th>
+            <th>Étiquette</th>
+            <th class="ta-right">Quantité</th>
+            <th>Unité</th>
+            <th class="ta-right">Facteur utilisé</th>
+            <th>Base appliquée</th>
+            <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th class="sortable" (click)="sortData('periode')">Période</th>
+            <th>Hypothèse</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let item of emissionsFiltrees">
+            <td>{{ item.etablissement }}</td>
+            <!-- La référence carbone désigne le facteur ; l'infobulle dit
+                 comment la ligne y a été rattachée. -->
+            <td [title]="'Rattachement : ' + libelleRapprochement(item)">
+              <span class="ref-badge" [class.ref-approx]="item.rapprochement === 'CATEGORIE'">
+                {{ item.reference }}
+              </span>
+            </td>
+            <td class="erp-cell" [title]="item.codeArticle || ''">{{ item.codeArticle || '—' }}</td>
+            <td class="cell-strong cat-cell" [title]="item.categorieCarbone">{{ item.categorieCarbone }}</td>
+            <td class="etiquette-cell" [title]="item.etiquette">{{ item.etiquette || '—' }}</td>
+            <td class="ta-right num">{{ item.quantite | number:'1.0-3' }}</td>
+            <td><span class="unit-badge">{{ item.unite }}</span></td>
+            <td class="ta-right num">{{ item.facteur | number:'1.0-4' }}</td>
+            <td class="base-cell" [title]="item.databaseSource || ''">
+              <span class="base-badge" *ngIf="item.databaseSource; else sansBase">{{ item.databaseSource }}</span>
+              <ng-template #sansBase>—</ng-template>
+            </td>
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+            <td class="periode">{{ item.dateDebut }} → {{ item.dateFin }}</td>
+            <td>
+              <span class="hyp-badge" [class.hyp-estim]="item.hypothese === 'Estimation'">
+                {{ item.hypothese }}
+              </span>
+            </td>
+            <td class="ta-center">
+              <div class="action-buttons">
+                <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
+                <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!emissionsFiltrees.length">
+            <td colspan="13" class="empty-row">
+              Aucun bien d'équipement enregistré sur ce périmètre.
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="9">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= MODALE DE SAISIE / ÉDITION ================= -->
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+        <h3>{{ isEdition ? '✏️ Modifier le bien d\'équipement' : '🏗️ Nouveau bien d\'équipement (Scope 3)' }}</h3>
+        <button class="modal-close" (click)="fermerModale()">×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+          <span aria-hidden="true">⚠️</span> {{ messageErreur }}
+        </div>
+
+        <div class="scope-box-header">
+          <span class="scope-tag">SCOPE_3</span>
+          <span>Biens d'équipement — {{ societeActiveLabel }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="be-usine">Établissement / Usine *</label>
+            <select id="be-usine" [(ngModel)]="formModel.etablissement">
+              <option value="">— Choisir une usine —</option>
+              <option *ngFor="let u of usinesDisponibles" [value]="u.nom">
+                {{ u.nom }}<span *ngIf="u.emplacement"> — {{ u.emplacement }}</span>
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Type de données</label>
+            <div class="toggle-buttons">
+              <button type="button" class="btn-toggle"
+                      [class.active]="formModel.typeDonnee === 'Physique'"
+                      (click)="changerTypeDonnee('Physique')">Physique</button>
+              <button type="button" class="btn-toggle"
+                      [class.active]="formModel.typeDonnee === 'Monetaire'"
+                      (click)="changerTypeDonnee('Monetaire')">Monétaire</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Catégorie d'équipement : elle pilote le facteur appliqué -->
+        <div class="form-group form-group-cat">
+          <label for="be-cat">Quel équipement avez-vous acquis ? (Catégorie Carbone) *</label>
+          <button type="button" id="be-cat" class="cat-trigger"
+                  (click)="categorieOuverte ? fermerCategorie() : ouvrirCategorie()"
+                  [attr.aria-expanded]="categorieOuverte">
+            <span>{{ formModel.categorieCarbone || 'Choisir une catégorie d\'équipement' }}</span>
+            <span class="cat-caret" aria-hidden="true">▾</span>
+          </button>
+
+          <div class="cat-panel" *ngIf="categorieOuverte">
+            <input type="text" class="cat-search" [(ngModel)]="rechercheCategorie"
+                   placeholder="Rechercher un équipement…" autocomplete="off"
+                   aria-label="Rechercher une catégorie d'équipement">
+            <div class="cat-list">
+              <button type="button" class="cat-option" *ngFor="let c of categoriesFiltrees"
+                      [class.cat-option-active]="c === formModel.categorieCarbone"
+                      (click)="choisirCategorie(c)">{{ c }}</button>
+              <p class="cat-empty" *ngIf="!categoriesFiltrees.length">Aucune catégorie ne correspond.</p>
+            </div>
+          </div>
+
+          <small class="field-hint">
+            {{ categoriesCarbone.length }} catégories d'équipement documentées par le référentiel carbone.
+          </small>
+        </div>
+
+        <!-- Le mode demandé n'est pas documenté pour cette catégorie -->
+        <div class="mode-warning" *ngIf="avertissementMode">
+          <span aria-hidden="true">⚠️</span> {{ avertissementMode }}
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="be-etiquette">Étiquette (modèle / marque)</label>
+            <input id="be-etiquette" type="text" [(ngModel)]="formModel.etiquette"
+                   placeholder="Ex : Presse hydraulique SCHULER PH-250">
+            <small class="field-hint">Sert d'identification, sans effet sur le calcul.</small>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="be-base">Source / Base appliquée *</label>
+            <select id="be-base" [(ngModel)]="formModel.databaseSource"
+                    (ngModelChange)="onBaseChange()" [disabled]="!facteursDeLaCategorie.length">
+              <option value="">— Choisir une base —</option>
+              <option *ngFor="let f of facteursDeLaCategorie" [value]="f.databaseSource">
+                {{ f.databaseSource }} — {{ f.factorValue | number:'1.0-4' }} / {{ f.unit }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="be-qte">
+              {{ formModel.typeDonnee === 'Monetaire' ? 'Valeur d\'acquisition *' : 'Quantité acquise *' }}
+            </label>
+            <input id="be-qte" type="number" step="any" [(ngModel)]="formModel.quantite" placeholder="0.00">
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="be-unite">Unité</label>
+            <input id="be-unite" type="text" [value]="formModel.unite" readonly class="readonly-field">
+            <small class="field-hint">
+              {{ formModel.typeDonnee === 'Monetaire'
+                  ? 'Devise de ' + societeActiveLabel
+                  : 'Unité du référentiel carbone' }}
+            </small>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="be-facteur">Facteur utilisé</label>
+            <input id="be-facteur" type="number" [value]="formModel.facteur" readonly class="readonly-field">
+          </div>
+        </div>
+
+        <!-- Récapitulatif temps réel -->
+        <div class="live-preview-box" *ngIf="facteurSelectionne">
+          <div class="preview-title">Facteur actif</div>
+          <div class="preview-grid">
+            <div><span>Référence</span><strong>{{ facteurSelectionne.referenceCode }}</strong></div>
+            <div><span>Base appliquée</span><strong>{{ facteurSelectionne.databaseSource }}</strong></div>
+            <div><span>Valeur</span><strong>{{ facteurSelectionne.factorValue | number:'1.0-4' }} / {{ facteurSelectionne.unit }}</strong></div>
+            <div><span>Validité</span><strong>{{ facteurSelectionne.validityLabel || facteurSelectionne.referenceYear || '—' }}</strong></div>
+          </div>
+          <div class="preview-total">
+            Émissions estimées
+            <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="be-debut">Date de début *</label>
+            <input id="be-debut" type="date" [(ngModel)]="formModel.dateDebut">
+          </div>
+          <div class="form-group flex-1">
+            <label for="be-fin">Date de fin *</label>
+            <input id="be-fin" type="date" [(ngModel)]="formModel.dateFin">
+          </div>
+        </div>
+
+        <div class="hypothesis-section">
+          <label>Hypothèse</label>
+          <div class="toggle-buttons">
+            <button type="button" class="btn-toggle"
+                    [class.active]="formModel.hypothese === 'Réelle'"
+                    (click)="formModel.hypothese = 'Réelle'">Réelle</button>
+            <button type="button" class="btn-toggle"
+                    [class.active]="formModel.hypothese === 'Estimation'"
+                    (click)="formModel.hypothese = 'Estimation'">Estimation</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALE D'IMPORT ================= -->
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+    <div class="modal-card">
+
+      <div class="modal-header">
+        <h3>📥 Importer le registre des immobilisations</h3>
+        <button class="modal-close" (click)="fermerModaleImport()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-hint">
+          Déposez le registre des immobilisations. La colonne <strong>Catégorie Carbone</strong> résout le facteur,
+          <strong>Modèle / Marque</strong> devient l'étiquette. Le mode suit le référentiel :
+          valeur d'acquisition si le facteur est monétaire, quantité acquise s'il est physique.
+        </p>
+
+        <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
+
+        <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <div class="import-ok" *ngIf="importSuccesMsg">✅ {{ importSuccesMsg }}</div>
+        <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">× Fermer</button>
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne"
+                (click)="importerFichier()">✓ Importer</button>
+      </div>
+    </div>
+  </div>
+
+</div>

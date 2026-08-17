@@ -1,0 +1,282 @@
+/*
+ * Bandeau « Ticker Executive ».
+ *
+ * Charte MISFAT : fond bleu slate très doux, bordure subtile, typographie nette
+ * sur #1E293B, l'orange #EF8B44 réservé aux accents pour qu'il reste lisible
+ * comme signal et non comme décor.
+ */
+
+:host {
+  display: block;
+  margin: 0 0 18px;
+}
+
+/* En variante compacte l'hôte s'insère dans la bannière : pas de marge propre. */
+:host(.compact) { margin: 0; }
+
+/* ---------- Variante compacte, intégrée à l'en-tête ---------- */
+
+.ticker-inline {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Le cours est empilé sous sa paire : la valeur peut alors porter une taille
+   qui la rend lisible d'un coup d'œil, sans allonger le bloc en largeur. */
+.rate-inline {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  white-space: nowrap;
+  min-width: 124px;
+}
+
+.rate-inline-pair {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #64748B;
+}
+
+.rate-inline-value {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  color: #1E293B;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-sm { padding: 2px 8px; font-size: 11px; margin-top: 1px; }
+
+/* Indicateur « live » adossé aux cours, aligné sur leur hauteur. */
+.ticker-inline-source { display: inline-flex; align-items: center; padding-left: 2px; }
+
+.ticker {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+
+  padding: 14px 20px;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  /* Ombre très basse : le bandeau se pose sur la page sans la surcharger. */
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* ---------- Repère temporel ---------- */
+
+.ticker-period {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-width: 250px;
+}
+
+.ticker-accent {
+  width: 3px;
+  border-radius: 3px;
+  background: #EF8B44;
+}
+
+.ticker-period-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ticker-today {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+
+.ticker-week {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.ticker-week-no {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: #B4652F;
+  background: #FCF4EE;
+  border: 1px solid #F5DCC2;
+}
+
+/* Semaine passée : la distinguer évite de lire un cours archivé comme actuel. */
+.ticker-hist {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: #475569;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+}
+
+.ticker-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 40px;
+  background: #E2E8F0;
+}
+
+/* ---------- Cours ---------- */
+
+.ticker-rates {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.rate {
+  min-width: 176px;
+  padding: 9px 13px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.rate:hover {
+  border-color: #EFC49E;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.08);
+}
+
+.rate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.rate-pair {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: #64748B;
+}
+
+.rate-value {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #1E293B;
+}
+
+.rate-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+
+.rate-value strong {
+  /* Chiffres de même chasse : les cours restent alignés d'une ligne à l'autre. */
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.rate-currency {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748B;
+}
+
+.rate-label {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: #94A3B8;
+}
+
+/* ---------- Puces de variation ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.chip-arrow { font-size: 8px; }
+
+.chip-hausse { color: #2F7D50; background: #EEF7F2; border-color: #CBEBD8; }
+.chip-baisse { color: #B91C1C; background: #FEF2F2; border-color: #FECACA; }
+.chip-stable { color: #475569; background: #F1F5F9; border-color: #E2E8F0; }
+
+/* ---------- Provenance ---------- */
+
+.ticker-source {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94A3B8;
+  white-space: nowrap;
+}
+
+.ticker-source-warn { color: #B4652F; }
+
+.ticker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22C55E;
+  flex-shrink: 0;
+}
+
+.ticker-source-warn .ticker-dot { background: #EF8B44; }
+
+.pulse { animation: ticker-pulse 2.4s ease-in-out infinite; }
+
+@keyframes ticker-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45); }
+  50%      { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse { animation: none; }
+}
+
+/* ---------- Écrans étroits ---------- */
+
+@media (max-width: 900px) {
+  .ticker { gap: 14px; }
+  .ticker-divider { display: none; }
+  .ticker-rates { width: 100%; }
+  .rate { flex: 1 1 160px; }
+}

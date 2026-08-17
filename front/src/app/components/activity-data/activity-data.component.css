@@ -1,0 +1,330 @@
+/**
+ * Données d'activité & KPI.
+ *
+ * <p>Mêmes teintes et mêmes cotes que le reste de la console : encre MISFAT,
+ * orange d'accent, azur pour les fonds de tableau. L'écran doit se lire comme
+ * une page de la console, pas comme un module rapporté.</p>
+ */
+
+:host {
+  --encre: #1E3A52;
+  --orange: #EF8B44;
+  --orange-fonce: #C35014;
+  --vert: #218746;
+  --azur: #EFF6FA;
+  --sable: #FCF4EE;
+  --bordure: #CFE4F0;
+  --gris: #64748B;
+  --gris-clair: #E2E8F0;
+
+  display: block;
+  padding: 6px 2px 30px;
+}
+
+.act-shell { display: flex; flex-direction: column; gap: 16px; }
+
+/* ------------------------------- EN-TÊTE ------------------------------- */
+
+.act-entete {
+  padding: 20px 24px;
+  background: linear-gradient(135deg, var(--encre), #2C5578);
+  color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(30, 58, 82, .1);
+}
+
+.act-entete h2 { margin: 0 0 5px; font-size: 1.15rem; font-weight: 700; }
+
+.act-entete p {
+  margin: 0;
+  font-size: .84rem;
+  line-height: 1.55;
+  color: #CFE4F0;
+  max-width: 82ch;
+}
+
+.act-entete strong { color: #ffffff; }
+
+/* ------------------------------ MESSAGES ------------------------------- */
+
+.act-message,
+.act-erreur {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: .82rem;
+  line-height: 1.55;
+}
+
+.act-message { background: #ECFDF5; border: 1px solid #6EE7B7; color: #065F46; }
+.act-erreur { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
+
+.msg-fermer {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+  flex: none;
+}
+
+/* -------------------------------- CARTES ------------------------------- */
+
+.act-carte {
+  background: #ffffff;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 4px 18px rgba(30, 58, 82, .06);
+}
+
+.act-carte-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.act-titre {
+  margin: 0 0 4px;
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--encre);
+}
+
+.act-sous-titre {
+  margin: 0 0 14px;
+  font-size: .8rem;
+  line-height: 1.55;
+  color: var(--gris);
+  max-width: 82ch;
+}
+
+/* ------------------------------ IMPORT --------------------------------- */
+
+.depot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 20px;
+  border: 2px dashed var(--bordure);
+  border-radius: 12px;
+  background: var(--azur);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.depot:hover { border-color: var(--orange); }
+
+/* Le survol d'un fichier doit se voir : sans retour visuel, l'utilisateur
+   relâche à côté de la zone sans comprendre pourquoi rien ne se passe. */
+.depot-survol {
+  border-color: var(--orange);
+  background: var(--sable);
+  box-shadow: inset 0 0 0 3px rgba(239, 139, 68, .12);
+}
+
+.depot-icone { font-size: 1.7rem; }
+.depot-texte { display: flex; flex-direction: column; gap: 2px; }
+.depot-texte strong { font-size: .9rem; color: var(--encre); }
+.depot-texte small { font-size: .74rem; color: var(--gris); }
+
+.depot-fichier {
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--encre);
+}
+
+.depot-bilan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.bilan-cle {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris);
+}
+
+.etiquette {
+  background: #EEF7F2;
+  border: 1px solid #CBEBD8;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: #166534;
+}
+
+.depot-avertissements {
+  margin: 12px 0 0;
+  padding: 10px 14px 10px 30px;
+  border-left: 3px solid var(--orange);
+  background: var(--sable);
+  border-radius: 0 8px 8px 0;
+  font-size: .78rem;
+  line-height: 1.55;
+  color: var(--encre);
+}
+
+/* ------------------------------ FORMULAIRE ----------------------------- */
+
+.act-annee {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris);
+}
+
+.act-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.act-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris);
+}
+
+.act-form input,
+.act-annee select {
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: .88rem;
+  color: var(--encre);
+  text-transform: none;
+  letter-spacing: normal;
+  background: #ffffff;
+}
+
+.act-form input:focus,
+.act-annee select:focus {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(239, 139, 68, .18);
+}
+
+.act-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-act-principal,
+.btn-act-secondaire,
+.btn-act-danger {
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-act-principal { background: var(--encre); border: none; color: #ffffff; }
+.btn-act-principal:hover { background: #2C5578; }
+
+.btn-act-secondaire { background: var(--vert); border: none; color: #ffffff; }
+.btn-act-secondaire:hover { background: #1a6d38; }
+
+.btn-act-danger { background: #ffffff; border: 1px solid #FCA5A5; color: #991B1B; }
+.btn-act-danger:hover:not(:disabled) { background: #FEF2F2; border-color: #991B1B; }
+.btn-act-danger:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ------------------------------- TABLEAU ------------------------------- */
+
+.act-tableau { overflow-x: auto; }
+
+.act-tableau table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  font-size: .8rem;
+}
+
+.act-tableau thead th {
+  background: var(--azur);
+  color: var(--encre);
+  font-size: .66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 9px 10px;
+  text-align: left;
+  border-bottom: 2px solid var(--bordure);
+  white-space: nowrap;
+}
+
+.act-tableau tbody td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #EEF2F6;
+  color: #334155;
+}
+
+/* L'exercice ouvert au formulaire est signalé : sans repère, l'utilisateur
+   édite une ligne sans savoir laquelle. */
+.ligne-editee td { background: var(--sable); }
+
+.cell-annee { font-weight: 800; color: var(--encre); }
+.col-num { text-align: right; white-space: nowrap; }
+.col-actions { text-align: right; white-space: nowrap; }
+
+.cell-vide {
+  text-align: center;
+  font-style: italic;
+  color: var(--gris);
+  padding: 24px 10px;
+}
+
+.btn-ligne {
+  background: #ffffff;
+  border: 1px solid var(--bordure);
+  border-radius: 7px;
+  padding: 4px 9px;
+  font-size: .78rem;
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+.btn-ligne:hover { border-color: var(--encre); background: var(--azur); }
+.btn-ligne-danger { color: #991B1B; border-color: #FCA5A5; }
+.btn-ligne-danger:hover { background: #FEF2F2; border-color: #991B1B; }
+
+.confirme { font-size: .74rem; font-weight: 700; color: #991B1B; }
+
+@media (max-width: 640px) {
+  .act-carte-entete { flex-direction: column; align-items: stretch; }
+  .act-actions button { flex: 1; }
+}

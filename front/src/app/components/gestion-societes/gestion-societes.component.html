@@ -1,0 +1,230 @@
+<div class="gs-container">
+
+  <!-- TOAST -->
+  <div *ngIf="message" class="gs-toast" [ngClass]="'gs-toast-' + messageType">
+    <span>{{ messageType === 'success' ? '✅' : (messageType === 'danger' ? '⚠️' : 'ℹ️') }}</span>
+    <span>{{ message }}</span>
+  </div>
+
+  <div>
+    <h1 class="gs-title">🏢 Gestion des Sociétés</h1>
+    <p class="gs-subtitle">
+      Référentiel des sociétés du groupe. Le pays et la devise renseignés ici alimentent
+      les filtres, le drapeau et la valorisation monétaire du tableau de bord.
+    </p>
+  </div>
+
+  <!-- FORMULAIRE AJOUT / MODIFICATION -->
+  <div class="gs-card">
+    <div class="gs-card-head">
+      <h3 class="gs-card-title">
+        {{ modeEdition ? '✏️ Modifier la société' : '➕ Ajouter une société' }}
+      </h3>
+      <span class="gs-badge" *ngIf="modeEdition">{{ formulaire.code }}</span>
+    </div>
+
+    <form (ngSubmit)="enregistrer()">
+      <div class="gs-form-grid">
+        <div class="gs-field">
+          <label for="gs-nom">NOM DE LA SOCIÉTÉ *</label>
+          <input id="gs-nom" type="text" [(ngModel)]="formulaire.libelle" name="libelle"
+                 placeholder="Ex : MISFAT TUNISIE" required>
+        </div>
+
+        <div class="gs-field">
+          <label for="gs-code">CODE *</label>
+          <input id="gs-code" type="text" [(ngModel)]="formulaire.code" name="code"
+                 placeholder="Ex : MTN" maxlength="10" required>
+        </div>
+
+        <!-- Sélecteur de pays : liste complète, filtrée à la frappe -->
+        <div class="gs-field gs-field-pays">
+          <label for="gs-pays">PAYS *</label>
+          <button type="button" id="gs-pays" class="gs-pays-trigger" (click)="paysOuvert ? fermerPays() : ouvrirPays()"
+                  [attr.aria-expanded]="paysOuvert">
+            <span>{{ drapeau(formulaire.pays) }} {{ formulaire.pays || 'Choisir un pays' }}</span>
+            <span class="gs-pays-caret" aria-hidden="true">▾</span>
+          </button>
+
+          <div class="gs-pays-panel" *ngIf="paysOuvert">
+            <input type="text" class="gs-pays-search" [(ngModel)]="recherchePays" name="recherchePays"
+                   placeholder="Rechercher un pays…" autocomplete="off" aria-label="Rechercher un pays">
+            <div class="gs-pays-list">
+              <button type="button" class="gs-pays-option" *ngFor="let p of paysFiltres"
+                      [class.gs-pays-option-active]="p.nom === formulaire.pays"
+                      (click)="choisirPays(p)">
+                <span>{{ drapeau(p.nom) }}</span>
+                <span class="gs-pays-name">{{ p.nom }}</span>
+                <span class="gs-pays-code">{{ p.code }}</span>
+              </button>
+              <p class="gs-pays-empty" *ngIf="!paysFiltres.length">Aucun pays ne correspond.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gs-field">
+          <label for="gs-devise">DEVISE PRINCIPALE *</label>
+          <select id="gs-devise" [(ngModel)]="formulaire.devise" name="devise" required>
+            <option *ngFor="let d of devisesDisponibles" [value]="d">{{ d }}</option>
+          </select>
+        </div>
+
+        <div class="gs-field">
+          <label for="gs-date">DATE DE CRÉATION</label>
+          <input id="gs-date" type="date" [(ngModel)]="formulaire.dateCreation" name="dateCreation">
+        </div>
+
+        <div class="gs-field gs-actions">
+          <button *ngIf="modeEdition" type="button" class="gs-btn-cancel" (click)="annuler()">Annuler</button>
+          <button type="submit" class="gs-btn-submit">
+            {{ modeEdition ? 'Mettre à jour' : 'Enregistrer' }}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- TABLEAU DES SOCIÉTÉS -->
+  <div class="gs-card gs-card-flush">
+    <div class="gs-toolbar">
+      <span class="gs-toolbar-title">Sociétés du groupe</span>
+      <span class="gs-count">{{ societes.length }} société(s)</span>
+    </div>
+
+    <div class="gs-table-wrap">
+      <table class="gs-table">
+        <thead>
+          <tr>
+            <th>SOCIÉTÉ</th>
+            <th>CODE</th>
+            <th>PAYS</th>
+            <th>DEVISE</th>
+            <th>CRÉATION</th>
+            <th class="gs-num">USINES</th>
+            <th class="gs-right">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of societes">
+            <td class="gs-name">{{ s.libelle }}</td>
+            <td><span class="gs-code">{{ s.code }}</span></td>
+            <td>{{ drapeau(s.pays) }} {{ s.pays || '—' }}</td>
+            <td><span class="gs-currency">{{ s.devise || '—' }}</span></td>
+            <td>{{ s.dateCreation ? (s.dateCreation | date:'dd/MM/yyyy') : '—' }}</td>
+            <td class="gs-num">
+              <button type="button" class="gs-usine-count" title="Gérer les usines" (click)="ouvrirUsines(s)">
+                🏭 {{ s.nombreUsines ?? 0 }}
+              </button>
+            </td>
+            <td class="gs-right">
+              <div class="gs-row-actions">
+                <button type="button" class="gs-icon" title="Modifier" (click)="editer(s)">✏️</button>
+                <button type="button" class="gs-icon gs-icon-danger" title="Supprimer"
+                        (click)="demanderSuppression(s)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!societes.length && !chargement">
+            <td colspan="7" class="gs-empty">Aucune société enregistrée.</td>
+          </tr>
+          <tr *ngIf="chargement">
+            <td colspan="7" class="gs-empty">Chargement…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- USINES DE LA SOCIÉTÉ SÉLECTIONNÉE -->
+  <div class="gs-card" *ngIf="societeUsines">
+    <div class="gs-card-head">
+      <h3 class="gs-card-title">🏭 Usines — {{ societeUsines.libelle }}</h3>
+      <button type="button" class="gs-btn-cancel" (click)="fermerUsines()">Fermer</button>
+    </div>
+
+    <div class="gs-form-grid">
+      <div class="gs-field">
+        <label for="gs-usine-nom">NOM DE L'USINE *</label>
+        <input id="gs-usine-nom" type="text" [(ngModel)]="nouvelleUsine.nom" name="usineNom"
+               placeholder="Ex : MISFAT 1">
+      </div>
+      <div class="gs-field">
+        <label for="gs-usine-lieu">EMPLACEMENT</label>
+        <input id="gs-usine-lieu" type="text" [(ngModel)]="nouvelleUsine.emplacement" name="usineLieu"
+               placeholder="Ex : Jedaida">
+      </div>
+      <div class="gs-field gs-actions">
+        <button *ngIf="usineEnEdition !== null" type="button" class="gs-btn-cancel"
+                (click)="annulerEditionUsine()">Annuler</button>
+        <button type="button" class="gs-btn-submit" (click)="enregistrerUsine()">
+          {{ usineEnEdition !== null ? 'Mettre à jour' : 'Ajouter l\'usine' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="gs-usines">
+      <div class="gs-usine" *ngFor="let u of usines">
+        <div class="gs-usine-info">
+          <span class="gs-usine-nom">{{ u.nom }}</span>
+          <span class="gs-usine-lieu">{{ u.emplacement || '—' }}</span>
+        </div>
+        <div class="gs-row-actions">
+          <button type="button" class="gs-icon" title="Modifier" (click)="editerUsine(u)">✏️</button>
+          <button type="button" class="gs-icon gs-icon-danger" title="Supprimer"
+                  (click)="supprimerUsine(u)">🗑️</button>
+        </div>
+      </div>
+      <p class="gs-empty" *ngIf="!usines.length">Aucune usine rattachée à cette société.</p>
+    </div>
+  </div>
+
+  <!-- EXERCICES CARBONE -->
+  <div class="gs-card">
+    <div class="gs-card-head">
+      <h3 class="gs-card-title">📅 Exercices carbone</h3>
+      <span class="gs-hint">Un seul exercice peut être en cours à la fois.</span>
+    </div>
+
+    <div class="gs-year-add">
+      <input type="number" [(ngModel)]="nouvelleAnnee" name="nouvelleAnnee"
+             min="2000" max="2100" placeholder="2027" aria-label="Nouvelle année d'exercice">
+      <button type="button" class="gs-btn-submit" (click)="ajouterAnnee()">Ouvrir l'exercice</button>
+    </div>
+
+    <div class="gs-years">
+      <div class="gs-year" *ngFor="let a of annees" [class.gs-year-active]="a.statut === 'EN_COURS'">
+        <span class="gs-year-value">{{ a.valeur }}</span>
+        <span class="gs-year-status">{{ a.statut === 'EN_COURS' ? 'En cours' : 'Clôturé' }}</span>
+        <div class="gs-year-actions">
+          <button type="button" class="gs-icon"
+                  [title]="a.statut === 'EN_COURS' ? 'Clôturer' : 'Rouvrir'"
+                  (click)="basculerStatutAnnee(a)">
+            {{ a.statut === 'EN_COURS' ? '🔒' : '🔓' }}
+          </button>
+          <button type="button" class="gs-icon gs-icon-danger" title="Supprimer"
+                  (click)="supprimerAnnee(a)">🗑️</button>
+        </div>
+      </div>
+
+      <p class="gs-empty" *ngIf="!annees.length">Aucun exercice ouvert.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIRMATION DE SUPPRESSION -->
+<div class="gs-modal-backdrop" *ngIf="societeASupprimer">
+  <div class="gs-modal">
+    <div class="gs-modal-icon">⚠️</div>
+    <h3 class="gs-modal-title">Supprimer la société</h3>
+    <p class="gs-modal-text">
+      Voulez-vous vraiment supprimer <strong>{{ societeASupprimer.libelle }}</strong> ?
+      Cette action est irréversible.
+    </p>
+    <div class="gs-modal-actions">
+      <button type="button" class="gs-btn-cancel" (click)="annulerSuppression()">Annuler</button>
+      <button type="button" class="gs-btn-danger" (click)="confirmerSuppression()">Oui, supprimer</button>
+    </div>
+  </div>
+</div>

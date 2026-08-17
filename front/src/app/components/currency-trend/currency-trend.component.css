@@ -1,0 +1,92 @@
+/* ==========================================================================
+   Graphique d'évolution des devises — Soft SaaS
+   ========================================================================== */
+
+:host {
+    display: block;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.chart-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+}
+
+.chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #eef2f7;
+}
+
+.chart-head h2 { margin: 0 0 3px; font-size: 15px; font-weight: 700; color: #0f172a; }
+.chart-head p { margin: 0; font-size: 12.5px; color: #64748b; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+.legend-item strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+.chart-body { padding: 16px 20px 20px; width: 100%; }
+
+/*
+ * Chart.js dimensionne le canevas sur la boîte de contenu du parent : celui-ci
+ * doit donc occuper toute la largeur disponible, et porter lui-même la hauteur
+ * puisque `maintainAspectRatio` est désactivé côté configuration.
+ */
+.canvas-wrap {
+    position: relative;
+    width: 100%;
+    height: 420px;
+}
+
+.canvas-wrap.hidden { display: none; }
+
+/* Sans cette contrainte, le canevas conserve les dimensions en attributs HTML
+   posées au premier rendu et déborde ou reste étroit après redimensionnement. */
+.canvas-wrap > canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.chart-state {
+    padding: 60px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+.chart-error { color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; }
+
+.chart-note {
+    padding: 10px 20px 14px;
+    font-size: 12px;
+    color: #94a3b8;
+    border-top: 1px solid #eef2f7;
+}
+
+@media (max-width: 1100px) {
+    .canvas-wrap { height: 340px; }
+}
+
+@media (max-width: 700px) {
+    .canvas-wrap { height: 260px; }
+    .chart-head { flex-direction: column; }
+}

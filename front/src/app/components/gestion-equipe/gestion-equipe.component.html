@@ -1,0 +1,235 @@
+<section class="equipe">
+
+  <header class="equipe-entete">
+    <div>
+      <h2>Membres de l'équipe</h2>
+      <p>
+        Annuaire et historique des accès à la plateforme. Les demandes non tranchées restent
+        dans l'écran « Demandes d'Accès ».
+      </p>
+    </div>
+    <button type="button" class="btn-inviter" (click)="ouvrirInvitation()">
+      + Inviter un utilisateur
+    </button>
+  </header>
+
+  <div class="equipe-message" *ngIf="message">
+    <span aria-hidden="true">✅</span>
+    <span>{{ message }}</span>
+    <button type="button" class="msg-fermer" (click)="message = ''" aria-label="Fermer">×</button>
+  </div>
+
+  <!-- ONGLETS -->
+  <nav class="equipe-onglets" role="tablist">
+    <button type="button" role="tab" [attr.aria-selected]="onglet === 'actifs'"
+            [class.actif]="onglet === 'actifs'" (click)="onglet = 'actifs'">
+      Utilisateurs Actifs <span class="pastille">{{ membres.length }}</span>
+    </button>
+    <button type="button" role="tab" [attr.aria-selected]="onglet === 'invitations'"
+            [class.actif]="onglet === 'invitations'" (click)="onglet = 'invitations'">
+      Invitations <span class="pastille">{{ invitations.length }}</span>
+    </button>
+  </nav>
+
+  <!-- ============ UTILISATEURS ACTIFS ============ -->
+  <div class="equipe-tableau" *ngIf="onglet === 'actifs'">
+    <table>
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Téléphone</th>
+          <th>Rôle</th>
+          <th>Date d'adhésion</th>
+          <th>Statut d'accès</th>
+          <th class="ta-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let membre of membres" [class.ligne-bloquee]="membre.statut === 'BLOQUE'">
+          <td class="cell-nom">
+            <img class="mini-avatar" *ngIf="membre.avatar" [src]="membre.avatar" alt="">
+            <span class="mini-avatar mini-avatar-vide" *ngIf="!membre.avatar" aria-hidden="true">👤</span>
+            <span>
+              {{ nomAffiche(membre) }}
+              <span class="etiquette" *ngIf="estMoi(membre)">vous</span>
+              <span class="etiquette etiquette-cle" *ngIf="estProtege(membre)">compte d'urgence</span>
+            </span>
+          </td>
+          <td>{{ membre.email }}</td>
+          <td>{{ membre.telephone || '—' }}</td>
+          <td><span class="badge-role">{{ membre.role }}</span></td>
+          <td>{{ dateCourte(membre.demandeLe) }}</td>
+          <td>
+            <span class="badge-statut" [class.st-actif]="membre.statut === 'APPROUVE'"
+                  [class.st-bloque]="membre.statut === 'BLOQUE'">
+              {{ libelleStatut(membre.statut) }}
+            </span>
+          </td>
+          <td class="cell-actions">
+            <ng-container *ngIf="suppressionEnAttente !== membre.id">
+              <button type="button" class="btn-act" (click)="ouvrirEdition(membre)"
+                      [disabled]="estProtege(membre)" title="Éditer">✏️ Éditer</button>
+              <button type="button" class="btn-act" (click)="basculerBlocage(membre)"
+                      [disabled]="estProtege(membre)"
+                      [title]="membre.statut === 'BLOQUE' ? 'Débloquer' : 'Bloquer'">
+                {{ membre.statut === 'BLOQUE' ? '🔓 Débloquer' : '🚫 Bloquer' }}
+              </button>
+              <button type="button" class="btn-act btn-act-danger" (click)="demanderSuppression(membre)"
+                      [disabled]="estProtege(membre)" title="Supprimer">🗑 Supprimer</button>
+            </ng-container>
+
+            <ng-container *ngIf="suppressionEnAttente === membre.id">
+              <span class="confirme">Supprimer définitivement ?</span>
+              <button type="button" class="btn-act btn-act-danger" (click)="confirmerSuppression(membre)">Oui</button>
+              <button type="button" class="btn-act" (click)="annulerSuppression()">Annuler</button>
+            </ng-container>
+          </td>
+        </tr>
+
+        <tr *ngIf="membres.length === 0">
+          <td colspan="7" class="cell-vide">Aucun membre actif dans l'annuaire.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ INVITATIONS ============ -->
+  <div class="equipe-tableau" *ngIf="onglet === 'invitations'">
+    <table>
+      <thead>
+        <tr>
+          <th>Email invité</th>
+          <th>Téléphone</th>
+          <th>Rôle attribué</th>
+          <th>Affectation</th>
+          <th>Invitation émise le</th>
+          <th>Suivi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let invite of invitations">
+          <td class="cell-strong">{{ invite.email }}</td>
+          <td>{{ invite.telephone || '—' }}</td>
+          <td><span class="badge-role">{{ invite.role }}</span></td>
+          <td>{{ invite.affectation }}</td>
+          <td>{{ dateCourte(invite.demandeLe) }}</td>
+          <td>
+            <span class="badge-suivi" [class.su-accepte]="invite.premiereConnexionLe">
+              {{ sortInvitation(invite) }}
+            </span>
+          </td>
+        </tr>
+
+        <tr *ngIf="invitations.length === 0">
+          <td colspan="6" class="cell-vide">Aucune invitation émise à ce jour.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="equipe-note">
+      Aucun courriel n'est expédié par la plateforme : inviter quelqu'un lui ouvre son compte
+      d'avance. Communiquez-lui l'adresse retenue — c'est avec elle qu'il se connectera.
+    </p>
+  </div>
+
+  <!-- ============ MODALE : INVITER ============ -->
+  <div class="modale-fond" *ngIf="modaleInvitation" (click)="fermerInvitation()">
+    <div class="modale" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <h3>Inviter un utilisateur</h3>
+      <p class="modale-sous-titre">
+        Le compte est créé pré-approuvé : la personne se connecte directement avec son adresse.
+      </p>
+
+      <div class="modale-erreur" *ngIf="erreur">{{ erreur }}</div>
+
+      <form class="modale-form" (ngSubmit)="envoyerInvitation()">
+        <label>
+          <span>Adresse email</span>
+          <input type="email" name="inv-email" [(ngModel)]="invitation.email"
+                 placeholder="prenom.nom@misfat.com" required>
+        </label>
+
+        <label>
+          <span>Téléphone</span>
+          <input type="tel" name="inv-tel" [(ngModel)]="invitation.telephone"
+                 placeholder="+216 00 000 000">
+        </label>
+
+        <label>
+          <span>Rôle</span>
+          <select name="inv-role" [(ngModel)]="invitation.role" required>
+            <option *ngFor="let choix of roles" [value]="choix.code">{{ choix.libelle }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Affectation</span>
+          <select name="inv-aff" [(ngModel)]="invitation.affectation" required>
+            <option *ngFor="let choix of affectations" [value]="choix.code">{{ choix.libelle }}</option>
+          </select>
+        </label>
+
+        <div class="modale-actions">
+          <button type="button" class="btn-secondaire" (click)="fermerInvitation()">Annuler</button>
+          <button type="submit" class="btn-principal">Transmettre l'invitation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ MODALE : ÉDITER ============ -->
+  <div class="modale-fond" *ngIf="modaleEdition" (click)="fermerEdition()">
+    <div class="modale" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <h3>Modifier un membre</h3>
+      <p class="modale-sous-titre">
+        L'adresse email sert d'identifiant de connexion : la modifier change la façon dont
+        l'intéressé accède à la plateforme.
+      </p>
+
+      <div class="modale-erreur" *ngIf="erreur">{{ erreur }}</div>
+
+      <form class="modale-form" (ngSubmit)="enregistrerEdition()">
+        <div class="modale-duo">
+          <label>
+            <span>Prénom</span>
+            <input type="text" name="ed-prenom" [(ngModel)]="edition.firstName">
+          </label>
+          <label>
+            <span>Nom</span>
+            <input type="text" name="ed-nom" [(ngModel)]="edition.lastName">
+          </label>
+        </div>
+
+        <label>
+          <span>Adresse email</span>
+          <input type="email" name="ed-email" [(ngModel)]="edition.email" required>
+        </label>
+
+        <label>
+          <span>Téléphone</span>
+          <input type="tel" name="ed-tel" [(ngModel)]="edition.telephone">
+        </label>
+
+        <label>
+          <span>Rôle</span>
+          <select name="ed-role" [(ngModel)]="edition.role" required>
+            <option *ngFor="let choix of roles" [value]="choix.code">{{ choix.libelle }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Affectation</span>
+          <select name="ed-aff" [(ngModel)]="edition.affectation" required>
+            <option *ngFor="let choix of affectations" [value]="choix.code">{{ choix.libelle }}</option>
+          </select>
+        </label>
+
+        <div class="modale-actions">
+          <button type="button" class="btn-secondaire" (click)="fermerEdition()">Annuler</button>
+          <button type="submit" class="btn-principal">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

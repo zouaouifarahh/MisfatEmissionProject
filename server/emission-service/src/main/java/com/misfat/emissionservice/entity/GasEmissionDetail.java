@@ -20,11 +20,9 @@ public class GasEmissionDetail {
     private EmissionFactor emissionFactor;
 
     @Column(name = "gas_name", nullable = false)
-    private String gasName;
+    private String gasName; // Exemple: 'CO2', 'CH4', 'N2O'
 
-    @Column(name = "factor_value_tnd", nullable = false, precision = 16, scale = 10)
-    private BigDecimal factorValueTnd;
-
-    @Column(name = "factor_value_eur", nullable = false, precision = 16, scale = 10)
-    private BigDecimal factorValueEur;
+    // Remplacement des deux colonnes EUR/TND par une seule colonne de valeur propre au facteur parent
+    @Column(name = "factor_value", nullable = false, precision = 18, scale = 10)
+    private BigDecimal factorValue;
 }

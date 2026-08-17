@@ -1,629 +1,2988 @@
-/* ============================================= */
-/* NAVIGATION SIDEBAR — INCHANGÉ                  */
-/* ============================================= */
+/* ==========================================================================
+   0. JETONS — SIDEBAR (SOMBRE, INCHANGÉE)
+   ========================================================================== */
+
+:host {
+    display: block;
+    width: 100%;
+    min-height: 100vh;
+
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-bg-soft: rgba(255, 255, 255, 0.02);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --glass-radius: 12px;
+    --track: rgba(255, 255, 255, 0.1);
+
+    --text-primary: #ffffff;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+
+    --accent: #EF8B44;
+    --accent-soft: #fb923c;
+
+    --scope-1: #3FA96B;
+    --scope-2: #E0803F;
+    --scope-3: #4A96C4;
+    --perf: #EF8B44;
+
+    --positive: #3FA96B;
+    --negative: #dc2626;
+
+    background: #0f172a;
+}
+
+.dash-shell {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   1. BARRE LATÉRALE — CONSERVÉE EN BLEU NUIT
+   ========================================================================== */
+
+.sidebar {
+    background: #0f172a;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.45);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sidebar-scroll { display: flex; flex-direction: column; overflow-y: auto; flex: 1; }
+
+.sidebar-brand {
+    padding: 15px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sidebar-logo-box { background: #ffffff; padding: 6px; border-radius: 8px; }
+.sidebar-logo-box img { display: block; transition: height 0.3s; }
+
+.sidebar-brand-caption {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin: 10px 0 0 0;
+}
+
+.sidebar-collapse-btn {
+    margin-top: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s ease;
+}
+
+.sidebar-collapse-btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+.sidebar-nav { padding: 15px 10px; display: flex; flex-direction: column; gap: 5px; }
+
+.nav-section-title {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    margin: 15px 0 5px 10px;
+}
+
+.nav-section-danger { color: #fda4af; }
+
 .nav-btn {
     width: 100%;
     text-align: left;
     background: transparent;
     border: none;
-    color: #cbd5e1;
-    padding: 12px 15px;
+    color: var(--text-secondary);
+    padding: 10px 12px;
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 600;
     font-size: 14px;
-    transition: all 0.3s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.nav-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
+.nav-btn:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
+.nav-btn.dropdown { justify-content: space-between; }
+.nav-btn div { display: flex; align-items: center; gap: 10px; }
+.nav-btn-spaced { margin-top: 5px; }
+
+.nav-btn-active {
+    background: rgba(249, 115, 22, 0.18);
+    color: #ffffff;
+    box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.nav-btn.active {
-    color: #22c55e;
-    font-weight: 700;
+.nav-btn-danger-active { background: rgba(225, 29, 72, 0.35); color: #ffffff; }
+.nav-btn-danger-label { display: flex; align-items: center; gap: 6px; }
+
+.nav-pill-new {
+    background: #ffffff;
+    color: #e11d48;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 800;
 }
 
-.nav-btn.dropdown {
-    justify-content: space-between;
-}
+.nav-caret { transition: transform 0.2s; font-size: 10px; color: var(--text-muted); }
+.nav-caret-sm { font-size: 9px; transition: transform 0.2s; }
+.nav-caret-xs { font-size: 8px; transition: transform 0.2s; }
 
 .sub-menu {
     display: flex;
     flex-direction: column;
-    padding-left: 20px;
+    gap: 2px;
+    padding-left: 5px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    margin: 2px 0;
 }
 
-.sub-menu button {
+.sub-menu-indent { padding-left: 20px; }
+
+.sub-btn {
     background: transparent;
     border: none;
-    color: #94a3b8;
+    color: var(--text-secondary);
     text-align: left;
-    padding: 8px 15px;
+    padding: 8px 10px;
     font-size: 13px;
     cursor: pointer;
-    transition: 0.2s;
-}
-
-.sub-menu button:hover {
-    color: white;
-}
-
-.active-sub {
-    color: #f17a22 !important;
-    font-weight: 700;
-}
-
-.nested-measure-subs {
-  background-color: rgba(0, 0, 0, 0.15);
-  margin-left: 10px;
-  border-left: 2px solid rgba(255, 255, 255, 0.2);
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-.nested-sub-item {
-  padding: 8px 12px 8px 18px;
-  font-size: 12px;
-  color: #cbd5e1;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-}
-
-.nested-sub-item:hover {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.nested-sub-item.active {
-  color: #ffffff;
-  background-color: rgba(230, 126, 34, 0.3);
-  font-weight: 600;
-  border-left: 3px solid #e67e22;
-}
-
-.nested-icon {
-  margin-right: 8px;
-  font-size: 13px;
-}
-
-/* ============================================= */
-/* DASHBOARD GHG PROTOCOL — NOUVEAU DESIGN        */
-/* ============================================= */
-
-.ghg-dashboard {
-    animation: fadeInUp 0.35s ease;
-}
-
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- EN-TÊTE --- */
-.ghg-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.ghg-title {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 800;
-    color: #092c5c;
-    letter-spacing: -0.3px;
-}
-
-.ghg-subtitle {
-    margin: 6px 0 0 0;
-    font-size: 13px;
-    color: #64748b;
+    width: 100%;
     display: flex;
     align-items: center;
     gap: 10px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
 }
 
-.ghg-tag {
-    background: linear-gradient(135deg, #092c5c, #144a8c);
-    color: white;
+.sub-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.06); }
+.sub-btn-split { justify-content: space-between; }
+.sub-btn-label { display: flex; align-items: center; gap: 10px; }
+.active-sub { color: var(--accent-soft) !important; font-weight: 700; }
+
+.scope-list { display: flex; flex-direction: column; gap: 4px; padding-left: 10px; margin-bottom: 5px; }
+
+.scope-btn {
+    width: 100%;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.04);
+    border: none;
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.scope-btn:hover { background: rgba(255, 255, 255, 0.1); color: #ffffff; }
+
+.nested-measure-subs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 10px;
+    margin: 2px 0 5px 0;
+    background: rgba(0, 0, 0, 0.25);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+}
+
+.nested-sub-item {
+    padding: 6px 8px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nested-sub-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+
+.nested-sub-item.active {
+    color: var(--accent-soft);
+    background: rgba(249, 115, 22, 0.14);
+    font-weight: 700;
+}
+
+.sidebar-footer {
+    padding: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.btn-quitter {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent) 0%, #E0803F 100%);
+    color: #ffffff;
+    border: none;
+    padding: 12px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.btn-quitter:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* ==========================================================================
+   2. ZONE DE DONNÉES — THÈME CLAIR PASTEL
+   Les jetons sont redéfinis ici : la cascade n'atteint pas la sidebar.
+   ========================================================================== */
+
+.dash-main {
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --surface: #ffffff;
+    --line: #e2e8f0;
+    --line-soft: #eef2f7;
+    --wash: #f8fafc;
+    --track: #e8edf3;
+    --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+
+    flex: 1;
+    padding: 18px;
+    overflow-y: auto;
+    min-width: 0;
+    background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--text-secondary);
+}
+
+.glass-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+}
+
+/* Déclinaisons pastel thématiques */
+/* Deux niveaux par scope :
+   --card-accent  : teinte adoucie, pour les traits, jauges et chiffres ;
+   --accent-plein : version soutenue, réservée aux fonds portant du texte blanc.
+   Sur la teinte adoucie, le blanc tombe à ~2,9:1 de contraste, sous le seuil
+   AA de 4,5:1 — d'où cette seconde variable plutôt qu'un texte illisible. */
+.pastel-s1   { background: #EEF7F2; border-color: #CBEBD8; --card-accent: #3FA96B; --accent-plein: #2F7D50; }
+.pastel-s2   { background: #FCF4EE; border-color: #F5DCC2; --card-accent: #E0803F; --accent-plein: #A85D2B; }
+.pastel-s3   { background: #EFF6FA; border-color: #CFE4F0; --card-accent: #4A96C4; --accent-plein: #3D7CA3; }
+.pastel-perf { background: #FCF4EE; border-color: #F5DCC2; --card-accent: #EF8B44; --accent-plein: #A85D2B; }
+
+/* ==========================================================================
+   3. EN-TÊTE EXÉCUTIF
+   ========================================================================== */
+
+.ghg-dashboard { animation: fadeInUp 0.35s ease-out; min-width: 0; }
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.exec-eyebrow {
+    background: #FCF4EE;
+    border: 1px solid #F5DCC2;
+    border-radius: 8px;
+    color: #EF8B44;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 2.2px;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+}
+
+.exec-eyebrow-sm {
+    display: inline-block;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-bottom: 4px;
+    color: #EF8B44;
+    letter-spacing: 2px;
+    font-size: 11px;
+}
+
+/* ---------- Bannière d'en-tête ----------
+   Identité, périmètre, période et cours de change tiennent sur une seule
+   bande : l'ancien empilement titre / sous-titre / badges / bandeau devises
+   consommait près du tiers de la hauteur utile avant le premier chiffre. */
+
+.exec-banner {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    flex-wrap: wrap;
+
+    /* Premier élément vu à l'ouverture : il porte l'identité de l'écran et
+       mérite plus de hauteur que les cartes qui le suivent. */
+    padding: 28px 26px;
+    margin-bottom: 16px;
+    border: 1px solid #CFE4F0;
+    border-radius: 16px;
+    /* Dégradé bleu Scope 3 → orange Misfat, dans leurs teintes pâles déjà
+       employées par les cartes KPI : identité affirmée, chiffres lisibles. */
+    background: linear-gradient(115deg, #E8F1F7 0%, #EFF6FA 42%, #FCF4EE 100%);
+    box-shadow: 0 2px 10px -3px rgba(2, 132, 199, 0.16);
+    border-left: 4px solid #EF8B44;
+}
+
+/* Halo décoratif : donne de la profondeur sans charger la zone de texte. */
+.exec-banner::after {
+    content: '';
+    position: absolute;
+    right: -60px;
+    top: -80px;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(239, 139, 68, 0.16) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.exec-banner-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.exec-banner-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    flex-shrink: 0;
+    color: #ffffff;
+    /* Teintes soutenues : le tracé blanc doit rester lisible sur la pastille. */
+    background: linear-gradient(140deg, #3D7CA3 0%, #2F7D50 100%);
+    box-shadow: 0 6px 16px -5px rgba(61, 124, 163, 0.55);
+}
+
+.exec-banner-icon svg { width: 29px; height: 29px; }
+
+.exec-banner-flags { display: flex; gap: 5px; flex-shrink: 0; }
+
+.exec-banner-flag {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    padding: 6px 9px;
+    font-size: 17px;
+    line-height: 1;
+}
+
+.exec-banner-id { min-width: 0; }
+
+.exec-banner-title {
+    margin: 0 0 6px;
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    line-height: 1.12;
+    color: #1E3A52;
+}
+
+.exec-banner-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.exec-banner-entity { font-weight: 800; color: #B4652F; }
+.exec-banner-sep { color: #94a3b8; }
+
+/* Colonne droite : les cours occupent leur propre bloc, centré verticalement
+   sur la hauteur de la carte. Sans cela ils restaient collés à gauche sous le
+   titre, laissant une bande vide sur les écrans larges. */
+.exec-banner-side {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.exec-banner-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+}
+
+.exec-banner-day {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.exec-banner-week { font-size: 12.5px; font-weight: 800; color: #1E3A52; }
+
+/* Écran étroit : la colonne des cours passe sous la colonne d'identité. */
+@media (max-width: 900px) {
+    .exec-banner-side { width: 100%; justify-content: flex-start; }
+}
+
+@media (max-width: 780px) {
+    .exec-banner { padding: 20px 18px; }
+    .exec-banner-title { font-size: 21px; }
+}
+
+/* ==========================================================================
+   4. BARRE DE FILTRES
+   ========================================================================== */
+
+.filter-bar { padding: 14px; margin-bottom: 18px; }
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.filter-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+
+.filter-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 1.3px;
+    color: var(--text-muted);
+}
+
+.org-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: var(--wash);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 34px 10px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.org-select:hover:not(:disabled) { background-color: #eef2f7; border-color: #cbd5e1; }
+
+.org-select:focus {
+    outline: none;
+    border-color: #EF8B44;
+    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.12);
+}
+
+.org-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.org-select option { color: var(--text-primary); background: #ffffff; font-weight: 600; }
+
+.org-date { background-image: none; padding-right: 12px; }
+.org-date::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.65; }
+
+.filter-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.summary-panel {
+    background: var(--wash);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    padding: 13px 15px;
+}
+
+.summary-title { color: var(--text-primary); font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+.summary-sub { color: var(--text-muted); font-size: 12px; }
+
+/* ==========================================================================
+   5. CARTES KPI
+   ========================================================================== */
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.kpi-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+
+    /* Le fond pastel seul ne distinguait pas assez les scopes : le filet
+       gauche reprend l'accent de la carte et donne le repère couleur, sans
+       assombrir le fond qui porte les chiffres. */
+    border-left: 4px solid var(--card-accent, var(--line));
+}
+
+/* Bordure rehaussée par rapport au pastel d'origine, trop proche du blanc. */
+.pastel-s1   { border-color: #A5D9BC; border-left-color: #3FA96B; }
+.pastel-s2   { border-color: #EFC49E; border-left-color: #E0803F; }
+.pastel-s3   { border-color: #A9CFE5; border-left-color: #4A96C4; }
+.pastel-perf { border-color: #EFC49E; border-left-color: #EF8B44; }
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: -5px 0 16px -6px var(--card-accent), 0 10px 26px -4px rgba(15, 23, 42, 0.12);
+}
+
+/* La valeur reprend l'accent : le chiffre est ce que l'on lit en premier. */
+.kpi-card .kpi-value { color: var(--card-accent, var(--text-primary)); }
+
+.kpi-decor {
+    position: absolute;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--card-accent) 0%, transparent 70%);
+    opacity: 0.1;
+    top: -55px;
+    right: -45px;
+    pointer-events: none;
+}
+
+.kpi-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.kpi-label {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+}
+
+.kpi-periode-chip { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+.kpi-badge {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.5px;
     padding: 4px 10px;
     border-radius: 20px;
-    text-transform: uppercase;
-}
-
-.filter-pills {
-    display: flex;
-    gap: 8px;
-    background: white;
-    padding: 6px;
-    border-radius: 14px;
-    box-shadow: 0 4px 14px rgba(9, 44, 92, 0.06);
-}
-
-.pill {
-    border: none;
-    background: transparent;
-    color: #64748b;
-    font-weight: 700;
-    font-size: 12.5px;
-    padding: 9px 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.pill:hover {
-    background: #f1f5f9;
-    color: #092c5c;
-}
-
-.pill-all.active {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: white;
-    box-shadow: 0 4px 10px rgba(34, 197, 94, 0.35);
-}
-
-.pill-num.active {
-    background: linear-gradient(135deg, #f17a22, #e2680f);
-    color: white;
-    box-shadow: 0 4px 10px rgba(241, 122, 34, 0.35);
-}
-
-/* --- KPI HERO GRID --- */
-.kpi-grid {
-    display: grid;
-    grid-template-columns: 1.3fr 1fr 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 22px;
-}
-
-.kpi-card {
-    background: white;
-    border-radius: 16px;
-    padding: 20px 22px;
-    box-shadow: 0 6px 18px rgba(9, 44, 92, 0.06);
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.kpi-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(9, 44, 92, 0.1);
-}
-
-.kpi-total {
-    background: linear-gradient(135deg, #092c5c 0%, #0f3d7a 100%);
-    color: white;
-}
-
-.kpi-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.kpi-icon {
-    font-size: 22px;
-}
-
-.kpi-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #64748b;
-    opacity: 0.9;
-}
-
-.kpi-total .kpi-label {
-    color: #cbd5e1;
-    font-size: 13px;
-}
-
-.kpi-badge {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 20px;
-    background: #f1f5f9;
-    color: #64748b;
+    background: #ffffff;
+    border: 1px solid currentColor;
+    color: var(--card-accent);
+    white-space: nowrap;
 }
 
 .kpi-value {
-    font-size: 30px;
+    font-size: 21px;
     font-weight: 800;
-    color: #092c5c;
-    line-height: 1;
-    margin: 6px 0;
+    color: var(--text-primary);
+    line-height: 1.1;
+    letter-spacing: -0.6px;
 }
 
-.kpi-total .kpi-value {
-    color: white;
-    font-size: 34px;
+.kpi-unit { font-size: 12px; color: var(--text-muted); margin: 8px 0 12px 0; }
+.kpi-percent { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+
+.stacked-split {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 16px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
 }
 
-.kpi-unit {
+.stacked-split strong { color: var(--text-primary); font-weight: 700; }
+
+/* ==========================================================================
+   6. BARRES DE PROGRESSION
+   ========================================================================== */
+
+.stacked-bar {
+    display: flex;
+    height: 9px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--track);
+    margin-bottom: 10px;
+}
+
+.stacked-segment { height: 100%; transition: width 0.4s ease; }
+.stacked-segment.seg-1 { background: var(--scope-1); }
+.stacked-segment.seg-2 { background: var(--scope-2); }
+.stacked-segment.seg-3 { background: var(--scope-3); }
+
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.dot-1 { background: var(--scope-1); }
+.dot-2 { background: var(--scope-2); }
+.dot-3 { background: var(--scope-3); }
+
+.mini-progress {
+    height: 6px;
+    background: var(--track);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 9px;
+}
+
+.mini-progress-fill { height: 100%; transition: width 0.4s ease; border-radius: 3px; }
+.mini-progress-fill.fill-1 { background: var(--scope-1); }
+.mini-progress-fill.fill-2 { background: var(--scope-2); }
+.mini-progress-fill.fill-3 { background: var(--scope-3); }
+
+/* ==========================================================================
+   7. ANALYSE DES CAUSES + DONUTS
+   ========================================================================== */
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+    align-items: start;
+}
+
+.analysis-right { display: flex; flex-direction: column; gap: 14px; }
+
+.causes-card { padding: 16px; }
+
+.causes-eyebrow {
+    color: #EF8B44;
     font-size: 11px;
-    color: #94a3b8;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.causes-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0 0 6px 0;
+}
+
+/* Une seule ligne : le détail est passé en infobulle sur le titre. */
+.causes-text { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; margin: 0 0 14px 0; }
+
+/* ---------- Analyse des causes : liste compacte ----------
+   Chaque scope tient sur une ligne d'une cinquantaine de pixels, à la manière
+   d'une liste de statuts : pastille, libellé, valeur, jauge et part. */
+
+.causes-liste {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cause-ligne {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 54px;
+    padding: 9px 13px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--card-accent, var(--text-muted));
+    border-radius: 10px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cause-ligne.mini-s1 { background: #EEF7F2; border-color: #CBEBD8; border-left-color: #3FA96B; --card-accent: #3FA96B; }
+.cause-ligne.mini-s2 { background: #FCF4EE; border-color: #F5DCC2; border-left-color: #E0803F; --card-accent: #E0803F; }
+.cause-ligne.mini-s3 { background: #EFF6FA; border-color: #CFE4F0; border-left-color: #4A96C4; --card-accent: #4A96C4; }
+
+.cause-ligne:hover {
+    transform: translateX(2px);
+    box-shadow: -4px 0 12px -4px var(--card-accent), 0 4px 12px rgba(15, 23, 42, 0.07);
+}
+
+.cause-pastille { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.cause-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.cause-entete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
+.cause-nom {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cause-valeur {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--card-accent);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.cause-valeur em { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+
+.cause-track { height: 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.7); overflow: hidden; }
+.cause-fill { height: 100%; border-radius: 4px; min-width: 2px; }
+
+.cause-pct {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--card-accent);
+    font-variant-numeric: tabular-nums;
+    min-width: 46px;
+    text-align: right;
+}
+
+.cause-zero { opacity: 0.6; }
+.cause-zero .cause-fill { background: #e2e8f0 !important; }
+.cause-zero .cause-valeur,
+.cause-zero .cause-pct { color: var(--text-muted); }
+
+.causes-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--wash);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    padding: 12px 15px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+.donut-card { padding: 14px; display: flex; flex-direction: column; }
+
+.donut-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.donut-title { margin: 0; font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.donut-subtitle { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+.btn-reset-donut {
+    background: var(--wash);
+    border: 1px solid var(--line);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 11px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.btn-reset-donut:hover { background: #EF8B44; border-color: #EF8B44; color: #ffffff; }
+
+.donut-body { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+.donut-visual {
+    width: 100%;
+    height: 170px;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: 0 6px 18px -4px rgba(15, 23, 42, 0.15);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.donut-visual.focused { transform: scale(1.02); }
+
+.donut-hole {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 128px;
+    height: 128px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+    text-align: center;
+    padding: 8px;
+}
+
+.donut-center-value { font-size: 16px; font-weight: 800; color: var(--text-primary); line-height: 1.1; }
+.donut-center-label { font-size: 10.5px; color: var(--text-muted); font-weight: 600; margin-top: 3px; }
+.donut-center-pct { font-size: 12.5px; font-weight: 800; color: #EF8B44; margin-top: 2px; }
+
+.donut-legend { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.donut-legend-scroll { max-height: 280px; overflow-y: auto; padding-right: 4px; }
+.donut-legend-scroll::-webkit-scrollbar { width: 5px; }
+.donut-legend-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+.donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 9px 12px;
+    border-radius: 9px;
+    background: var(--wash);
+    border: 1px solid var(--line-soft);
+    transition: all 0.18s ease;
+}
+
+.donut-legend-item:hover { background: #eef2f7; border-color: var(--line); }
+.donut-legend-item.active { background: #ffffff; border-color: #cbd5e1; box-shadow: var(--card-shadow); }
+.donut-legend-item.active .legend-name { color: var(--text-primary); font-weight: 800; }
+.donut-legend-item.dimmed { opacity: 0.45; }
+.donut-legend-item.zero-cat { cursor: default; opacity: 0.6; }
+
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.legend-sub { color: var(--text-muted); font-size: 11px; font-weight: 600; }
+
+.legend-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.legend-pct { font-weight: 700; color: var(--text-primary); font-size: 12px; }
+.legend-empty { color: var(--text-muted) !important; font-weight: 500 !important; font-style: italic; }
+
+/* ==========================================================================
+   8. PERFORMANCE ENTREPRISE
+   ========================================================================== */
+
+.entreprise-block { margin-bottom: 20px; }
+
+.entreprise-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 14px;
 }
 
-.kpi-total .kpi-unit {
-    color: #94a3b8;
-}
+.entreprise-heading { color: var(--text-primary); font-size: 17px; font-weight: 800; margin: 0; }
+.entreprise-note { color: var(--text-muted); font-size: 12.5px; }
 
-.kpi-unit-inline {
-    font-size: 12px;
-    font-weight: 600;
-    color: #94a3b8;
-    margin-left: 6px;
-}
-
-.kpi-percent {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-top: 8px;
-    font-weight: 600;
-}
-
-/* Bordures d'accent par scope */
-.kpi-scope.scope-1 { border-top: 4px solid #ef4444; }
-.kpi-scope.scope-2 { border-top: 4px solid #f17a22; }
-.kpi-scope.scope-3 { border-top: 4px solid #22c55e; }
-
-.kpi-scope.scope-1 .kpi-badge { background: #fee2e2; color: #b91c1c; }
-.kpi-scope.scope-2 .kpi-badge { background: #ffedd5; color: #c2410c; }
-.kpi-scope.scope-3 .kpi-badge { background: #dcfce7; color: #15803d; }
-
-/* --- Barre empilée (répartition scope 1/2/3) --- */
-.stacked-bar {
-    display: flex;
-    width: 100%;
-    height: 10px;
-    border-radius: 20px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.1);
-    margin-top: 4px;
-}
-
-.stacked-segment {
-    height: 100%;
-    transition: width 0.4s ease;
-}
-
-.seg-1 { background: #ef4444; }
-.seg-2 { background: #f17a22; }
-.seg-3 { background: #22c55e; }
-
-.stacked-legend {
-    display: flex;
-    gap: 14px;
-    margin-top: 10px;
-    font-size: 11px;
-    color: #cbd5e1;
-    font-weight: 600;
-}
-
-.dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 5px;
-}
-
-.dot-1 { background: #ef4444; }
-.dot-2 { background: #f17a22; }
-.dot-3 { background: #22c55e; }
-
-/* --- Mini barres de progression --- */
-.mini-progress {
-    width: 100%;
-    height: 7px;
-    background: #f1f5f9;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.mini-progress-fill {
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.4s ease;
-}
-
-.fill-1 { background: linear-gradient(90deg, #ef4444, #f87171); }
-.fill-2 { background: linear-gradient(90deg, #f17a22, #fb923c); }
-.fill-3 { background: linear-gradient(90deg, #22c55e, #4ade80); }
-.fill-prod { background: linear-gradient(90deg, #092c5c, #2563eb); }
-
-/* --- Section performance & production --- */
-.business-grid {
+.synthese-grid {
     display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 18px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
 }
 
-.business-card {
-    background: white;
-    border-radius: 16px;
-    padding: 22px;
-    box-shadow: 0 6px 18px rgba(9, 44, 92, 0.05);
+/* Indicateurs clés de la vue d'ensemble. Chaque carte porte sa famille de
+   teintes via data-teinte : le dégradé et la bordure pour le fond, la teinte
+   pleine pour l'icône, la foncée pour le libellé et la valeur, la moyenne pour
+   l'unité et la note. */
+.synthese-card[data-teinte="intensite"] {
+    --syn-fond-a: #FFF4EC; --syn-fond-b: #FFEAD9; --syn-bordure: #FBDCC0;
+    --syn-icone: #F5A15C; --syn-ink: #5C2E0C; --syn-ink-doux: #8A4A15;
 }
 
-.business-header h3 {
-    margin: 0 0 16px 0;
-    font-size: 15px;
-    font-weight: 800;
-    color: #092c5c;
+.synthese-card[data-teinte="production"] {
+    --syn-fond-a: #EEF3FF; --syn-fond-b: #E4ECFF; --syn-bordure: #CBDBFA;
+    --syn-icone: #4C7EDB; --syn-ink: #12244D; --syn-ink-doux: #1E3A75;
 }
 
-.business-header .muted {
-    font-weight: 500;
-    color: #94a3b8;
-    font-size: 12px;
+.synthese-card[data-teinte="productivite"] {
+    --syn-fond-a: #F1FBF6; --syn-fond-b: #E3F7EC; --syn-bordure: #C7EBD9;
+    --syn-icone: #2FA97A; --syn-ink: #0A3B28; --syn-ink-doux: #0F5A3E;
 }
 
-.business-figures {
+.synthese-card {
+    background: linear-gradient(135deg, var(--syn-fond-a), var(--syn-fond-b));
+    border: 1px solid var(--syn-bordure);
+    border-radius: 14px;
+    padding: 20px;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: flex-start;
-    margin-bottom: 20px;
+    gap: 10px;
 }
 
-.figure-right { text-align: right; }
+.synthese-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
-.figure-label {
-    margin: 0;
+.synthese-icone {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--syn-icone);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+}
+
+.synthese-label {
+    color: var(--syn-ink);
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.synthese-value-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+
+.synthese-value {
+    color: var(--syn-ink);
+    font-weight: 700;
+    font-size: 23px;
+    line-height: 1.1;
+    letter-spacing: -0.4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.synthese-unite { color: var(--syn-ink-doux); font-size: 12px; font-weight: 600; }
+
+/* Badge de tendance : même codage vert/rouge que les cartes KPI. */
+.synthese-tendance {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-start;
     font-size: 11.5px;
-    color: #64748b;
-    font-weight: 600;
+    font-weight: 700;
+    color: #0F6E56;
+    background: #E1F5EE;
+    border-radius: 20px;
+    padding: 4px 10px;
 }
 
-.figure-label-green { color: #16a34a; font-weight: 800; }
+.synthese-tendance.negative { color: #A32B21; background: #FBEAE8; }
 
-.figure-value {
-    margin: 6px 0 0 0;
+.synthese-note {
+    color: var(--syn-ink-doux);
+    font-size: 11.5px;
+    line-height: 1.45;
+    margin: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--syn-bordure);
+    width: 100%;
+}
+
+@media (max-width: 700px) {
+    .synthese-card { padding: 16px; }
+    .synthese-value { font-size: 21px; }
+}
+
+.kpi-trend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+}
+
+/* Palette par carte : une seule teinte de base par indicateur. Elle est déclinée
+   en opacités pour le fond, la bordure et le badge — d'où --kpi-rgb, que rgba()
+   consomme — et en trois valeurs assombries pour les textes. L'attribut
+   data-accent est déjà porté par la carte : aucune couleur ne transite par le
+   composant. */
+.kpi-trend-card[data-accent="ca"] {
+    --kpi-base: #7C6CD9; --kpi-rgb: 124, 108, 217;
+    --kpi-fonce: #443B77; --kpi-tres-fonce: #383162; --kpi-moyen: #594E9C;
+}
+
+.kpi-trend-card[data-accent="effectifs"] {
+    --kpi-base: #378ADD; --kpi-rgb: 55, 138, 221;
+    --kpi-fonce: #1E4C7A; --kpi-tres-fonce: #193E63; --kpi-moyen: #28639F;
+}
+
+.kpi-trend-card[data-accent="production"] {
+    --kpi-base: #EB6834; --kpi-rgb: 235, 104, 52;
+    --kpi-fonce: #81391D; --kpi-tres-fonce: #6A2F17; --kpi-moyen: #A94B25;
+}
+
+.kpi-trend-card[data-accent="ventes"] {
+    --kpi-base: #1D9E75; --kpi-rgb: 29, 158, 117;
+    --kpi-fonce: #105740; --kpi-tres-fonce: #0D4735; --kpi-moyen: #157254;
+}
+
+.kpi-trend-card {
+    background: rgba(var(--kpi-rgb), 0.07);
+    border: 1px solid rgba(var(--kpi-rgb), 0.22);
+    border-radius: 14px;
+    padding: 18px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-trend-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.12); }
+
+.kpi-trend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.badge-provisoire {
+    background: rgba(var(--kpi-rgb), 0.15);
+    color: var(--kpi-fonce);
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.kpi-trend-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--kpi-fonce);
+}
+
+/* L'emoji ne suit pas la casse du libellé et garde sa taille propre. */
+.kpi-trend-glyphe { font-size: 13px; }
+
+.kpi-trend-value-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.kpi-trend-value {
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 700;
+    color: var(--kpi-tres-fonce);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+.kpi-trend-unit { font-size: 12px; color: var(--kpi-moyen); font-weight: 600; }
+
+.kpi-trend-growth {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1D9E75;
+    margin-bottom: 10px;
 }
 
-.muted-value { color: #94a3b8; }
-.green-value { color: #16a34a; font-size: 26px; }
+.kpi-trend-growth.negative { color: #A32B21; }
+.kpi-trend-growth .growth-context { font-weight: 500; color: var(--kpi-moyen); }
 
-.bars-chart {
+/* Courbe en aire. stop-color et stop-opacity sont des propriétés CSS : la teinte
+   du dégradé se pilote donc depuis la palette de la carte, sans passer par le
+   gabarit. */
+.kpi-spark { display: block; width: 100%; height: 46px; overflow: visible; }
+.kpi-spark-haut { stop-color: var(--kpi-base); stop-opacity: 0.35; }
+.kpi-spark-bas { stop-color: var(--kpi-base); stop-opacity: 0; }
+.kpi-spark-ligne { stroke: var(--kpi-base); }
+
+/* ==========================================================================
+   9. DÉTAILS ANALYTIQUES
+   ========================================================================== */
+
+.details-section { margin-bottom: 10px; }
+.details-title {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 15px; color: var(--text-primary); font-weight: 800; margin: 0 0 14px 0;
+}
+.details-unit {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+    color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2;
+    border-radius: 6px; padding: 2px 8px;
+}
+
+/* ==========================================================================
+   RÉPARTITION DES POSTES — CLASSEMENT À BARRES HORIZONTALES
+   Une seule forme pour les trois scopes : elle s'accommode d'une catégorie
+   comme de quinze, là où les anneaux imposaient une mise en page par carte.
+   Aucune forme circulaire, donc aucun défilement sur un cercle.
+   ========================================================================== */
+
+/* Deux colonnes asymétriques : Scopes 1 et 2 empilés à gauche, Scope 3 seul à
+   droite. Il porte quinze catégories contre trois et une — lui donner le tiers
+   de la largeur comme aux autres écrasait ses libellés. */
+.rank-grid {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    grid-template-areas:
+        "s1 s3"
+        "s2 s3";
+    gap: 14px;
+    margin-bottom: 14px;
+    align-items: start;
+}
+
+.rank-grid > .rank-s1 { grid-area: s1; }
+.rank-grid > .rank-s2 { grid-area: s2; }
+
+/* Le Scope 3 occupe toute la hauteur de la colonne de gauche. */
+.rank-grid > .rank-s3 { grid-area: s3; height: 100%; }
+.rank-grid > .rank-s3 .rank-body { flex: 1; }
+
+/* Les symboles SVG ne sont qu'une bibliothèque de tracés, jamais rendus. */
+.rank-icon-defs { display: none; }
+
+.rank-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 15px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Bandeau ---------- */
+
+.rank-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 11px 15px;
+    color: #ffffff;
+    background: var(--rank-bandeau);
+}
+
+.rank-head-nom { font-size: 13px; font-weight: 800; letter-spacing: -0.1px; }
+
+/* Pastille semi-transparente : lisible sur les trois bandeaux sans teinte propre. */
+.rank-total {
+    font-size: 11.5px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Corps ---------- */
+
+.rank-body {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 14px 15px;
+}
+
+/* Seul le Scope 3 plafonne : ses quinze postes déborderaient sinon la ligne. */
+.rank-body-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--rank-accent) transparent;
+}
+
+.rank-body-scroll::-webkit-scrollbar { width: 6px; }
+.rank-body-scroll::-webkit-scrollbar-track { background: transparent; }
+.rank-body-scroll::-webkit-scrollbar-thumb { background: var(--rank-accent); border-radius: 10px; }
+
+/* ---------- Ligne de catégorie ---------- */
+
+.rank-row { display: flex; align-items: center; gap: 9px; }
+
+.rank-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--rank-accent);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Largeur fixe : les barres restent alignées d'une ligne à l'autre. */
+.rank-label {
+    width: 100px;
+    flex-shrink: 0;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rank-track {
+    flex: 1;
+    min-width: 0;
+    height: 8px;
+    border-radius: 4px;
+    background: #EDF1F5;
+    overflow: hidden;
+}
+
+.rank-fill {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 3px;
+    background: linear-gradient(90deg, var(--rank-clair) 0%, var(--rank-fonce) 100%);
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rank-pct {
+    width: 36px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--rank-fonce);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Poste attendu mais non collecté : atténué, jamais masqué.
+   La barre garde la teinte claire de son scope plutôt qu'un gris neutre — sur
+   un scope entièrement à zéro, la carte perdait sinon toute identité couleur
+   et paraissait éteinte. */
+.rank-zero { opacity: 0.7; }
+.rank-zero .rank-fill { background: var(--rank-clair); opacity: 0.45; }
+.rank-zero .rank-pct { color: var(--text-muted); }
+
+/* Piste teintée du scope : la carte reste colorée même sans donnée. */
+.rank-zero .rank-track { background: color-mix(in srgb, var(--rank-clair) 18%, #F1F5F9); }
+
+/* ---------- Palette par scope ---------- */
+
+.rank-s1 { --rank-bandeau: #218746; --rank-accent: #29A858; --rank-clair: #5DCAA5; --rank-fonce: #218746; }
+.rank-s2 { --rank-bandeau: #C35014; --rank-accent: #E86622; --rank-clair: #F0997B; --rank-fonce: #C35014; }
+.rank-s3 { --rank-bandeau: #1E3A52; --rank-accent: #1E92CD; --rank-clair: #85B7EB; --rank-fonce: #1E92CD; }
+
+/* Sous 1100 px, les deux colonnes n'ont plus la place : les trois cartes
+   s'empilent et le Scope 3 reprend une hauteur libre. */
+@media (max-width: 1100px) {
+    .rank-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "s1" "s2" "s3";
+    }
+    .rank-grid > .rank-s3 { height: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rank-fill { transition: none; }
+}
+
+/* ---------- Histogramme des catégories ---------- */
+
+.bar-chart-card { padding: 16px; margin-bottom: 14px; }
+
+.bar-chart {
     display: flex;
     align-items: flex-end;
-    justify-content: space-between;
-    height: 110px;
-    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    border-radius: 12px;
-    padding: 14px 16px 10px;
+    gap: 14px;
+    /* Le graphique défile plutôt que de comprimer les barres au-delà de
+       quelques catégories : des barres de 6 px ne se comparent plus. */
+    overflow-x: auto;
+    padding: 6px 2px 0;
 }
+
+.bar-chart::-webkit-scrollbar { height: 6px; }
+.bar-chart::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
 .bar-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;
+    gap: 7px;
+    flex: 1 0 84px;
+    min-width: 84px;
 }
+
+.bar-values { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 
 .bar-value {
-    font-size: 10px;
-    font-weight: 700;
-    color: #64748b;
-    margin-bottom: 4px;
-}
-
-.bar-visual {
-    width: 26px;
-    border-radius: 6px 6px 2px 2px;
-    background: linear-gradient(180deg, #38bdf8, #0ea5e9);
-    box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
-}
-
-.bar-year {
-    font-size: 10.5px;
-    color: #94a3b8;
-    font-weight: 700;
-    margin-top: 6px;
-}
-
-.production-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.production-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-}
-
-.production-type {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #334155;
-}
-
-.production-volume {
     font-size: 12.5px;
     font-weight: 800;
-    color: #092c5c;
-}
-
-/* --- Détail des scopes --- */
-.scopes-detail {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.scope-block {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 6px 18px rgba(9, 44, 92, 0.05);
-    overflow: hidden;
-}
-
-.scope-block-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 18px 22px;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.scope-block-title {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.scope-block-icon {
-    font-size: 26px;
-    width: 46px;
-    height: 46px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.6);
-}
-
-.scope-block-title h3 {
-    margin: 0;
-    font-size: 15.5px;
-    font-weight: 800;
-}
-
-.scope-block-title p {
-    margin: 2px 0 0 0;
-    font-size: 12px;
-    color: #64748b;
-}
-
-.scope-block-total {
-    color: white;
-    font-weight: 800;
-    font-size: 13.5px;
-    padding: 8px 16px;
-    border-radius: 20px;
-}
-
-.total-1 { background: #ef4444; color: white; }
-.total-2 { background: #f17a22; color: white; }
-.total-3 { background: #22c55e; color: white; }
-
-.scope-block-1 .scope-block-header { background: #fef2f2; }
-.scope-block-2 .scope-block-header { background: #fff7ed; }
-.scope-block-3 .scope-block-header { background: #f0fdf4; }
-
-.scope-block-1 .scope-block-title h3 { color: #991b1b; }
-.scope-block-2 .scope-block-title h3 { color: #c2410c; }
-.scope-block-3 .scope-block-title h3 { color: #166534; }
-
-.category-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
-    padding: 20px 22px 22px;
-}
-
-.category-item {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 14px 16px;
-    transition: background 0.2s ease;
-}
-
-.category-item:hover {
-    background: #f1f5f9;
-}
-
-.category-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 8px;
-    gap: 10px;
-}
-
-.category-name {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #334155;
-}
-
-.category-total {
-    font-size: 14px;
-    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-.category-total small {
-    font-size: 9.5px;
-    font-weight: 700;
-    opacity: 0.7;
+.bar-pct { font-size: 10.5px; font-weight: 700; color: #EF8B44; }
+
+/* Le socle porte la hauteur de référence : la barre se dimensionne en % de lui. */
+.bar-track {
+    width: 100%;
+    max-width: 54px;
+    height: 168px;
+    display: flex;
+    align-items: flex-end;
+    background: linear-gradient(180deg, rgba(241, 245, 249, 0) 0%, #f1f5f9 100%);
+    border-radius: 12px;
 }
 
-.category-total.total-1 { color: #ef4444; background: none; padding: 0; }
-.category-total.total-2 { color: #f17a22; background: none; padding: 0; }
-.category-total.total-3 { color: #22c55e; background: none; padding: 0; }
+.bar-fill {
+    width: 100%;
+    border-radius: 12px 12px 6px 6px;
+    box-shadow: 0 3px 10px -3px rgba(15, 23, 42, 0.28);
+    transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    min-height: 4px;
+}
 
-.category-quarters {
+.bar-label {
+    font-size: 10.5px;
+    line-height: 1.3;
+    color: var(--text-secondary);
+    text-align: center;
+    /* Deux lignes maximum : les intitulés GHG sont longs et déséquilibreraient
+       la hauteur des colonnes voisines. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 92px;
+}
+
+.bar-col-zero .bar-fill { background: #e2e8f0 !important; box-shadow: none; }
+.bar-col-zero .bar-value,
+.bar-col-zero .bar-pct { color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+    .bar-fill { transition: none; }
+}
+
+/* ---------- Donut par filiale, centré ---------- */
+
+.donut-body-centre { align-items: center; }
+.donut-visual-sm { width: 176px; height: 176px; align-self: center; }
+.donut-visual-sm .donut-hole-sm { width: 118px; height: 118px; }
+
+/* ---------- Détails analytiques exhaustifs ---------- */
+
+.details-title-sub { margin-top: 18px; }
+
+/* La hauteur est portée par la carte : la liste n'a plus qu'à occuper la place
+   restante et à défiler. Barre fine, teintée de l'accent du scope, visible
+   sans découper la carte comme le ferait la barre native. */
+.detail-list-scroll { padding-right: 6px; scrollbar-width: thin; }
+.detail-list-scroll { scrollbar-color: var(--card-accent, #cbd5e1) transparent; }
+
+.detail-list-scroll::-webkit-scrollbar { width: 6px; }
+.detail-list-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.detail-list-scroll::-webkit-scrollbar-thumb {
+    background: var(--card-accent, #cbd5e1);
+    border-radius: 10px;
+    /* Opacité réduite : le curseur signale le défilement sans capter l'œil
+       avant les chiffres. */
+    opacity: 0.5;
+}
+
+.detail-list-scroll:hover::-webkit-scrollbar-thumb { background: var(--card-accent, #94a3b8); }
+
+/* La dernière ligne n'a pas de séparateur à porter. */
+.detail-list .detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.detail-row-icon,
+.detail-row-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 7px;
+    font-style: normal;
+    flex-shrink: 0;
+}
+
+.detail-row-rank {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    font-size: 9.5px; font-weight: 800;
+    color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0;
+}
+
+/* Catégorie attendue mais non encore collectée : atténuée sans être masquée,
+   le zéro reste une information de couverture du périmètre GHG. */
+.detail-row-zero { opacity: 0.55; }
+.detail-row-zero .detail-row-value { color: var(--text-muted); font-weight: 600; }
+
+.zero-cat { opacity: 0.5; cursor: default; }
+
+/* ==========================================================================
+   DENSIFICATION DU LAYOUT
+   Rythme vertical resserré et colonnes de hauteur égale : les blocs de la
+   grille d'analyse ayant des contenus de longueurs différentes, un alignement
+   sur le haut laissait une bande blanche sous la colonne la plus courte.
+   ========================================================================== */
+
+.filter-bar,
+.kpi-grid,
+.analysis-grid { margin-bottom: 12px; }
+
+.stats-bar { margin-bottom: 12px; }
+.entreprise-block { margin-bottom: 14px; }
+.details-section { margin-bottom: 0; }
+.details-title { margin-bottom: 11px; }
+.details-title-sub { margin-top: 14px; }
+
+/* Les deux colonnes s'étirent à la hauteur de la plus haute, et les cartes
+   qu'elles contiennent occupent l'espace ainsi obtenu. */
+.analysis-grid { align-items: stretch; }
+.analysis-right { height: 100%; }
+.analysis-right > .donut-card { flex: 1; }
+
+.causes-card { display: flex; flex-direction: column; }
+.causes-mini-grid { flex: 1; }
+
+/* La légende du donut occupe le reste de la carte plutôt que de laisser le
+   cercle flotter au-dessus d'un vide. */
+.donut-body { flex: 1; }
+.donut-legend-scroll { flex: 1; }
+
+@media (max-width: 1100px) {
+    .analysis-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ==========================================================================
+   TABLEAU DE SYNTHÈSE EXÉCUTIF DES SOURCES D'ÉMISSION
+   ========================================================================== */
+
+.synthese-section { margin-top: 18px; }
+
+.synthese-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.synthese-sub {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    max-width: 640px;
+}
+
+.synthese-legend { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Boutons de filtrage par scope ----------
+   Inactif : bordure de couleur sur fond blanc. Actif : fond plein, texte blanc.
+   Les trois couleurs sont celles déjà portées par les badges du tableau. */
+
+.scope-toggle {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    padding: 6px 13px;
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    background: #ffffff;
+    border: 1.5px solid currentColor;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Teintes alignées sur les bandeaux de la Répartition, pour qu'un scope garde
+   la même couleur d'une section à l'autre. */
+.scope-toggle.sc-1 { color: #218746; }
+.scope-toggle.sc-2 { color: #C35014; }
+.scope-toggle.sc-3 { color: #1E3A52; }
+
+/* Survol d'un bouton inactif : teinte pâle de sa propre couleur. */
+.scope-toggle.sc-1:hover:not(.actif) { background: #EEF7F2; }
+.scope-toggle.sc-2:hover:not(.actif) { background: #FCF4EE; }
+.scope-toggle.sc-3:hover:not(.actif) { background: #EFF6FA; }
+
+/* Fond plein sous texte blanc : teintes soutenues, conformes AA. */
+.scope-toggle.actif { color: #ffffff; }
+.scope-toggle.sc-1.actif { background: #218746; border-color: #218746; box-shadow: 0 3px 10px -3px #29A858; }
+.scope-toggle.sc-2.actif { background: #C35014; border-color: #C35014; box-shadow: 0 3px 10px -3px #E86622; }
+.scope-toggle.sc-3.actif { background: #1E3A52; border-color: #1E3A52; box-shadow: 0 3px 10px -3px #1E92CD; }
+
+.scope-toggle:focus-visible { outline: 2px solid #EF8B44; outline-offset: 2px; }
+
+.scope-toggle-reset { color: var(--text-muted); border-color: var(--line); }
+.scope-toggle-reset:hover { background: #f8fafc; color: var(--text-primary); }
+
+/* Classe distincte de .synthese-card : celle-ci porte les trois cartes KPI de
+   la vue d'ensemble, qui ont besoin de leur padding. */
+/* Ombre alignée sur les cartes de la Répartition, pour que les deux sections
+   se lisent comme un même système. */
+.synthese-table-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Sept colonnes : le tableau défile dans son conteneur plutôt que de pousser
+   la page en défilement horizontal. */
+.synthese-table-wrap { overflow-x: auto; }
+
+.synthese-table { width: 100%; border-collapse: collapse; min-width: 940px; }
+
+/* En-tête vert plein : il ancre le tableau et le distingue des cartes claires
+   qui le précèdent, comme sur la table de référence Scope / Catégorie. */
+/* En-tête neutre : les lignes mêlent les trois scopes, un bandeau vert plein
+   laissait croire que tout le tableau relevait du Scope 1. La couleur vit
+   désormais dans le badge de chaque ligne, seul endroit où elle qualifie
+   réellement la donnée. */
+.synthese-table thead th {
+    position: sticky;
+    top: 0;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: #1E293B;
+    background: #F8F9FA;
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+    z-index: 1;
+}
+
+/* Zebra : sur dix-neuf lignes, l'œil perd la ligne sans repère. */
+.synthese-table tbody tr:nth-child(odd) { background: #ffffff; }
+.synthese-table tbody tr:nth-child(even) { background: #FAFBFC; }
+
+.synthese-table tbody td {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    padding: 9px 13px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.synthese-table tbody tr { transition: background 0.15s ease; }
+.synthese-table tbody tr:hover { background: #F0F1F3; }
+
+/* Catégorie examinée mais sans mesure : atténuée, jamais retirée du tableau. */
+.ligne-zero { opacity: 0.58; }
+
+/* Ligne de total en bleu foncé : c'est le chiffre que l'on cherche en premier. */
+.synthese-table tfoot td {
+    font-size: 13px;
+    font-weight: 800;
+    color: #ffffff;
+    background: #1E3A52;
+    padding: 12px 13px;
+    border-top: none;
+}
+
+.synthese-table tfoot td:first-child { border-bottom-left-radius: 10px; }
+.synthese-table tfoot td:last-child { border-bottom-right-radius: 10px; }
+
+.ta-right { text-align: right; }
+
+.cat-cell {
+    font-weight: 600;
+    color: var(--text-primary);
+    max-width: 230px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.metier-cell { color: var(--text-primary); }
+
+.base-tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.num-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num-fort { font-weight: 700; color: var(--text-primary); }
+
+/* ---------- Puces de scope : vert / orange / bleu ---------- */
+
+.scope-chip {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* Le badge de ligne porte seul la couleur du scope, l'en-tête étant neutre.
+   Teintes identiques à celles des bandeaux de la Répartition. */
+.scope-chip.sc-1 { color: #218746; background: #EEF7F2; border-color: #CBEBD8; }
+.scope-chip.sc-2 { color: #C35014; background: #FCF4EE; border-color: #F5DCC2; }
+.scope-chip.sc-3 { color: #1E3A52; background: #EFF6FA; border-color: #CFE4F0; }
+
+/* ---------- Part du total : chiffre + jauge ---------- */
+
+.part-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.part-valeur { font-size: 12px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.part-barre {
+    width: 74px;
+    height: 5px;
+    border-radius: 4px;
+    background: var(--track);
+    overflow: hidden;
+}
+
+.part-remplissage { height: 100%; border-radius: 4px; }
+.part-remplissage.sc-1 { background: #29A858; }
+.part-remplissage.sc-2 { background: #E86622; }
+.part-remplissage.sc-3 { background: #1E92CD; }
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
+}
+
+/* Le titre devient un bandeau plein occupant toute la largeur de la carte :
+   les trois scopes se repèrent d'un coup d'œil, sans lire les intitulés.
+
+   Les trois cartes partagent la même hauteur : le Scope 3 porte quinze
+   catégories contre une seule au Scope 2, et laisser la carte s'étirer sur son
+   contenu déséquilibrait toute la ligne. Seule la liste défile, le bandeau
+   coloré reste visible. */
+.detail-card {
+    padding: 0;
+    border-top: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 280px;
+}
+
+.detail-card-title {
+    margin: 0;
+    padding: 11px 14px;
+    flex-shrink: 0;
+    color: #ffffff;
+    background: var(--accent-plein, var(--card-accent));
+    font-size: 13px;
+    font-weight: 800;
     display: flex;
     justify-content: space-between;
-    margin-top: 8px;
-    font-size: 10.5px;
-    color: #94a3b8;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.detail-card-total {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 20px;
+    padding: 2px 10px;
+    white-space: nowrap;
+}
+
+/* Le corps garde son fond pastel, désormais séparé du bandeau. */
+.detail-card .detail-list {
+    padding: 12px 14px 14px;
+    flex: 1;
+    min-height: 0; /* sans quoi le contenu impose sa hauteur et rien ne défile */
+    overflow-y: auto;
+}
+
+.detail-list { display: flex; flex-direction: column; gap: 9px; }
+
+/* Infobulle : le texte explicatif est disponible au survol plutôt qu'affiché
+   en permanence sous chaque titre. */
+.info-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    font-size: 9.5px;
+    font-weight: 800;
+    font-style: normal;
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid var(--line);
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.info-hint:hover,
+.info-hint:focus-visible { color: #B4652F; background: #FCF4EE; border-color: #EFC49E; }
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 7px;
+}
+
+.detail-row-name { color: var(--text-secondary); font-weight: 500; }
+.detail-row-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.detail-row-value { font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+
+/* ==========================================================================
+   10. PANNEAU DEMANDES D'ACCÈS
+   ========================================================================== */
+
+.acces-card { padding: 16px; margin-bottom: 20px; border-top: 3px solid #dc2626; }
+
+/* ==========================================================================
+   JAUGE D'INTENSITÉ, COMPARATIF PAYS ET VENTILATIONS EMPILÉES
+   Tous en SVG et CSS : ces graphiques se pré-rendent côté serveur et sortent
+   à l'impression, comme les autres du tableau de bord.
+   ========================================================================== */
+
+/* Palette des scopes, en dégradés. Une seule déclaration pour tous les
+   graphiques : changer un scope de teinte ne demande qu'une ligne. */
+:host {
+    --s1-clair: #10b981;
+    --s1-fonce: #059669;
+    --s2-clair: #f59e0b;
+    --s2-fonce: #d97706;
+    --s3-clair: #3b82f6;
+    --s3-fonce: #1d4ed8;
+}
+
+.duo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+/* ---------- Élévation des cartes au survol ---------- */
+
+.jauge-card, .comparatif-card, .empile-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.jauge-card:hover, .comparatif-card:hover, .empile-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- Infobulles ----------
+   Rendues en CSS depuis `data-bulle`, sans script : elles suivent le segment,
+   disparaissent à l'impression, et n'ajoutent aucun écouteur au document. */
+.comparatif-segment, .empile-segment { position: relative; }
+
+.comparatif-segment.survole::after,
+.empile-segment.survole::after {
+    content: attr(data-bulle);
+    position: absolute;
+    bottom: calc(100% + 9px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    max-width: 280px;
+    width: max-content;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.94);
+    border-radius: 7px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.3);
+    pointer-events: none;
+    white-space: normal;
+}
+
+/* Pointe de l'infobulle. */
+.comparatif-segment.survole::before,
+.empile-segment.survole::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 3px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    border: 5px solid transparent;
+    border-top-color: rgba(15, 23, 42, 0.94);
+    pointer-events: none;
+}
+
+/* Les infobulles n'ont rien à faire sur un document imprimé. */
+@media print {
+    .comparatif-segment::after, .comparatif-segment::before,
+    .empile-segment::after, .empile-segment::before { display: none !important; }
+}
+
+/* Le mouvement n'est pas imposé à qui l'a désactivé au niveau du système. */
+@media (prefers-reduced-motion: reduce) {
+    .jauge-groupe-aiguille, .jauge-arc,
+    .comparatif-segment, .empile-segment, .pilule,
+    .jauge-card, .comparatif-card, .empile-card { transition: none; }
+}
+
+/* ---------- Jauge d'intensité ---------- */
+
+.jauge-card { padding: 16px; }
+
+.jauge-corps { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.jauge-svg { width: 190px; height: 114px; flex-shrink: 0; }
+
+.jauge-piste { stroke: #eef2f7; stroke-width: 13; stroke-linecap: round; }
+
+/* Zones de lecture, en aplats très légers derrière la piste. */
+.jauge-zone { stroke-width: 22; stroke-linecap: butt; opacity: 0.16; }
+.jauge-zone-bon { stroke: #10b981; }
+.jauge-zone-vigilance { stroke: #f59e0b; }
+.jauge-zone-critique { stroke: #dc2626; }
+
+/* L'arc emprunte le dégradé tricolore : l'échelle est continue, sans marche. */
+.jauge-arc {
+    stroke: url(#jauge-tricolore);
+    stroke-width: 13;
+    stroke-linecap: round;
+    filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.18));
+    transition: d 0.5s ease;
+}
+
+.jauge-seuil { stroke: #475569; stroke-width: 1.6; stroke-dasharray: 3 2; }
+
+.jauge-seuil-marque {
+    font-size: 6px;
+    font-weight: 700;
+    fill: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* L'aiguille pivote en douceur : au changement de périmètre, le mouvement
+   raconte l'écart entre l'ancienne et la nouvelle valeur. */
+.jauge-groupe-aiguille {
+    transform-origin: 80px 80px;
+    transform-box: view-box;
+    transition: transform 0.75s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.jauge-aiguille {
+    stroke: #0f172a;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.35));
+}
+
+.jauge-pivot { fill: #0f172a; }
+.jauge-pivot-halo { fill: rgba(15, 23, 42, 0.10); }
+
+.jauge-lecture { display: flex; flex-direction: column; gap: 2px; }
+.jauge-valeur { font-size: 26px; font-weight: 700; color: #0f172a; line-height: 1.1; }
+.jauge-unite { font-size: 12px; font-weight: 600; color: #475569; }
+.jauge-seuil-libelle { font-size: 11px; color: #64748b; margin-top: 4px; }
+
+.jauge-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 3px 8px;
+    border-radius: 20px;
+}
+
+.jauge-badge[data-statut="BON"] { background: #E1F5EE; color: #0F6E56; }
+.jauge-badge[data-statut="VIGILANCE"] { background: #FDF3E3; color: #8A5A15; }
+.jauge-badge[data-statut="CRITIQUE"] { background: #FBEAE8; color: #A32B21; }
+
+/* ---------- Comparatif des implantations ---------- */
+
+.comparatif-card { padding: 16px; }
+.comparatif-regle { margin: 0 0 12px; }
+.comparatif-corps { display: flex; flex-direction: column; gap: 12px; }
+
+.comparatif-entete {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.comparatif-pays { font-size: 12.5px; font-weight: 700; color: #0f172a; }
+.comparatif-societes { font-size: 10.5px; color: #64748b; }
+
+.comparatif-total {
+    margin-left: auto;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+
+/* La largeur compare les pays entre eux ; les segments montrent la structure
+   de chacun. Un seul graphique porte donc les deux lectures. */
+.comparatif-barre {
+    display: flex;
+    height: 20px;
+    min-width: 2%;
+    border-radius: 5px;
+    overflow: hidden;
+    background: #f1f5f9;
+}
+
+.comparatif-segment {
+    display: block;
+    height: 100%;
+    cursor: pointer;
+    transition: filter 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.comparatif-segment.seg-s1 { background: linear-gradient(180deg, var(--s1-clair), var(--s1-fonce)); }
+.comparatif-segment.seg-s2 { background: linear-gradient(180deg, var(--s2-clair), var(--s2-fonce)); }
+.comparatif-segment.seg-s3 { background: linear-gradient(180deg, var(--s3-clair), var(--s3-fonce)); }
+
+/* Le segment survolé s'éclaircit et se soulève ; les autres s'estompent, pour
+   que l'œil isole la catégorie désignée sans la chercher. */
+.comparatif-segment.survole {
+    filter: brightness(1.15) saturate(1.1);
+    transform: scaleY(1.18);
+    z-index: 2;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.22);
+}
+
+.comparatif-segment.estompe { opacity: 0.35; filter: saturate(0.55); }
+
+.comparatif-legende {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+}
+
+/* ---------- Ventilation empilée d'un scope ---------- */
+
+.empile-card { padding: 16px; }
+
+/* Barre segmentée : chaque sous-catégorie garde ses coins arrondis et un
+   liseré clair, pour qu'on distingue les segments sans compter sur la seule
+   nuance de couleur. */
+.empile-barre {
+    display: flex;
+    align-items: stretch;
+    gap: 3px;
+    height: 34px;
+    margin-bottom: 14px;
+}
+
+.empile-segment {
+    display: block;
+    height: 100%;
+    min-width: 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transform-origin: center bottom;
+    transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease,
+                box-shadow 0.2s ease;
+}
+
+.empile-segment.survole {
+    transform: scale(1.04);
+    filter: brightness(1.15) saturate(1.1);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+    z-index: 2;
+}
+
+.empile-segment.estompe { opacity: 0.32; filter: saturate(0.5); }
+
+.empile-legende { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+
+/* Pastilles interactives, en pilules : elles commandent la mise en avant du
+   segment correspondant, et sont donc de vrais boutons — atteignables au
+   clavier, pas seulement à la souris. */
+.pilule {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px 4px 7px;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #334155;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+                opacity 0.2s ease;
+}
+
+.pilule:hover, .pilule.survole {
+    transform: translateY(-2px);
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.pilule.estompe { opacity: 0.45; }
+.pilule:focus-visible { outline: 2px solid #4A96C4; outline-offset: 2px; }
+
+.pilule-nom { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pilule-pct { font-variant-numeric: tabular-nums; color: #64748b; }
+
+/* Une catégorie à 0 % n'est pas masquée — elle documente un poste collecté sans
+   émission — mais elle s'efface pour ne pas encombrer la lecture. */
+.pilule-nulle { opacity: 0.4; font-weight: 500; }
+.pilule-nulle:hover { opacity: 0.85; }
+
+.empile-pastille {
+    width: 11px;
+    height: 11px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* ---------- Palette des scopes, déclinée par rang de segment ----------
+   Les dégradés vivent ici et non dans le composant : une seule source pour la
+   couleur d'un scope, quel que soit le graphique qui l'emploie. */
+.empile-segment[data-scope="SCOPE_1"],
+.empile-pastille[data-scope="SCOPE_1"] {
+    background: linear-gradient(135deg, var(--s1-clair), var(--s1-fonce));
+}
+
+.empile-segment[data-scope="SCOPE_2"],
+.empile-pastille[data-scope="SCOPE_2"] {
+    background: linear-gradient(135deg, var(--s2-clair), var(--s2-fonce));
+}
+
+.empile-segment[data-scope="SCOPE_3"],
+.empile-pastille[data-scope="SCOPE_3"] {
+    background: linear-gradient(135deg, var(--s3-clair), var(--s3-fonce));
+}
+
+/* Les rangs suivants s'éclaircissent : les segments d'un même scope restent
+   dans sa famille tout en se distinguant. */
+.empile-segment[data-rang="2"], .empile-pastille[data-rang="2"] { filter: brightness(1.18); }
+.empile-segment[data-rang="3"], .empile-pastille[data-rang="3"] { filter: brightness(1.34); }
+.empile-segment[data-rang="4"], .empile-pastille[data-rang="4"] { filter: brightness(1.5); }
+.empile-segment[data-rang="5"], .empile-pastille[data-rang="5"] { filter: brightness(1.64); }
+.empile-segment[data-rang="6"], .empile-pastille[data-rang="6"] { filter: brightness(1.78); }
+
+/* Le survol reprend la main sur l'éclaircissement du rang. */
+.empile-segment.survole[data-rang] { filter: brightness(1.15) saturate(1.1); }
+
+/* ---------- Jalons de trajectoire sur le graphique d'évolution ---------- */
+
+.hist-jalon {
+    stroke: #4A96C4;
+    stroke-width: 1.5;
+    stroke-dasharray: 6 4;
+    opacity: 0.75;
+}
+
+.hist-jalon-etiquette {
+    position: absolute;
+    right: 6px;
+    transform: translateY(-50%);
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #2A6E96;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* Listes d'affectation du rôle et du périmètre, dans le tableau des demandes. */
+.select-decision {
+    width: 100%;
+    min-width: 150px;
+    padding: 5px 7px;
+    font-size: 11.5px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+}
+
+.select-decision:focus { outline: 2px solid #dc2626; outline-offset: 1px; }
+
+.section-title { color: var(--text-primary); margin: 0 0 5px 0; font-size: 15px; font-weight: 700; }
+.section-subtitle { color: var(--text-muted); font-size: 12.5px; margin: 0 0 16px 0; }
+
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
+
+.data-table thead tr {
+    background: var(--wash);
+    color: var(--text-muted);
+    font-size: 11.5px;
+    border-bottom: 2px solid var(--line);
+}
+
+.data-table th { padding: 11px; font-weight: 700; }
+.data-table td { padding: 13px; color: var(--text-secondary); font-size: 12.5px; }
+.data-table tbody tr { border-bottom: 1px solid var(--line-soft); transition: background 0.2s ease; }
+.data-table tbody tr:hover { background: var(--wash); }
+
+.ta-right { text-align: right; }
+.cell-strong { font-weight: 700; color: var(--text-primary) !important; }
+.cell-actions { text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+.cell-empty { padding: 26px !important; text-align: center; color: var(--text-muted) !important; font-weight: 500; }
+
+.btn-approve,
+.btn-reject {
+    color: #ffffff;
+    border: none;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: filter 0.2s ease;
+}
+
+.btn-approve { background: #3FA96B; }
+.btn-reject  { background: #dc2626; }
+.btn-approve:hover, .btn-reject:hover { filter: brightness(1.08); }
+
+/* ==========================================================================
+   11. RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+    .analysis-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    .dash-main { padding: 14px; }
+
+    .kpi-grid,
+    .synthese-grid,
+    .kpi-trend-grid,
+    .details-grid,
+    .filter-summary { grid-template-columns: 1fr; }
+
+    .exec-banner-title { font-size: 16px; }
+}
+
+/* Graphique d'evolution des devises */
+.bloc-devises { display: block; margin-bottom: 18px; }
+
+/* ---------- Bascule Physique / Monétaire ---------- */
+
+.stats-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+
+.mode-toggle { display: inline-flex; background: #ffffff; border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+.mode-toggle button {
+    background: none; border: none; border-radius: 7px; padding: 7px 14px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary); cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-toggle button.actif { background: #EF8B44; color: #ffffff; }
+.mode-toggle button:not(.actif):hover { background: #f8fafc; color: var(--text-primary); }
+
+/* Devise de restitution, visible seulement en valorisation monétaire */
+.devise-switch { display: inline-flex; align-items: center; gap: 7px; }
+.devise-switch > span {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.7px;
+    text-transform: uppercase; color: var(--text-muted);
+}
+.devise-switch select {
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+    background: #ffffff; cursor: pointer;
+}
+.devise-switch select:focus { outline: 2px solid #EFC49E; outline-offset: 1px; }
+
+.stats-source { font-size: 12px; color: var(--text-muted); }
+.stats-source.stats-demo { color: #b45309; }
+
+/* Total agrégeant des devises sans taux : la réserve doit rester visible */
+.stats-warn {
+    font-size: 11.5px; font-weight: 600; color: #b45309;
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 7px; padding: 4px 9px;
+}
+
+/* ---------- Ventilation par catégorie ---------- */
+
+.categories-card { padding: 16px; margin-bottom: 18px; }
+.categories-title { margin: 0 0 14px; font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.categories-title span { font-weight: 500; color: var(--text-muted); font-size: 12px; }
+
+.categories-list { display: flex; flex-direction: column; gap: 9px; }
+.categorie-ligne { display: grid; grid-template-columns: minmax(120px, 1.6fr) 3fr auto auto; gap: 12px; align-items: center; }
+.categorie-nom { font-size: 12.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.categorie-barre { height: 7px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.categorie-remplissage { height: 100%; background: linear-gradient(90deg, #EF8B44, #fb923c); border-radius: 4px; }
+.categorie-valeur { font-size: 12.5px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.categorie-pct { font-size: 11.5px; color: var(--text-muted); min-width: 44px; text-align: right; }
+
+/* ==========================================================================
+   Catégorie inscrite au menu, écran non encore développé
+   Un clic sans écran laissait une page blanche, indiscernable d'une panne.
+   ========================================================================== */
+
+.ecran-a-venir {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    max-width: 640px;
+    margin: 34px auto;
+    padding: 34px 30px;
+    text-align: center;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px dashed #CFE4F0;
+}
+
+.a-venir-icone { font-size: 34px; line-height: 1; }
+
+.ecran-a-venir h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: #1E3A52;
+}
+
+.ecran-a-venir p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #475569;
+}
+
+.a-venir-code { font-size: 11.5px; color: #94A3B8; }
+
+.a-venir-code code {
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+    color: #1E3A52;
     font-weight: 600;
 }
 
-/* --- Responsive --- */
-@media (max-width: 1200px) {
-    .kpi-grid { grid-template-columns: 1fr 1fr; }
-    .business-grid { grid-template-columns: 1fr; }
+/* ==========================================================================
+   HARMONISATION CLAIRE — surcharges finales
+   Le fond sombre de l'application et les en-têtes foncés cèdent la place à un
+   thème clair uniforme ; les cartes d'indicateurs sont resserrées.
+   ========================================================================== */
+
+/* Le plan de travail passe en clair ; la barre latérale garde son bleu nuit,
+   qui structure la navigation. */
+:host { background: #F8FAFC; }
+
+.dash-main { background: #F8FAFC; }
+
+/* ---------- Cartes d'indicateurs plus fines ---------- */
+
+.synthese-grid { grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 11px; }
+
+/* Les cartes de synthèse portent désormais leurs propres tailles et teintes,
+   groupées avec leur palette plus haut : plus de surcharge ici. */
+
+/* ---------- En-têtes et totaux en teintes douces ---------- */
+
+/* Le total du tableau de synthèse restait en aplat bleu nuit : il garde son
+   poids par la graisse et la teinte du texte, non par un fond foncé. */
+.synthese-table tfoot td {
+    color: #1E3A52;
+    background: #EFF6FA;
+    border-top: 1px solid #CFE4F0;
 }
 
-@media (max-width: 700px) {
-    .kpi-grid { grid-template-columns: 1fr; }
-    .ghg-header { flex-direction: column; align-items: stretch; }
+/* La pastille de l'en-tête exécutif suivait un dégradé soutenu. */
+.exec-banner-icon {
+    color: #1E3A52;
+    background: #EFF6FA;
+    border: 1px solid #CFE4F0;
+    box-shadow: none;
 }
 
-/* ============================================= */
-/* ANCIENNES CLASSES CONSERVÉES (compat)          */
-/* ============================================= */
-.scope-card {
-    background: white;
-    padding: 20px;
+/* Les bascules de scope actives passent en pastel, lisibles sans aplat sombre. */
+.scope-toggle.sc-1.actif {
+    color: #218746; background: #EEF7F2; border-color: #CBEBD8; box-shadow: none;
+}
+.scope-toggle.sc-2.actif {
+    color: #B4652F; background: #FCF4EE; border-color: #F5DCC2; box-shadow: none;
+}
+.scope-toggle.sc-3.actif {
+    color: #1E3A52; background: #EFF6FA; border-color: #CFE4F0; box-shadow: none;
+}
+
+/* ---------- Seconde partie du tableau de bord : teintes claires ---------- */
+
+/* Les blocs de la vue d'ensemble et de la répartition des postes reposaient
+   sur des aplats sombres hérités : ils passent au blanc, bordure douce. */
+.entreprise-block .glass-card,
+.details-section .glass-card,
+.repartition-block,
+.postes-block {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.entreprise-heading,
+.details-title,
+.details-title-sub { color: #1E293B; }
+
+.entreprise-note,
+.exec-eyebrow,
+.exec-eyebrow-sm { color: #94A3B8; }
+
+/* Les en-têtes de tableau du Scope 3 gardent leur hiérarchie par la graisse
+   et une teinte pastel, non par un aplat bleu nuit. */
+.synthese-table thead th,
+.postes-table thead th {
+    color: #1E3A52;
+    background: #EFF6FA;
+    border-bottom: 1px solid #CFE4F0;
+}
+
+/* Les pastilles de scope suivent la même palette pastel. */
+.scope-pill.sc-1, .badge-scope.sc-1 { color: #218746; background: #EEF7F2; border: 1px solid #CBEBD8; }
+.scope-pill.sc-2, .badge-scope.sc-2 { color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2; }
+.scope-pill.sc-3, .badge-scope.sc-3 { color: #1E3A52; background: #EFF6FA; border: 1px solid #CFE4F0; }
+
+/* ---------- Répartition des postes et détails analytiques en clair ---------- */
+
+/* Ces deux sections reposaient encore sur des cartes translucides posées sur
+   le fond sombre d'origine : elles deviennent des cartes blanches franches. */
+.details-section .glass-card,
+.details-grid .detail-card,
+.classement-carte,
+.details-section .pastel-s1,
+.details-section .pastel-s2,
+.details-section .pastel-s3 {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    backdrop-filter: none;
+}
+
+.details-title,
+.details-title-sub,
+.detail-card-title,
+.detail-card-total { color: #1E293B; }
+
+.details-unit { color: #94A3B8; }
+
+/* En-tête de carte : un liseré pastel plutôt qu'un aplat foncé. */
+.detail-card-title {
+    padding-bottom: 9px;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.detail-scope-1 { border-top: 3px solid #29A858; }
+.detail-scope-2 { border-top: 3px solid #EF8B44; }
+.detail-scope-3 { border-top: 3px solid #1E92CD; }
+
+/* Les lignes de détail gardent un texte foncé, lisible sur fond blanc. */
+.detail-list li,
+.detail-list .detail-nom,
+.detail-list .detail-valeur { color: #475569; }
+
+.detail-list .detail-valeur { font-weight: 700; color: #1E293B; }
+
+/* Distribution par filiale : cartouches clairs et bordures douces. */
+.filiale-carte,
+.filiale-ligne {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    color: #1E293B;
+}
+
+/* ---------- Synthèse des sources d'émission : tableau épuré ---------- */
+
+.synthese-table {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* L'en-tête se détache par une teinte émeraude douce, non par un aplat sombre :
+   les sept colonnes restent lisibles d'un coup d'œil. */
+.synthese-table thead th {
+    padding: 10px 13px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #17603A;
+    background: #EAF6EF;
+    border-bottom: 2px solid #CBEBD8;
+}
+
+.synthese-table tbody td {
+    padding: 9px 13px;
+    font-size: 12.5px;
+    color: #1E293B;
+    border-bottom: 1px solid #EEF2F7;
+    background: #ffffff;
+}
+
+.synthese-table tbody tr:nth-child(even) td { background: #FBFDFC; }
+.synthese-table tbody tr:hover td { background: #F1F8F4; }
+
+/* ---------- Distribution par filiale : cartouches clairs ---------- */
+
+.filiale-block,
+.filiale-donut-carte,
+.repartition-filiale {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    backdrop-filter: none;
+}
+
+.filiale-nom, .filiale-valeur, .filiale-part { color: #1E293B; }
+.filiale-legende { color: #475569; }
+
+/* ==========================================================================
+   JETONS « VERRE » RAMENÉS À LA CHARTE CLAIRE
+   Ces variables datent du fond bleu nuit : un blanc à 3 % d'opacité et une
+   bordure à 8 % y faisaient une carte translucide. Sur fond clair, la carte
+   disparaît et son texte perd son contraste. Les redéfinir dans la zone de
+   données corrige d'un coup toutes les sections qui s'en servent — Répartition
+   des Postes, Détails Analytiques, Distribution par Filiale — sans toucher à
+   la barre latérale, que la cascade n'atteint pas.
+   ========================================================================== */
+
+.dash-main {
+    --glass-bg: #ffffff;
+    --glass-bg-soft: #ffffff;
+    --glass-border: 1px solid #e2e8f0;
+    --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+/* Toute carte de la zone de données suit la même charte, quelle que soit la
+   section qui la porte. */
+.dash-main .glass-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    backdrop-filter: none;
+}
+
+/* Seul l'en-tête du donut suit la charte claire ; le classement garde son bandeau. */
+.dash-main .donut-card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.dash-main .rank-label,
+.dash-main .donut-title,
+.dash-main .donut-center-value,
+.dash-main .donut-center-pct { color: #0f172a; }
+
+.dash-main .donut-subtitle,
+.dash-main .donut-center-label { color: #64748b; }
+
+.dash-main .rank-body { background: #ffffff; }
+.dash-main .rank-row { border-bottom: 1px solid #eef2f7; }
+
+/* ==========================================================================
+   TEINTES DES INDICATEURS D'ENTREPRISE
+   Les trois cartes de synthèse ne partagent plus une couleur unique : chacune
+   tient sa famille (orange, bleu, vert) dans les variables --syn-* posées par
+   son attribut data-teinte. Forcer une couleur ici les écraserait toutes.
+   ========================================================================== */
+
+/* Pastilles et jauges d'entreprise sur la même teinte. */
+.dash-main .pastel-perf { border-left: 3px solid #EF8B44; }
+.dash-main .categorie-remplissage { background: linear-gradient(90deg, #EF8B44, #F7B27A); }
+
+/* ==========================================================================
+   BANDEAU PLEIN RÉTABLI SUR LES CARTES DE SCOPE
+   Les en-têtes avaient été ramenés à un badge pastel sur fond blanc ; ils
+   reprennent l'aplat coloré d'origine, qui distingue les trois scopes d'un
+   coup d'œil. Les variables --rank-* portent déjà les teintes et alimentent
+   aussi le dégradé des barres.
+   ========================================================================== */
+
+.dash-main .rank-card,
+.dash-main .detail-card {
+    background: #ffffff;
     border-radius: 15px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.dash-main .rank-head,
+.dash-main .detail-card-title {
+    color: #ffffff;
+    background: var(--rank-bandeau, #1E3A52);
+    border-bottom: 0;
+    padding: 11px 15px;
+    margin: 0;
+}
+
+.dash-main .rank-head-nom,
+.dash-main .rank-total,
+.dash-main .detail-card-title > span:first-child,
+.dash-main .detail-card-total {
+    color: #ffffff;
+    background: transparent;
+    padding: 0;
+    border: 0;
+}
+
+/* Les cartes de détail n'héritent pas des variables du classement. */
+.dash-main .detail-scope-1 { --rank-bandeau: #218746; border-top: 0; }
+.dash-main .detail-scope-2 { --rank-bandeau: #C35014; border-top: 0; }
+.dash-main .detail-scope-3 { --rank-bandeau: #1E3A52; border-top: 0; }
+
+/* ==========================================================================
+   CARTE SCOPE 3 : PLUS DE VIDE EN PIED
+   Sa colonne s'étire à la hauteur de celle de gauche. Quand la liste est plus
+   courte, le contenu se centre au lieu de laisser un blanc ; dès qu'elle
+   déborde, le défilement reprend sans que le centrage ne se voie.
+   ========================================================================== */
+
+.dash-main .rank-grid > .rank-s3 { display: flex; flex-direction: column; }
+
+.dash-main .rank-s3 .rank-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-bottom: 18px;
+}
+
+/* Compte rendu de la reprise des lignes sans facteur : informatif, affiché
+   une seule fois et refermable. */
+.bandeau-recalcul {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 11px 15px;
+    border-radius: 11px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #2F7D50;
+    background: #EEF7F2;
+    border: 1px solid #CBEBD8;
+}
+
+.bandeau-recalcul .bandeau-fermer {
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    font-size: 16px;
+    line-height: 1;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.bandeau-recalcul .bandeau-fermer:hover { opacity: 1; }
+
+/* Une catégorie en attente de facteur : trait plat gris, jamais confondue
+   avec une contribution réelle. */
+.categorie-attente {
+    display: block;
+    margin-top: 2px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #B4652F;
+}
+
+.categorie-plate { background: #E2E8F0 !important; opacity: 0.7; }
+
+/* Le libellé s'étend sur deux lignes quand la mention s'y ajoute. */
+.categorie-ligne .categorie-nom { white-space: normal; }
+
+/* ==========================================================================
+   HISTORIQUE PLURIANNUEL & ANALYSE DÉCISIONNELLE
+   --------------------------------------------------------------------------
+   La colonne de gauche ne portait qu'une liste de trois scopes face à deux
+   cartes à droite : elle laissait un vide qui donnait au tableau de bord un
+   air inachevé. Elle accueille désormais la trajectoire pluriannuelle, seule
+   vue qui replace l'exercice consulté dans une histoire.
+   ========================================================================== */
+
+.analysis-left {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    height: 100%;
+}
+
+/* La carte occupe la hauteur laissée libre par la liste des causes. */
+.historique-card {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    flex: 1;
+    min-height: 0;
+}
+
+.historique-entete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.historique-titre {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
+}
+
+.historique-sous-titre {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.historique-legende { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.hist-leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.hist-pastille { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* Vert Scope 1, orange Scope 2, bleu Scope 3 — les teintes des cartes KPI. */
+.hist-s1 { background: #3FA96B; }
+.hist-s2 { background: #E0803F; }
+.hist-s3 { background: #4A96C4; }
+
+.historique-etat {
+    margin: 0;
+    padding: 26px 8px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-muted);
     text-align: center;
 }
 
-.scope-icon { font-size: 30px; margin-bottom: 10px; }
-.scope-card h5 { margin: 0; color: #64748b; font-size: 12px; }
-.scope-card h3 { margin: 10px 0; color: #092c5c; font-size: 24px; }
-.scope-card h3 span { font-size: 12px; color: #94a3b8; }
-.scope-card p { font-size: 11px; color: #94a3b8; margin: 0; }
+/* ---------- Mini-cartes de synthèse ---------- */
+
+.hist-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.hist-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 9px 11px;
+    background: var(--wash);
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+    min-width: 0;
+}
+
+.hk-libelle {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hk-valeur {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Une hausse d'émissions est une mauvaise nouvelle : elle se lit en orange
+   MISFAT, une baisse en vert. La couleur porte l'information, pas le décor. */
+.hk-hausse { color: #C35014; }
+.hk-baisse { color: #218746; }
+.hk-vide { color: #94A3B8; }
+
+.hk-unite {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---------- Aires empilées ---------- */
+
+.historique-graphe {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 210px;
+    padding-left: 42px;
+}
+
+/* Échelle verticale posée en HTML : la zone de dessin est étirée en hauteur,
+   un texte SVG y serait déformé avec elle. */
+.hist-axe-y {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 26px;
+    width: 40px;
+}
+
+.hist-axe-y span {
+    position: absolute;
+    right: 6px;
+    transform: translateY(-50%);
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.hist-toile { position: relative; flex: 1; min-height: 168px; }
+
+/* `preserveAspectRatio: none` étire le tracé sur toute la hauteur disponible ;
+   les traits gardent leur épaisseur grâce à `non-scaling-stroke`. */
+.hist-toile svg { display: block; width: 100%; height: 100%; }
+
+.hist-grille { stroke: var(--line-soft); stroke-width: 1; }
+.hist-ligne { stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+
+.hist-cible {
+    stroke: #94A3B8;
+    stroke-width: 1.5;
+    stroke-dasharray: 6 5;
+}
+
+.hist-cible-etiquette {
+    position: absolute;
+    right: 2px;
+    transform: translateY(-125%);
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #64748B;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.hist-marqueur {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    border: 2px solid #4A96C4;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.hist-marqueur:hover { transform: translate(-50%, -50%) scale(1.35); }
+
+.hist-marqueur.actif {
+    background: #1E3A52;
+    border-color: #1E3A52;
+    box-shadow: 0 0 0 4px rgba(30, 58, 82, 0.14);
+}
+
+/* ---------- Axe des abscisses ---------- */
+
+.hist-axe-x { position: relative; height: 24px; margin-top: 6px; }
+
+.hist-annee {
+    position: absolute;
+    transform: translateX(-50%);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.hist-annee:hover { color: var(--text-primary); background: var(--wash); }
+
+/* L'exercice consulté se distingue : cliquer un repère y bascule tout le
+   tableau de bord, et le lien doit se voir avant d'être tenté. */
+.hist-annee-active {
+    color: #1E3A52;
+    background: #EFF6FA;
+    box-shadow: inset 0 0 0 1px #CFE4F0;
+}
+
+/* ---------- Bandeau d'analyse décisionnelle ---------- */
+
+.smart-insight {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #F4F8FB;
+    border: 1px solid #CFE4F0;
+    border-left: 3px solid #4A96C4;
+    border-radius: 0 10px 10px 0;
+}
+
+.insight-icone { font-size: 16px; line-height: 1.3; flex: none; }
+.insight-corps { min-width: 0; }
+
+.insight-principal {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.insight-variation {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    line-height: 1.55;
+    font-weight: 600;
+    color: #3D7CA3;
+}
+
+@media (max-width: 900px) {
+    .historique-graphe { min-height: 180px; }
+    .hist-toile { min-height: 140px; }
+    .hist-kpis { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   REPLI DES CATÉGORIES À 0 %
+   --------------------------------------------------------------------------
+   Les listes couvrent toute la nomenclature : une catégorie absente se lirait
+   comme hors périmètre alors qu'elle attend seulement sa collecte. Mais quinze
+   lignes à 0 % noyaient les trois qui portent le bilan. Elles sont donc
+   repliées par défaut, et le bouton dit combien sont masquées.
+   ========================================================================== */
+
+.btn-voir-tout {
+    width: 100%;
+    margin-top: 8px;
+    background: none;
+    border: 1px dashed var(--line-soft);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.btn-voir-tout:hover {
+    color: var(--text-primary);
+    border-color: #CFE4F0;
+    background: #F8FAFC;
+}
+
+.legend-vide {
+    margin: 6px 0 0;
+    padding: 12px 8px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    text-align: center;
+}

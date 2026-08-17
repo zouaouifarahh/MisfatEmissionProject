@@ -1,0 +1,651 @@
+<div class="emission-container">
+
+  <!-- Lignes reçues de la répartition automatique -->
+  <app-lignes-dispatchees ecran="combustion-vehicules"></app-lignes-dispatchees>
+
+  <!-- INDICATEURS DE SYNTHÈSE -->
+  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+
+
+  <!-- EN-TÊTE DE LA CATÉGORIE -->
+
+  <div class="emission-header">
+
+    <h2>Combustion des véhicules 🚗</h2>
+
+    <p class="section-desc">
+
+      Suivi et enregistrement des émissions générées par la flotte de véhicules de l'entreprise (mobilité commerciale, logistique et service).
+
+    </p>
+
+  </div>
+
+
+
+  <div class="emission-card">
+
+    <!-- BARRE D'ACTIONS ET FILTRES -->
+
+    <div class="table-actions">
+
+      <input type="text" [(ngModel)]="rechercheTexte" placeholder="Recherche par référence, véhicule ou source..." class="search-input">
+
+     
+
+      <select class="filter-dropdown" [(ngModel)]="filtreEtablissement">
+
+        <option value="Tous">Toutes les usines</option>
+
+        <option *ngFor="let etab of etablissementsList" [value]="etab">{{ etab }}</option>
+
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreStatut" (ngModelChange)="onFiltreChange()">
+        <option value="Tous">Tous les statuts</option>
+        <option value="MS SQL">✓ Validé MS SQL</option>
+        <option value="Fallback">⚠ Fallback appliqué ADEME</option>
+      </select>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreProvenance" (ngModelChange)="onFiltreChange()">
+        <option value="Toutes">Toutes les provenances</option>
+        <option value="Réel">✓ Réel</option>
+        <option value="Estimation">≈ Estimation</option>
+        <option value="Import Excel">📄 Import Excel</option>
+      </select>
+
+
+
+
+
+      <span class="perimetre-chip">{{ societeActiveLabel }}</span>
+
+      <div class="right-actions">
+        <button class="btn-ghost" (click)="reinitialiserFiltres()">↺ Réinitialiser</button>
+        <button class="btn-model" (click)="telechargerModeleExcel()">📄 Modèle</button>
+        <button class="btn-import" (click)="ouvrirModaleImport()">📥 Importer</button>
+        <button class="btn-export" [disabled]="!emissionsFiltrees.length" (click)="exporterExcel()">📤 Exporter</button>
+        <button class="btn-new" (click)="ouvrirModale()">＋ Nouveau</button>
+      </div>
+
+    </div>
+
+
+
+    <!-- TABLEAU DE DONNÉES -->
+
+    <div class="table-container">
+
+      <table class="data-table">
+
+        <thead>
+
+          <tr>
+            <!-- Séquence commune aux trois catégories du Scope 1 -->
+            <th>Usine</th>
+            <th>Type / Source</th>
+            <th (click)="sortData('reference')" class="sortable-header">
+              Référence carbone
+              <span class="sort-icon">
+                {{ sortColumn === 'reference' ? (sortDirection === 'asc' ? ' ⬆️' : ' ⬇️') : ' ⇅' }}
+              </span>
+            </th>
+            <th>Code article ERP</th>
+            <th>Fluide / Source</th>
+            <th>Base Appliquée</th>
+            <th class="ta-right">Quantité</th>
+            <th>Unité</th>
+            <th class="ta-right">Facteur utilisé</th>
+
+            <th (click)="sortData('emissions')" class="sortable-header ta-right">
+              Émissions (kgCO₂e)
+              <span class="sort-icon">
+                {{ sortColumn === 'emissions' ? (sortDirection === 'asc' ? ' ⬆️' : ' ⬇️') : ' ⇅' }}
+              </span>
+            </th>
+
+            <th (click)="sortData('periode')" class="sortable-header">
+              Période
+              <span class="sort-icon">
+                {{ sortColumn === 'periode' ? (sortDirection === 'asc' ? ' ⬆️' : ' ⬇️') : ' ⇅' }}
+              </span>
+            </th>
+
+            <th>Hypothèse / Provenance</th>
+            <th class="ta-center">Actions</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          <tr *ngIf="emissionsFiltrees.length === 0">
+
+            <td colspan="13" class="empty-table-msg">📭 Aucune donnée de véhicule disponible.</td>
+
+          </tr>
+
+          <tr *ngFor="let item of emissionsFiltrees">
+
+            <td>{{ item.etablissement }}</td>
+            <td>
+              <span class="type-badge" *ngIf="item.sourceData"
+                    [title]="item.descriptionHypothese || item.sourceData">{{ item.sourceData }}</span>
+              <span class="type-neutre" *ngIf="!item.sourceData">Saisie directe</span>
+            </td>
+            <!-- L'infobulle dit comment la ligne a été rattachée à son facteur. -->
+            <td [title]="'Rattachement : ' + libelleRapprochement(item)">
+              <span class="ref-badge" [class.ref-approx]="item.rapprochement === 'CATEGORIE'">
+                {{ item.reference || '-' }}
+              </span>
+            </td>
+            <td class="erp-cell" [title]="item.codeArticle || ''">{{ item.codeArticle || '—' }}</td>
+            <td class="cell-strong">{{ item.emissionSource }}</td>
+            <td><span class="badge-source">{{ item.databaseSource || '-' }}</span></td>
+            <td class="ta-right num">{{ item.quantite | number:'1.0-3' }}</td>
+            <td><span class="unit-badge">{{ item.unite }}</span></td>
+            <td class="ta-right num">{{ item.facteur | number:'1.0-4' }}</td>
+            <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
+            <td class="periode">{{ item.dateDebut | date:'dd/MM/yyyy' }} → {{ item.dateFin | date:'dd/MM/yyyy' }}</td>
+            <td>
+              <span class="prov-badge" [ngClass]="classeProvenance(provenanceDe(item))">
+                {{ libelleProvenance(provenanceDe(item)) }}
+              </span>
+            </td>
+
+            <td>
+
+              <div class="action-buttons">
+
+                <button class="btn-edit" (click)="ouvrirModale(item)">✏️</button>
+
+                <button class="btn-delete" (click)="supprimerEmission(item.id)">🗑️</button>
+
+              </div>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+        <!-- Ligne de total, alignée sur la référence visuelle Scope 1 -->
+        <tfoot *ngIf="emissionsFiltrees.length">
+          <tr>
+            <td colspan="9">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- POPUP MODALE DE SAISIE MANUELLE -->
+
+  <div class="modal-overlay" *ngIf="modaleSaisieOuverte">
+
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+
+        <h3>{{ isEdition ? '✏️ Modifier la mesure' : '🚗 Nouvelle consommation de la flotte' }}</h3>
+
+        <button class="close-modal" (click)="fermerModale()">×</button>
+
+      </div>
+
+      <div class="modal-body">
+
+       
+
+        <div class="validation-alert" *ngIf="erreurFormulaire">
+
+          <span class="alert-icon">⚠️</span>
+
+          <div class="alert-content">
+
+            <strong>Données manquantes ou incorrectes</strong>
+
+            <p>Veuillez renseigner tous les champs obligatoires (*) et sélectionner un facteur d'émission valide.</p>
+
+          </div>
+
+          <button class="close-alert" (click)="erreurFormulaire = false">×</button>
+
+        </div>
+
+
+
+        <form #emissionForm="ngForm">
+
+          <!-- Cartouche de contexte : scope, catégorie et société active -->
+          <div class="scope-box-header">
+            <span class="scope-tag">Scope 1</span>
+            <span class="category-text">{{ formModel.categorie }} — {{ societeActiveLabel }}</span>
+          </div>
+
+
+
+          <div class="form-row">
+
+            <div class="form-group flex-1">
+
+              <label>Usine <span class="required">*</span></label>
+
+              <select class="form-control" name="etablissement" [(ngModel)]="formModel.etablissement" required>
+
+                <option value="" disabled>Sélectionner une usine</option>
+
+                <option *ngFor="let etab of etablissementsList" [value]="etab">{{ etab }}</option>
+
+              </select>
+
+            </div>
+
+
+
+            <!-- CHAMP RÉFÉRENCE CARB (AUTO-AFFECTÉ ET VERROUILLÉ) -->
+
+            <div class="form-group flex-1">
+
+              <label>Référence Carb (Code)</label>
+
+              <input type="text"
+
+                     class="form-control"
+
+                     name="reference"
+
+                     [(ngModel)]="formModel.reference"
+
+                     readonly
+
+                     placeholder="Auto-généré (ex: MS1COC, MS1COV)"
+
+                     style="background-color: #f1f5f9; cursor: not-allowed; font-weight: 600; color: #334155;">
+
+            </div>
+
+          </div>
+
+
+
+          <div class="form-row">
+
+            <!-- SELECTION SOURCE D'EMISSION -->
+
+            <div class="form-group flex-1">
+
+              <label>Type / Source d'Émission <span class="required">*</span></label>
+
+              <select class="form-control" name="emissionSource" [(ngModel)]="formModel.emissionSource" (change)="onSourceChange()" required>
+
+                <option value="" disabled>-- Sélectionner la source --</option>
+
+                <option *ngFor="let src of sourcesEmissionList" [value]="src">
+
+                  {{ src }}
+
+                </option>
+
+              </select>
+
+            </div>
+
+
+
+            <div class="form-group flex-1">
+
+              <label>Type de données <span class="required">*</span></label>
+
+              <div class="toggle-buttons">
+
+                <button type="button" class="btn-toggle" [class.active]="formModel.typeDonnee === 'Physique'" (click)="changerTypeDonnee('Physique')">Physique</button>
+
+                <button type="button" class="btn-toggle" [class.active]="formModel.typeDonnee === 'Monetaire'" (click)="changerTypeDonnee('Monetaire')">Monétaire</button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+
+          <div class="form-row">
+
+            <!-- CHAMP UNITÉ VERROUILLÉ ET AUTO-AFFECTÉ -->
+
+            <div class="form-group flex-1">
+
+              <label>Unité <span class="required">*</span></label>
+
+             
+
+              <!-- Mode Physique (Lecture seule auto-affectée) -->
+
+              <input *ngIf="formModel.typeDonnee === 'Physique'"
+
+                     type="text"
+
+                     class="form-control"
+
+                     name="unite"
+
+                     [(ngModel)]="formModel.unite"
+
+                     readonly
+
+                     placeholder="Sélectionnez une source..."
+
+                     style="background-color: #f1f5f9; cursor: not-allowed; font-weight: 600; color: #334155;">
+
+
+
+              <!-- Mode Monétaire -->
+
+              <select *ngIf="formModel.typeDonnee === 'Monetaire'" name="unite" [(ngModel)]="formModel.unite" class="form-control" required>
+
+                <option value="TND">TND</option>
+
+                <option value="EUR">EUR</option>
+
+                <option value="USD">USD</option>
+
+              </select>
+
+            </div>
+
+
+
+            <div class="form-group flex-1">
+
+              <label>Quantité / Montant <span class="required">*</span></label>
+
+              <input type="number" name="quantite" [(ngModel)]="formModel.quantite" placeholder="Saisir la valeur (ex: 500)" class="form-control" required>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- SÉLECTEURS DE FACTEURS D'ÉMISSION -->
+
+          <div class="form-row flex-column layout-factors">
+
+            <div class="form-group full-width-group">
+
+              <label class="factor-label">Facteur d'émission appliqué <span class="required">*</span></label>
+
+             
+
+              <div *ngIf="!formModel.emissionSource" class="info-factors-alert">
+
+                💡 Sélectionnez d'abord une Source d'Émission ci-dessus pour afficher les facteurs disponibles.
+
+              </div>
+
+
+
+              <div *ngIf="formModel.emissionSource" class="factors-selectors-container">
+
+                <!-- 1. Sélectionner la Base de données globale -->
+
+                <div style="margin-bottom: 15px;">
+
+                  <label style="font-size: 13px; color: #475569; display: block; margin-bottom: 5px;">1. Base de données originelle</label>
+
+                  <select class="form-control" name="databaseSource" [(ngModel)]="formModel.databaseSource" (change)="onBaseChange()">
+
+                    <option value="" disabled>Choisir une base (Ex: EPA 2024, UK_DEFRA, MISFAT_INTERNE...)</option>
+
+                    <option *ngFor="let base of basesDisponibles" [value]="base">{{ base }}</option>
+
+                  </select>
+
+                </div>
+
+
+
+                <!-- 2. Sélectionner la variante du facteur -->
+
+                <div style="margin-bottom: 15px;" *ngIf="formModel.databaseSource">
+
+                  <label style="font-size: 13px; color: #475569; display: block; margin-bottom: 5px;">2. Variante ou segment du véhicule</label>
+
+                  <select class="form-control" name="facteurSelectionne" [(ngModel)]="facteurSelectionne" (change)="choisirFacteur(facteurSelectionne)">
+
+                    <option [ngValue]="null" disabled>Choisir le facteur spécifique au véhicule...</option>
+
+                    <option *ngFor="let f of facteursFiltresParBase" [ngValue]="f">
+
+                      {{ f.nomFacteurDetaille || f.databaseSource }} — [{{ f.factorValue }} kg CO₂eq / {{ f.unit }}]
+
+                    </option>
+
+                  </select>
+
+                </div>
+
+
+
+                <!-- 3. Aperçu en temps réel -->
+
+                <div class="live-preview-box" *ngIf="facteurSelectionne" style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 6px; margin-top: 10px;">
+
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+
+                    <span style="color: #64748b;">Valeur du facteur actif :</span>
+
+                    <strong style="color: #0f172a;">{{ facteurSelectionne.factorValue }} kg CO₂eq / {{ facteurSelectionne.unit }}</strong>
+
+                  </div>
+
+                  <div style="border-top: 1px solid #e2e8f0; padding-top: 8px;">
+
+                    <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Calcul en temps réel :</span>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+
+                      <span style="font-family: monospace; color: #475569; font-size: 13px;">
+
+                        {{ formModel.quantite || 0 }} × {{ facteurSelectionne.factorValue }} / 1000 =
+
+                      </span>
+
+                      <strong style="color: #00b074; font-size: 16px;">
+
+                        {{ obtenirCalculApercu(facteurSelectionne.factorValue) }} kgCO₂e
+
+                      </strong>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+
+              <input type="hidden" name="facteur" [(ngModel)]="formModel.facteur" required>
+
+            </div>
+
+          </div>
+
+
+
+          <div class="form-row">
+
+            <div class="form-group flex-1">
+
+              <label>De <span class="required">*</span></label>
+
+              <input type="date" name="dateDebut" [(ngModel)]="formModel.dateDebut" class="form-control" required>
+
+            </div>
+
+            <div class="form-group flex-1">
+
+              <label>à <span class="required">*</span></label>
+
+              <input type="date" name="dateFin" [(ngModel)]="formModel.dateFin" class="form-control" required>
+
+            </div>
+
+          </div>
+
+
+
+          <div class="hypothesis-section">
+
+            <div class="hypothesis-badges">
+
+              <button type="button" class="badge" [class.active]="formModel.hypothese === 'Réelle'" (click)="selectionnerHypothese('Réelle')">Réelle</button>
+
+              <button type="button" class="badge" [class.active]="formModel.hypothese === 'Estimation'" (click)="selectionnerHypothese('Estimation')">Estimation</button>
+
+            </div>
+
+            <textarea name="descriptionHypothese" [(ngModel)]="formModel.descriptionHypothese" placeholder="Notes additionnelles (ex: véhicule de fonction, immatriculation...)" class="form-control text-area"></textarea>
+
+          </div>
+
+        </form>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
+
+        <button type="button" class="btn-submit" (click)="enregistrerEmission()">✓ Enregistrer</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- POPUP MODALE : IMPORTATION EXCEL -->
+
+  <div class="modal-overlay" *ngIf="modaleImportOuverte">
+
+    <div class="modal-card wide-modal">
+
+      <div class="modal-header">
+
+        <h3>Importer les données (Flotte Véhicules)</h3>
+
+        <button class="close-modal" (click)="fermerModaleImport()">×</button>
+
+      </div>
+
+      <div class="modal-body">
+
+       
+
+        <div class="download-section" style="margin-bottom: 20px;">
+
+          <p style="font-size: 14px; color: #475569; margin-bottom: 10px;">
+
+            1. Téléchargez notre modèle Excel officiel pour vos consommations de carburant véhicule :
+
+          </p>
+
+          <button type="button" class="btn-download-xlsx" (click)="telechargerModeleExcel()" style="width: 100%; padding: 10px; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 600;">
+
+            🟢 Télécharger le modèle Excel (.xlsx)
+
+          </button>
+
+        </div>
+
+
+
+        <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 20px 0;">
+
+
+
+        <div class="upload-section">
+
+          <p style="font-size: 14px; color: #475569; margin-bottom: 10px;">
+
+            2. Déposez votre fichier Excel complété :
+
+          </p>
+
+         
+
+          <div class="dropzone"
+
+               (click)="fileInput.click()"
+
+               (dragover)="$event.preventDefault()"
+
+               (drop)="onFileDropped($event)"
+
+               style="border: 2px dashed #00b074; background-color: #f0fdf4; padding: 25px; text-align: center; border-radius: 8px; cursor: pointer;">
+
+            <span style="font-size: 32px; display: block; margin-bottom: 8px;">📁</span>
+
+            <p style="margin: 5px 0;"><strong>Glissez votre fichier ici</strong> ou <span style="color: #00b074; font-weight: 600; text-decoration: underline;">cliquez pour parcourir</span></p>
+
+            <span style="font-size: 11px; color: #94a3b8;">Uniquement .xlsx</span>
+
+            <input type="file" #fileInput (change)="onFileSelected($event)" accept=".xlsx" style="display: none;">
+
+          </div>
+
+        </div>
+
+
+
+        <div *ngIf="fichierSelectionne" style="margin-top: 15px; font-size: 13px; color: #334155;">
+
+          📄 Fichier sélectionné : <strong>{{ fichierSelectionne.name }}</strong>
+
+        </div>
+
+
+
+        <div *ngIf="importSuccesMsg" style="margin-top: 15px; padding: 10px; background-color: #dcfce7; color: #15803d; border-radius: 6px; font-size: 13px;">
+
+          ✅ {{ importSuccesMsg }}
+
+        </div>
+
+        <div *ngIf="importErreurMsg" style="margin-top: 15px; padding: 10px; background-color: #fee2e2; color: #b91c1c; border-radius: 6px; font-size: 13px;">
+
+          ⚠️ {{ importErreurMsg }}
+
+        </div>
+
+
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button type="button" class="btn-cancel" (click)="fermerModaleImport()">Annuler</button>
+
+        <button type="button" class="btn-submit" [disabled]="!fichierSelectionne" (click)="traiterFichierExcel()">✓ Lancer l'importation</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
