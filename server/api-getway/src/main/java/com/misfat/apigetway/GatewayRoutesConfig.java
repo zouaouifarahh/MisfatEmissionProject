@@ -58,13 +58,18 @@ public class GatewayRoutesConfig {
                 .build();
     }
 
-    // ---------- USER-SERVICE ----------
+    // ---------- USER_SERVICE ----------
+    //
+    // Le souligné n'est pas une coquille : user_service s'enregistre auprès
+    // d'Eureka sous « USER_SERVICE », là où les autres modules emploient un
+    // tiret. Le résolveur compare ces noms tels quels — « USER-SERVICE » ne
+    // trouvait aucune instance et la passerelle répondait 500 sur /api/users.
 
     @Bean
     public RouterFunction<ServerResponse> userRoutes() {
         return route("user-service")
                 .route(path("/api/users/**"), http())
-                .filter(lb("USER-SERVICE"))
+                .filter(lb("USER_SERVICE"))
                 .build();
     }
 
@@ -72,7 +77,7 @@ public class GatewayRoutesConfig {
     public RouterFunction<ServerResponse> userRoutesAlt() {
         return route("user-service-alt")
                 .route(path("/api/user/**"), http())
-                .filter(lb("USER-SERVICE"))
+                .filter(lb("USER_SERVICE"))
                 .build();
     }
 
