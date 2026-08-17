@@ -4,12 +4,20 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import {
+  Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
+  migrationFaite, marquerMigration, messagePourMigration
+} from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
 
 /** Ligne d'activité liée à l'énergie, catégorie 3 du Scope 3. */
 export interface EmissionEnergie {
+  /** Code article de l'ERP, second degré de rapprochement. */
+  codeArticle?: string;
+  /** Degré qui a désigné le facteur, ou null si la ligne reste orpheline. */
+  rapprochement?: Rapprochement | null;
   id: number;
   scope: string;
   categorie: string;
@@ -38,7 +46,7 @@ export interface EmissionEnergie {
  * combustion directe, classés sous « Energy », en sont exclus : ils relèvent des
  * Scopes 1 et 2 et feraient double emploi ici.</p>
  */
-const MOTIF_CATEGORIE = /Category 3/i;
+const MOTIF_CATEGORIE = /^Category 3:/i;
 
 const CLE_STOCKAGE = 'listeEmissionsEnergie';
 
@@ -75,6 +83,9 @@ export class ActivitesEnergieComponent implements OnInit {
 
   // ---------- Référentiel carbone ----------
   facteursDisponibles: FacteurDetaille[] = [];
+
+  /** Compte rendu de la migration d'appariement, distinct de l'avertissement. */
+  messageMigration = '';
   /** Types d'énergie documentés, alimentant l'autocomplétion. */
   typesEnergie: string[] = [];
   /** Facteurs du type d'énergie retenu, une entrée par base documentaire. */
@@ -147,6 +158,10 @@ export class ActivitesEnergieComponent implements OnInit {
     this.referentialService.getFactorsByCategory(MOTIF_CATEGORIE).subscribe({
       next: facteurs => {
         this.facteursDisponibles = facteurs;
+
+        // Le référentiel est là : les lignes déjà saisies peuvent être
+        // rapprochées à nouveau de leur facteur officiel.
+        this.remigrerParReferentiel();
         this.typesEnergie = [...new Set(facteurs.map(f => f.typeName))]
           .sort((a, b) => a.localeCompare(b, 'fr'));
         this.chargementFacteurs = false;
@@ -688,4 +703,44 @@ export class ActivitesEnergieComponent implements OnInit {
     XLSX.utils.book_append_sheet(classeur, feuille, 'Energie');
     XLSX.writeFile(classeur, `activites-energie-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
+
+  /**
+   * Rejoue l'appariement sur les lignes déjà enregistrées.
+   *
+   * <p>Cet écran ne porte ni base documentaire ni unité de facteur : la
+   * migration corrige la référence et le facteur, et laisse le reste tel quel
+   * plutôt que d'inventer des champs que la ligne n'a pas.</p>
+   */
+  private remigrerParReferentiel(): void {
+    const MARQUEUR = 'misfat_ref_matching_v2_activites_energie';
+    if (migrationFaite(MARQUEUR)) return;
+    if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
+
+    const { lignes, corrigees } = remigrerLignes(
+      this.listeEmissions,
+      this.facteursDisponibles,
+      adaptateurStandard<EmissionEnergie>({
+        reference: 'reference',
+        codeArticle: 'codeArticle',
+        categorie: 'categorie',
+        facteur: 'facteur',
+        emission: 'emissionCalculee',
+        rapprochement: 'rapprochement'
+      })
+    );
+
+    if (corrigees) {
+      this.listeEmissions = lignes;
+      this.sauvegarder();
+      this.messageMigration = messagePourMigration(corrigees);
+    }
+
+    marquerMigration(MARQUEUR);
+  }
+
+  /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
+  libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
+    return libelleRapprochement(rapprochement);
+  }
+
 }

@@ -58,7 +58,10 @@ describe('ActifsLouesAmontComponent', () => {
     const hote: HTMLElement = monter().nativeElement;
 
     expect(hote.querySelector('.emission-header h2')?.textContent).toContain('Actifs loués en amont');
-    expect(hote.querySelectorAll('.data-table thead th').length).toBe(12);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(hote.querySelectorAll('.data-table thead th').length).toBe(14);
     expect(hote.querySelector('.empty-row')).toBeTruthy();
   });
 

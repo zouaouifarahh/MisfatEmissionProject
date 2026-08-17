@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import {
+  Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
+  migrationFaite, marquerMigration, messagePourMigration
+} from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
@@ -15,6 +19,10 @@ import { emissionKg, quantiteVersUniteFacteur } from '../../core/unites-carbone'
 
 /** Ligne de consommation d'électricité achetée. */
 export interface EmissionElectricite {
+  /** Code article de l'ERP, second degré de rapprochement. */
+  codeArticle?: string;
+  /** Degré qui a désigné le facteur, ou null si la ligne reste orpheline. */
+  rapprochement?: Rapprochement | null;
   id: number;
   scope: string;
   categorie: string;
@@ -101,6 +109,9 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
   // ---------- Référentiel carbone ----------
   facteursDisponibles: FacteurDetaille[] = [];
+
+  /** Compte rendu de la migration d'appariement, distinct de l'avertissement. */
+  messageMigration = '';
   /** Sources d'émission électriques distinctes. */
   sourcesDisponibles: string[] = [];
   /** Facteurs de la source choisie : plusieurs bases peuvent coexister. */
@@ -174,6 +185,10 @@ export class ElectriciteAcheteeComponent implements OnInit {
       next: facteurs => {
         this.facteursDisponibles = facteurs.filter(f =>
           f.scopeCode === 'SCOPE_2' && MOTIF_TYPE.test(f.typeName));
+
+        // Le référentiel est là : les lignes déjà saisies peuvent être
+        // rapprochées à nouveau de leur facteur officiel.
+        this.remigrerParReferentiel();
 
         this.sourcesDisponibles = [...new Set(this.facteursDisponibles.map(f => f.typeName))]
           .sort((a, b) => a.localeCompare(b));
@@ -779,6 +794,46 @@ export class ElectriciteAcheteeComponent implements OnInit {
    */
   get usineVentilation(): string {
     return this.usinesDisponibles[0]?.nom || this.societeActiveLabel || '';
+  }
+
+
+  /**
+   * Rejoue l'appariement sur les lignes déjà enregistrées.
+   *
+   * <p>Cet écran ne porte ni base documentaire ni unité de facteur : la
+   * migration corrige la référence et le facteur, et laisse le reste tel quel
+   * plutôt que d'inventer des champs que la ligne n'a pas.</p>
+   */
+  private remigrerParReferentiel(): void {
+    const MARQUEUR = 'misfat_ref_matching_v2_electricite_achetee';
+    if (migrationFaite(MARQUEUR)) return;
+    if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
+
+    const { lignes, corrigees } = remigrerLignes(
+      this.listeEmissions,
+      this.facteursDisponibles,
+      adaptateurStandard<EmissionElectricite>({
+        reference: 'reference',
+        codeArticle: 'codeArticle',
+        categorie: 'categorie',
+        facteur: 'facteur',
+        emission: 'emissionCalculee',
+        rapprochement: 'rapprochement'
+      })
+    );
+
+    if (corrigees) {
+      this.listeEmissions = lignes;
+      this.sauvegarder();
+      this.messageMigration = messagePourMigration(corrigees);
+    }
+
+    marquerMigration(MARQUEUR);
+  }
+
+  /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
+  libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
+    return libelleRapprochement(rapprochement);
   }
 
 }

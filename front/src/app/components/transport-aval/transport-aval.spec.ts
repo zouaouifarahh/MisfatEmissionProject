@@ -59,7 +59,10 @@ describe('TransportAvalComponent', () => {
     const hote: HTMLElement = monter().nativeElement;
 
     expect(hote.querySelector('.emission-header h2')?.textContent).toContain('Transport et distribution en aval');
-    expect(hote.querySelectorAll('.data-table thead th').length).toBe(10);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(hote.querySelectorAll('.data-table thead th').length).toBe(12);
     expect(hote.querySelector('.empty-row')).toBeTruthy();
   });
 

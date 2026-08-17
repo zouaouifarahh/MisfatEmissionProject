@@ -49,7 +49,7 @@ export interface EmissionBienEquipement {
 }
 
 /** Catégorie GHG couverte : biens d'équipement (Capital Goods). */
-const MOTIF_CATEGORIE = /Category 2/i;
+const MOTIF_CATEGORIE = /^Category 2:/i;
 
 const CLE_STOCKAGE = 'listeEmissionsBiensEquipement';
 

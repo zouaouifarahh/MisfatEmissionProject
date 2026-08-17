@@ -48,7 +48,10 @@ describe('DashboardComponent — onglet transport-amont', () => {
     const ecran = principal!.querySelector('app-transport-amont');
     expect(ecran).toBeTruthy();
     expect(ecran?.querySelector('.emission-header h2')?.textContent).toContain('Transport en amont');
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(12);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(14);
   });
 
   it('reconnaît transport-amont comme une catégorie du Scope 3', () => {

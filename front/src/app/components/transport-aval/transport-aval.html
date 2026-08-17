@@ -96,6 +96,8 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th>Référence carbone</th>
+            <th>Code article ERP</th>
             <th class="sortable" (click)="sortData('expedition')">ID expédition</th>
             <th>Établissement</th>
             <th class="sortable" (click)="sortData('destination')">Destination / Client</th>
@@ -111,6 +113,12 @@
 
         <tbody>
           <tr *ngFor="let item of emissionsPage" [class.ligne-sans-facteur]="item.origineFacteur === 'Aucun'">
+            <td class="ref-cell">
+              <span class="ref-badge" *ngIf="item.referenceFacteur"
+                    [title]="libelleRapprochement(item.rapprochement)">{{ item.referenceFacteur }}</span>
+              <span class="ref-absente" *ngIf="!item.referenceFacteur">—</span>
+            </td>
+            <td class="erp-cell">{{ item.codeArticle || '—' }}</td>
             <td>
               <span class="ref-badge">{{ item.idExpedition }}</span>
               <span class="duo-second">

@@ -78,6 +78,8 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th>Référence carbone</th>
+            <th>Code article ERP</th>
             <th>Établissement / Usine</th>
             <th class="sortable" (click)="sortData('type')">Type de déchet</th>
             <th>Provenance</th>
@@ -94,6 +96,12 @@
 
         <tbody>
           <tr *ngFor="let item of emissionsFiltrees" [class.ligne-sans-facteur]="item.facteur === null">
+            <td class="ref-cell">
+              <span class="ref-badge" *ngIf="item.reference"
+                    [title]="libelleRapprochement(item.rapprochement)">{{ item.reference }}</span>
+              <span class="ref-absente" *ngIf="!item.reference">—</span>
+            </td>
+            <td class="erp-cell">{{ item.codeArticle || '—' }}</td>
             <td>{{ item.etablissement || '—' }}</td>
 
             <td class="cell-strong type-cell" [title]="item.typeDechet">

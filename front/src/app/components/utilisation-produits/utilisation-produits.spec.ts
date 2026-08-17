@@ -45,7 +45,10 @@ describe('UtilisationProduitsComponent', () => {
 
     expect(hote.querySelector('.emission-header h2')?.textContent)
       .toContain('Utilisation des produits vendus');
-    expect(hote.querySelectorAll('.data-table thead th').length).toBe(10);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(hote.querySelectorAll('.data-table thead th').length).toBe(12);
     expect(hote.querySelector('.empty-row')).toBeTruthy();
   });
 
@@ -165,7 +168,10 @@ describe('DashboardComponent — onglet utilisation-produits', () => {
 
     const ecran = principal!.querySelector('app-utilisation-produits');
     expect(ecran).toBeTruthy();
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(10);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(12);
 
     // Le panneau « écran à développer » ne doit plus apparaître pour elle.
     expect(hote.querySelector('.ecran-a-venir')).toBeNull();

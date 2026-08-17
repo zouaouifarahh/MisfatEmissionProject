@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import {
+  Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
+  migrationFaite, marquerMigration, messagePourMigration
+} from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
@@ -14,6 +18,10 @@ import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/ad
 
 /** Ligne de mesure de fuite de fluide frigorigène. */
 export interface EmissionRefrigerant {
+  /** Code article de l'ERP, second degré de rapprochement. */
+  codeArticle?: string;
+  /** Degré qui a désigné le facteur, ou null si la ligne reste orpheline. */
+  rapprochement?: Rapprochement | null;
   id: number;
   scope: string;
   categorie: string;
@@ -90,6 +98,9 @@ export class EmissionsRefrigerantsComponent implements OnInit {
 
   // ---------- Référentiel carbone ----------
   facteursDisponibles: FacteurDetaille[] = [];
+
+  /** Compte rendu de la migration d'appariement, distinct de l'avertissement. */
+  messageMigration = '';
   /** Fluides distincts, dérivés des facteurs de la catégorie. */
   fluidesDisponibles: string[] = [];
   /** Facteurs du fluide choisi : plusieurs bases peuvent coexister. */
@@ -160,6 +171,10 @@ export class EmissionsRefrigerantsComponent implements OnInit {
     this.referentialService.getFactorsByCategory(MOTIF_CATEGORIE).subscribe({
       next: facteurs => {
         this.facteursDisponibles = facteurs;
+
+        // Le référentiel est là : les lignes déjà saisies peuvent être
+        // rapprochées à nouveau de leur facteur officiel.
+        this.remigrerParReferentiel();
         this.fluidesDisponibles = [...new Set(facteurs.map(f => f.typeName))].sort((a, b) => a.localeCompare(b));
         this.chargementFacteurs = false;
 
@@ -717,6 +732,46 @@ export class EmissionsRefrigerantsComponent implements OnInit {
    */
   get usineVentilation(): string {
     return this.usinesDisponibles[0]?.nom || this.societeActiveLabel || '';
+  }
+
+
+  /**
+   * Rejoue l'appariement sur les lignes déjà enregistrées.
+   *
+   * <p>Cet écran ne porte ni base documentaire ni unité de facteur : la
+   * migration corrige la référence et le facteur, et laisse le reste tel quel
+   * plutôt que d'inventer des champs que la ligne n'a pas.</p>
+   */
+  private remigrerParReferentiel(): void {
+    const MARQUEUR = 'misfat_ref_matching_v2_emissions_refrigerants';
+    if (migrationFaite(MARQUEUR)) return;
+    if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
+
+    const { lignes, corrigees } = remigrerLignes(
+      this.listeEmissions,
+      this.facteursDisponibles,
+      adaptateurStandard<EmissionRefrigerant>({
+        reference: 'reference',
+        codeArticle: 'codeArticle',
+        categorie: 'categorie',
+        facteur: 'facteur',
+        emission: 'emissionCalculee',
+        rapprochement: 'rapprochement'
+      })
+    );
+
+    if (corrigees) {
+      this.listeEmissions = lignes;
+      this.sauvegarder();
+      this.messageMigration = messagePourMigration(corrigees);
+    }
+
+    marquerMigration(MARQUEUR);
+  }
+
+  /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
+  libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
+    return libelleRapprochement(rapprochement);
   }
 
 }

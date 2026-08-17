@@ -60,7 +60,16 @@ export interface EmissionAchat {
 }
 
 /** Catégorie GHG couverte : achats de biens et services. */
-const MOTIF_CATEGORIE = /Category 1/i;
+/**
+ * Catégorie GHG couverte : biens et services achetés.
+ *
+ * <p>Le deux-points n'est pas décoratif. Sans lui, « Category 1 » capturait
+ * aussi « Category 10 » à « Category 15 » : l'écran des achats se voyait offrir
+ * 86 facteurs au lieu de 67, dont ceux des investissements, des franchises et
+ * du traitement en fin de vie. Un rapprochement par catégorie pouvait alors
+ * valoriser un achat avec le facteur d'une franchise.</p>
+ */
+const MOTIF_CATEGORIE = /^Category 1:/i;
 
 const CLE_STOCKAGE = 'listeEmissionsAchats';
 

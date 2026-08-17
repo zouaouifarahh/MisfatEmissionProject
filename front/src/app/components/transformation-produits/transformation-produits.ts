@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import {
+  Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
+  migrationFaite, marquerMigration, messagePourMigration
+} from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
@@ -21,6 +25,15 @@ export type Provenance = 'Réel' | 'Estimation' | 'Excel';
 
 /** Produit intermédiaire transformé, catégorie 10 du Scope 3. */
 export interface EmissionTransformation {
+  /**
+   * Code article de l'ERP, second degré de rapprochement.
+   *
+   * <p>Le référentiel et l'ERP partagent parfois la même codification : le
+   * code désigne alors le facteur aussi sûrement que la référence.</p>
+   */
+  codeArticle?: string;
+  /** Degré qui a désigné le facteur, ou null si la ligne reste orpheline. */
+  rapprochement?: Rapprochement | null;
   id: number;
   scope: string;
   categorie: string;
@@ -47,7 +60,7 @@ export interface EmissionTransformation {
 }
 
 /** Catégorie GHG couverte : transformation des produits vendus. */
-const MOTIF_CATEGORIE = /Category 10/i;
+const MOTIF_CATEGORIE = /^Category 10:/i;
 
 const CLE_STOCKAGE = 'listeEmissionsTransformation';
 const CLE_NON_APPLICABLE = 'transformationNonApplicable';
@@ -106,6 +119,15 @@ export class TransformationProduitsComponent implements OnInit {
 
   // ---------- Référentiel carbone ----------
   facteursDisponibles: FacteurDetaille[] = [];
+
+  /**
+   * Compte rendu de la migration d'appariement.
+   *
+   * <p>Distinct de l'avertissement sur le référentiel, que le chargement
+   * réécrit juste après : les deux messages se seraient effacés l'un
+   * l'autre.</p>
+   */
+  messageMigration = '';
   facteursCompatibles: FacteurDetaille[] = [];
   facteurChoisiId: number | null = null;
   avertissementReferentiel = '';
@@ -208,6 +230,10 @@ export class TransformationProduitsComponent implements OnInit {
     this.referentialService.getFactorsByCategory(MOTIF_CATEGORIE).subscribe({
       next: facteurs => {
         this.facteursDisponibles = Array.isArray(facteurs) ? facteurs : [];
+
+        // Le référentiel est là : les lignes déjà saisies peuvent être
+        // rapprochées à nouveau de leur facteur officiel.
+        this.remigrerParReferentiel();
         this.avertissementReferentiel = this.facteursDisponibles.length
           ? ''
           : 'Le référentiel MS SQL ne documente pas encore la catégorie 10 : les facteurs de '
@@ -735,4 +761,49 @@ export class TransformationProduitsComponent implements OnInit {
     XLSX.utils.book_append_sheet(classeur, feuille, 'Transformation');
     XLSX.writeFile(classeur, `transformation-produits-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
+
+  /**
+   * Rejoue l'appariement sur les lignes déjà enregistrées.
+   *
+   * <p>Les lignes antérieures à l'appariement à trois degrés ont été rattachées
+   * au premier facteur venu de leur catégorie. Cette migration les confronte à
+   * nouveau au référentiel : celle qui porte sa référence carbone retrouve son
+   * facteur exact et sa base documentaire réelle.</p>
+   *
+   * <p>Elle ne s'exécute qu'une fois, et rien n'est écrasé qui ne s'améliore.</p>
+   */
+  private remigrerParReferentiel(): void {
+    const MARQUEUR = 'misfat_ref_matching_v2_transformation_produits';
+    if (migrationFaite(MARQUEUR)) return;
+    if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
+
+    const { lignes, corrigees } = remigrerLignes(
+      this.listeEmissions,
+      this.facteursDisponibles,
+      adaptateurStandard<EmissionTransformation>({
+      reference: 'reference',
+      codeArticle: 'codeArticle',
+      categorie: 'categorie',
+      facteur: 'facteur',
+      base: 'baseAppliquee',
+      uniteFacteur: 'uniteFacteur',
+      emission: 'emissionCalculee',
+      rapprochement: 'rapprochement'
+      })
+    );
+
+    if (corrigees) {
+      this.listeEmissions = lignes;
+      this.sauvegarder();
+      this.messageMigration = messagePourMigration(corrigees);
+    }
+
+    marquerMigration(MARQUEUR);
+  }
+
+  /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
+  libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
+    return libelleRapprochement(rapprochement);
+  }
+
 }

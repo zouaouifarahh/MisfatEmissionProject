@@ -154,7 +154,10 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
     const principal = hote.querySelector('main.dash-main');
     const ecran = principal?.querySelector('app-fin-de-vie-produits');
     expect(ecran).toBeTruthy();
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(9);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
 
     // Ni écran vide, ni panneau « à développer ».
     expect(hote.querySelector('.ecran-a-venir')).toBeNull();
@@ -175,7 +178,10 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
 
     const ecran = hote.querySelector('main.dash-main')?.querySelector('app-actifs-loues-aval');
     expect(ecran).toBeTruthy();
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(9);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
 
     // La déclaration de non-applicabilité doit être offerte d'emblée.
     expect(ecran?.querySelector('.declaration-toggle')?.textContent)
@@ -199,7 +205,10 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
 
     const ecran = hote.querySelector('main.dash-main')?.querySelector('app-franchises');
     expect(ecran).toBeTruthy();
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(9);
+    // Deux colonnes de plus depuis l'appariement au référentiel : la
+    // référence carbone désigne le facteur, le code article ERP en tient lieu
+    // quand le référentiel et l'ERP partagent la même codification.
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
 
     expect(ecran?.querySelector('.declaration-toggle')?.textContent)
       .toContain('Aucun réseau de franchise sous enseigne');

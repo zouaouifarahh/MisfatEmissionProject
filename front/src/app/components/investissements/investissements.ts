@@ -5,6 +5,10 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
+import {
+  Rapprochement, adaptateurStandard, remigrerLignes, libelleRapprochement,
+  migrationFaite, marquerMigration, messagePourMigration
+} from '../../core/appariement-referentiel';
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale } from '../../models/organization.model';
@@ -55,9 +59,11 @@ export interface EmissionInvestissement {
   creeLe: string;
   /** Provenance : renseignée pour les seules lignes issues de la ventilation. */
   sourceData?: string;
+  /** Degré qui a désigné le facteur, ou null si la ligne reste orpheline. */
+  rapprochement?: Rapprochement | null;
 }
 
-const MOTIF_CATEGORIE = /Category 15/i;
+const MOTIF_CATEGORIE = /^Category 15:/i;
 const CLE_STOCKAGE = 'listeEmissionsInvestissements';
 const LIBELLE_CATEGORIE = 'Investissements';
 const TAILLES_PAGE = [20, 50, 100];
@@ -121,6 +127,14 @@ export class InvestissementsComponent implements OnInit {
   readonly emojiCategorie = emojiCategorie;
 
   facteursDisponibles: FacteurDetaille[] = [];
+
+  /**
+   * Compte rendu de la migration d'appariement.
+   *
+   * <p>Distinct de {@link avertissementReferentiel}, que le chargement réécrit
+   * juste après : les deux messages s'effaceraient l'un l'autre.</p>
+   */
+  messageMigration = '';
   facteursCompatibles: FacteurDetaille[] = [];
   facteurChoisiId: number | null = null;
   avertissementReferentiel = '';
@@ -195,6 +209,10 @@ export class InvestissementsComponent implements OnInit {
     this.referentialService.getFactorsByCategory(MOTIF_CATEGORIE).subscribe({
       next: facteurs => {
         this.facteursDisponibles = Array.isArray(facteurs) ? facteurs : [];
+
+        // Le référentiel est là : les lignes déjà saisies peuvent être
+        // rapprochées à nouveau de leur facteur officiel.
+        this.remigrerParReferentiel();
         this.avertissementReferentiel = this.facteursDisponibles.length
           ? ''
           : 'Le référentiel MS SQL ne documente pas encore la catégorie 15 : les facteurs de '
@@ -650,6 +668,52 @@ export class InvestissementsComponent implements OnInit {
   /** Saisies de l'utilisateur et lignes ventilées, dans cet ordre d'affichage. */
   get toutesLignes(): EmissionInvestissement[] {
     return [...this.lignesVentilees, ...this.listeEmissions];
+  }
+
+  /**
+   * Rejoue l'appariement sur les immobilisations déjà enregistrées.
+   *
+   * <p>C'est l'écran où le symptôme se voyait le mieux : les lignes antérieures
+   * aux colonnes Référence / Code article ERP n'en portaient aucune et
+   * affichaient un tiret, tout en gardant le facteur de repli de leur famille.
+   * La migration les confronte au référentiel de la catégorie 15.</p>
+   *
+   * <p>Une référence appartenant à une autre catégorie — un bien d'équipement en
+   * catégorie 2, par exemple — reste volontairement non appariée : la rattacher
+   * ici verserait son empreinte dans la mauvaise catégorie du rapport.</p>
+   */
+  private remigrerParReferentiel(): void {
+    const MARQUEUR = 'misfat_ref_matching_v2_investissements';
+    if (migrationFaite(MARQUEUR)) return;
+    if (!this.facteursDisponibles.length || !this.listeEmissions.length) return;
+
+    const { lignes, corrigees } = remigrerLignes(
+      this.listeEmissions,
+      this.facteursDisponibles,
+      adaptateurStandard<EmissionInvestissement>({
+        reference: 'referenceCarbone',
+        codeArticle: 'codeArticle',
+        categorie: 'categorieCarbone',
+        facteur: 'facteur',
+        base: 'baseAppliquee',
+        uniteFacteur: 'uniteFacteur',
+        emission: 'emissionCalculee',
+        rapprochement: 'rapprochement'
+      })
+    );
+
+    if (corrigees) {
+      this.listeEmissions = lignes;
+      this.sauvegarder();
+      this.messageMigration = messagePourMigration(corrigees);
+    }
+
+    marquerMigration(MARQUEUR);
+  }
+
+  /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
+  libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
+    return libelleRapprochement(rapprochement);
   }
 
 }
