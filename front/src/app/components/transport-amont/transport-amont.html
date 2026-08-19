@@ -4,7 +4,9 @@
   <app-lignes-dispatchees ecran="transport-amont"></app-lignes-dispatchees>
 
   <!-- INDICATEURS DE SYNTHÈSE -->
-  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+  <app-kpis-categorie [cartes]="kpisCategorie"
+                      [filtreActif]="filtreStatut"
+                      (filtrer)="filtreStatut = $event"></app-kpis-categorie>
 
 
   <!-- EN-TÊTE DE LA CATÉGORIE -->
@@ -39,6 +41,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="modeTransport" libelle="Mode de transport"
+                        libelleTous="Tous les modes"
+                        [source]="toutesLignes" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="modesTransport"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte"
              placeholder="Recherche par facture, transporteur, destination, client ou base…"
              class="search-input">
@@ -170,11 +181,9 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="5">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td colspan="12">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
             <td class="ta-right num-fort">{{ totalPoids | number:'1.0-2' }}</td>
-            <td colspan="4"></td>
-            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
-            <td></td>
+            <td colspan="1"></td>
           </tr>
         </tfoot>
       </table>

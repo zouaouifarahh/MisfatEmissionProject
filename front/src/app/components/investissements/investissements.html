@@ -76,11 +76,32 @@
     <span aria-hidden="true">ℹ️</span> {{ avertissementReferentiel }}
   </div>
 
-  <div class="ref-warning" *ngIf="nombreReplis">
+  <!-- La bannière mène aux lignes qu'elle signale : les chercher soi-même dans
+       un tableau paginé de plusieurs milliers d'entrées n'était pas tenable. -->
+  <div class="ref-warning ref-warning-cliquable" *ngIf="nombreReplis"
+       role="button" tabindex="0"
+       title="Cliquer pour corriger ces lignes"
+       (click)="ouvrirCorrection()" (keydown.enter)="ouvrirCorrection()">
     <span aria-hidden="true">⚠️</span>
     {{ nombreReplis }} immobilisation(s) sans catégorie carbone exploitable : le facteur de
     sécurité « Équipements Ind. » leur est appliqué. Complétez la colonne source pour affiner.
+    <span class="ref-warning-action">Corriger →</span>
   </div>
+
+  <p class="masse-compte-rendu" *ngIf="correctionMessage">
+    ✓ {{ correctionMessage }}
+    <button class="close-alert" type="button" (click)="correctionMessage = ''"
+            aria-label="Masquer">×</button>
+  </p>
+
+  <app-correction-anomalies
+    [ouvert]="correctionOuverte"
+    titre="Immobilisations sans catégorie carbone"
+    [lignes]="lignesEnAnomalie"
+    [categories]="categoriesProposees"
+    [champs]="champsCorrection"
+    (fermer)="fermerCorrection()"
+    (appliquer)="appliquerCorrections($event)"></app-correction-anomalies>
 
   <div class="ref-warning" *ngIf="avertissementStockage">
     <span aria-hidden="true">⚠️</span> {{ avertissementStockage }}
@@ -98,7 +119,15 @@
         <option *ngFor="let c of categoriesCarbone" [value]="c">{{ emojiCategorie(c) }} {{ c }}</option>
       </select>
 
-      <select class="filter-dropdown" [(ngModel)]="filtreStatut" (ngModelChange)="onFiltreChange()">
+      <!-- Reprise en masse : proposée une fois une catégorie choisie, jamais sur
+           l'inventaire entier — un facteur documente une matière, pas un lot. -->
+      <button class="btn-masse" *ngIf="masseDisponible" (click)="ouvrirReprise()"
+              [title]="'Appliquer un facteur à toutes les lignes filtrées de la catégorie'">
+        ⚖️ Facteur en masse ({{ lignesReprises.length }})
+      </button>
+
+      <select class="filter-dropdown" [(ngModel)]="filtreStatut" (ngModelChange)="onFiltreChange()"
+              aria-label="Filtrer par appariement de catégorie">
         <option value="Tous">Tous les appariements</option>
         <option value="Validé">✓ Catégorie appariée</option>
         <option value="Fallback">⚠ Rattrapée sur #N/A</option>
@@ -128,6 +157,39 @@
         <button class="btn-new" (click)="ouvrirModale()">＋ Ajouter une Immobilisation</button>
       </div>
     </div>
+
+    <!-- REPRISE EN MASSE DU FACTEUR -->
+    <div class="masse-panneau" *ngIf="masseOuverte">
+      <div class="masse-entete">
+        <strong>⚖️ Reprise du facteur — {{ filtreCategorie }}</strong>
+        <button class="close-modal" (click)="fermerReprise()" aria-label="Fermer">×</button>
+      </div>
+
+      <p class="masse-portee">
+        {{ lignesReprises.length }} ligne(s) saisies seront reprises. Les lignes
+        issues de la ventilation comptable ne le sont pas : le magasin de
+        répartition les recalcule à chaque import.
+      </p>
+
+      <div class="masse-saisie">
+        <label for="masse-facteur">Nouveau facteur (kgCO₂e / {{ deviseActive }})</label>
+        <input id="masse-facteur" type="text" inputmode="decimal" [(ngModel)]="masseFacteur"
+               placeholder="ex. 0,42" class="search-input"
+               (keydown.enter)="appliquerReprise()"
+               (keydown.escape)="fermerReprise()">
+        <button class="btn-new" (click)="appliquerReprise()">Appliquer</button>
+        <!-- Une reprise touche toute une catégorie : le renoncement doit être
+             aussi visible que l'application, et non caché dans une croix. -->
+        <button class="btn-annuler" type="button" (click)="fermerReprise()">Annuler</button>
+      </div>
+
+      <p class="masse-erreur" *ngIf="masseErreur">⚠ {{ masseErreur }}</p>
+    </div>
+
+    <p class="masse-compte-rendu" *ngIf="masseMessage">
+      ✓ {{ masseMessage }}
+      <button class="close-alert" (click)="masseMessage = ''" aria-label="Masquer">×</button>
+    </p>
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
@@ -215,12 +277,9 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="5">Total — {{ nombreImmobilisations }} immobilisation(s)</td>
+            <td colspan="8">Total — {{ nombreImmobilisations }} immobilisation(s)</td>
             <td class="ta-right num-fort">{{ totalAcquisitions | number:'1.0-2' }}</td>
             <td colspan="2"></td>
-            <td class="ta-right num-fort">{{ totalEmissionsKg | number:'1.0-2' }}</td>
-            <td class="ta-right num-fort">{{ totalEmissionsTonnes | number:'1.0-3' }}</td>
-            <td></td>
           </tr>
         </tfoot>
       </table>

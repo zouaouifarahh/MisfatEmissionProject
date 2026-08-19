@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID, inject } from '@angular/core';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -77,7 +78,7 @@ const CLE_STOCKAGE = 'listeEmissionsAchats';
 @Component({
   selector: 'app-biens-services',
   standalone: true,
-  imports: [KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './biens-services.html',
   styleUrl: './biens-services.css'
@@ -403,10 +404,53 @@ export class BiensServicesComponent implements OnInit {
 
   // ---------- Tableau ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+
+    // Les lignes saisies vivent ici ; celles issues de la ventilation
+    // appartiennent au magasin, seul capable de les republier à tous ses
+    // abonnés — tableau, indicateurs et bilan se mettent à jour ensemble.
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+
+    const clesVentilees = evenement.avant
+      .map((ligne: any) => ligne?.cleVentilation)
+      .filter((cle: unknown): cle is string => typeof cle === 'string' && cle.length > 0);
+
+    if (clesVentilees.length) {
+      const facteur = Number(evenement.apres[0]?.facteur ?? 0);
+      this.dispatchStore.reprendreFacteur(clesVentilees, facteur);
+    }
+  }
+
   get emissionsFiltrees(): EmissionAchat[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.toutesLignes.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.categorieCarbone !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
       if (this.filtreEtablissement !== 'Tous' && item.etablissement !== this.filtreEtablissement) {
@@ -698,6 +742,10 @@ export class BiensServicesComponent implements OnInit {
     const exemple: Record<string, string | number> = {
       'Usine': this.usinesDisponibles[0]?.nom ?? 'MISFAT 1',
       'Nom du produit': 'Emballage MECAFILTER HABITACLE',
+      // Les deux colonnes que l'importeur sait lire depuis la refonte de
+      // l'appariement : sans elles, la ligne arrivait sans référence.
+      'Référence Carbone': 'MS3C1PB',
+      'Code Article ERP': 'ART-4417',
       'Catégorie Carbone': this.categoriesCarbone[0] ?? 'Other Paperboard Container Manufacturing',
       'Reçu (Q )': 8130,
       'Montant en TND': 3292.65,
@@ -708,7 +756,7 @@ export class BiensServicesComponent implements OnInit {
     };
 
     const feuille = XLSX.utils.json_to_sheet([exemple]);
-    feuille['!cols'] = [20, 34, 44, 14, 16, 10, 10, 14, 14].map(w => ({ wch: w }));
+    feuille['!cols'] = [20, 34, 20, 18, 44, 14, 16, 10, 10, 14, 14].map(w => ({ wch: w }));
     const classeur = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(classeur, feuille, 'Achats');
     XLSX.writeFile(classeur, 'gabarit-biens-services.xlsx');
@@ -895,7 +943,10 @@ export class BiensServicesComponent implements OnInit {
         libelle: 'Couverture MS SQL', icone: '🎯', accent: 'couverture',
         valeur: couverture.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %',
         unite: 'sinon repli ADEME',
-        alerte: couverture < 80
+        alerte: couverture < 80,
+        // Cliquer la carte n'affiche que les lignes qu'elle signale : celles
+        // qu'aucun facteur du référentiel n'adosse.
+        filtreStatut: 'Fallback' as const
       }
     ];
   }

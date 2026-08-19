@@ -4,7 +4,9 @@
   <app-lignes-dispatchees ecran="combustion-etablissements"></app-lignes-dispatchees>
 
   <!-- INDICATEURS DE SYNTHÈSE -->
-  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+  <app-kpis-categorie [cartes]="kpisCategorie"
+                      [filtreActif]="filtreStatut"
+                      (filtrer)="filtreStatut = $event"></app-kpis-categorie>
 
 
   <!-- EN-TÊTE CATÉGORIE 1 : COMBUSTION DANS LES ÉTABLISSEMENTS -->
@@ -18,6 +20,15 @@
   <div class="emission-card">
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="emissionSource" libelle="Fluide / Source"
+                        libelleTous="Tous les fluides"
+                        [source]="toutesLignes" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="sourcesList"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte" placeholder="Recherche par référence, source ou établissement..." class="search-input">
       
       <select class="filter-dropdown" [(ngModel)]="filtreEtablissement">
@@ -60,11 +71,12 @@
             <th>Usine</th>
             <th>Type / Source</th>
             <th (click)="sortData('reference')" class="sortable-header">
-              Référence
+              Référence carbone
               <span class="sort-icon">
                 {{ sortColumn === 'reference' ? (sortDirection === 'asc' ? ' ⬆️' : ' ⬇️') : ' ⇅' }}
               </span>
             </th>
+            <th>Code article ERP</th>
             <th>Fluide / Source</th>
             <th>Base Appliquée</th>
             <th class="ta-right">Quantité</th>
@@ -91,7 +103,7 @@
         </thead>
         <tbody>
           <tr *ngIf="emissionsFiltrees.length === 0">
-            <td colspan="12" class="empty-table-msg">📭 Aucune donnée disponible pour la combustion dans les établissements.</td>
+            <td colspan="13" class="empty-table-msg">📭 Aucune donnée disponible pour la combustion dans les établissements.</td>
           </tr>
           <!-- Une seule colonne Quantité : l'unité qui la suit distingue déjà le
                montant en devise de la consommation physique. -->
@@ -102,7 +114,12 @@
                     [title]="item.descriptionHypothese || item.sourceData">{{ item.sourceData }}</span>
               <span class="type-neutre" *ngIf="!item.sourceData">Saisie directe</span>
             </td>
-            <td><span class="ref-badge">{{ item.reference || '-' }}</span></td>
+            <td>
+              <span class="ref-badge" *ngIf="item.reference"
+                    [title]="libelleRapprochement(item.rapprochement)">{{ item.reference }}</span>
+              <span class="ref-absente" *ngIf="!item.reference">—</span>
+            </td>
+            <td class="erp-cell">{{ item.codeArticle || '—' }}</td>
             <td class="cell-strong">{{ item.emissionSource }}</td>
             <td><span class="badge-source">{{ item.databaseSource || '-' }}</span></td>
             <td class="ta-right num">{{ item.quantite | number:'1.0-3' }}</td>
@@ -127,7 +144,7 @@
         <!-- Ligne de total, alignée sur la référence visuelle Scope 1 -->
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="8">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td colspan="9">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
             <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
             <td colspan="3"></td>
           </tr>

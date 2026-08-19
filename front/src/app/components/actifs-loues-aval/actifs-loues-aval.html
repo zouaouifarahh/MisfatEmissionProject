@@ -70,6 +70,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="typeActif" libelle="Type d'actif"
+                        libelleTous="Tous les types d'actif"
+                        [source]="listeEmissions" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="typesActif"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
              placeholder="Recherche par référence, actif, locataire ou base…" class="search-input">
 
@@ -194,9 +203,9 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="7">Total — {{ emissionsFiltrees.length }} actif(s)</td>
+            <td colspan="9">Total — {{ emissionsFiltrees.length }} actif(s)</td>
             <td class="ta-right num-fort">{{ (sansActivite ? 0 : totalEmissions) | number:'1.0-2' }}</td>
-            <td></td>
+            <td colspan="1"></td>
           </tr>
         </tfoot>
       </table>

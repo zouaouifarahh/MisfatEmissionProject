@@ -147,3 +147,14 @@
 .colonne-chip { color: var(--dsp-texte-2); background: #F1F5F9; border: 1px solid var(--dsp-ligne); }
 .base-chip { color: #2F7D50; background: #EEF7F2; border: 1px solid #CBEBD8; }
 .base-chip-repli { color: #B4652F; background: #FCF4EE; border-color: #F5DCC2; }
+
+
+/* ---------- Défilement horizontal ---------- */
+/* Le bandeau porte overflow: hidden pour arrondir ses angles ; le conteneur du
+   tableau doit donc défiler lui-même, et accepter de rétrécir. */
+.dispatch-table-conteneur {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bandeau-dispatch { min-width: 0; max-width: 100%; }

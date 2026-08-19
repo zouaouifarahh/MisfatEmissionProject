@@ -81,15 +81,23 @@ describe('Injection des lignes ventilées dans les scopes', () => {
     const fixture = monter('combustion-etablissements');
     const ecran: Element = fixture.nativeElement.querySelector('app-emission-list')!;
 
-    // Deux comptes de combustibles sont ventilés vers cet écran.
-    const lignes = lignesGrille(ecran);
-    expect(lignes.length).toBe(2);
+    // Deux comptes de combustibles sont ventilés vers cet écran, et n'y sont
+    // comptés qu'une fois : chaque ligne porte une destination et une seule.
+    expect(lignesGrille(ecran).length).toBe(2);
 
-    const texte = lignes.map(l => l.textContent ?? '').join(' | ');
+    const texte = lignesGrille(ecran).map(l => l.textContent ?? '').join(' | ');
     expect(texte).toContain('Achats matières combustibles Gasoil');
+
+    // Le compte 602100 reste visible, mais dans la colonne « Code article ERP »
+    // et non plus dans celle du référentiel carbone : un numéro de compte
+    // identifie une écriture, il ne documente aucun facteur d'émission.
     expect(texte).toContain('602100');
 
-    // Plus de « aucune donnée disponible » : la grille est alimentée.
+    const entetes = Array.from(ecran.querySelectorAll('.data-table thead th'))
+      .map(th => th.textContent?.trim() ?? '');
+    expect(entetes.some(e => e.startsWith('Référence carbone'))).toBe(true);
+    expect(entetes).toContain('Code article ERP');
+
     expect(ecran.querySelector('.empty-table-msg')).toBeNull();
   }, 30_000);
 
@@ -192,7 +200,10 @@ describe('Injection des lignes ventilées dans les scopes', () => {
       colonnesEcartees: [], ecran: 'combustion-etablissements' as const, scope: 'SCOPE_1' as const,
       motif: 'Compte 602100', origineRoutage: 'compte' as const, motCle: '602100', exclu: false,
       facteur: 0.45, uniteFacteur: 'TND', libelleFacteur: '', baseAppliquee: 'ADEME Fallback',
-      origineFacteur: 'ADEME Fallback' as const, emissionKg: 450
+      origineFacteur: 'ADEME Fallback' as const, emissionKg: 450,
+      // Un repli n'a pas de référence au référentiel : le champ reste vide, et
+      // le compte 602100 part dans « codeArticle ».
+      referenceCarbone: ''
     };
 
     const mesure = adapterVersMesure(ligne, 0, 'Combustion dans les usines', 'MISFAT 1');

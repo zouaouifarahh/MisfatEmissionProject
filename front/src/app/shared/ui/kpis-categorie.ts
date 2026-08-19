@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 /**
@@ -20,6 +20,18 @@ export interface CarteKpi {
   accent: AccentKpi;
   /** Passe la carte en alerte : couverture insuffisante, repli majoritaire. */
   alerte?: boolean;
+  /**
+   * Filtre que la carte applique au tableau lorsqu'on la clique.
+   *
+   * <p>Une alerte qui annonce « 62 % de couverture » laissait l'utilisateur
+   * chercher lui-même, parmi des centaines de lignes, celles qui manquaient.
+   * La carte devient le chemin le plus court vers ce qu'elle signale.</p>
+   *
+   * <p>Absent, la carte reste un simple indicateur : toutes n'ont pas de
+   * contrepartie dans le tableau, et rendre cliquable ce qui ne filtre rien
+   * tromperait sur ce que le clic va faire.</p>
+   */
+  filtreStatut?: FiltreStatut;
 }
 
 @Component({
@@ -29,13 +41,26 @@ export interface CarteKpi {
   template: `
     <div class="kpi-grille">
       <div class="kpi-carte" *ngFor="let carte of cartes"
-           [ngClass]="'kpi-' + carte.accent" [class.kpi-alerte]="carte.alerte">
+           [ngClass]="'kpi-' + carte.accent" [class.kpi-alerte]="carte.alerte"
+           [class.kpi-cliquable]="carte.filtreStatut"
+           [class.kpi-actif]="carte.filtreStatut && carte.filtreStatut === filtreActif"
+           [attr.role]="carte.filtreStatut ? 'button' : null"
+           [attr.tabindex]="carte.filtreStatut ? 0 : null"
+           [attr.aria-pressed]="carte.filtreStatut
+             ? (carte.filtreStatut === filtreActif ? 'true' : 'false') : null"
+           [title]="carte.filtreStatut ? infobulle(carte) : ''"
+           (click)="basculer(carte)"
+           (keydown.enter)="basculer(carte)"
+           (keydown.space)="basculer(carte)">
         <span class="kpi-icone" aria-hidden="true">{{ carte.icone }}</span>
         <div class="kpi-corps">
           <span class="kpi-libelle">{{ carte.libelle }}</span>
           <span class="kpi-valeur">{{ carte.valeur }}</span>
           <span class="kpi-unite">{{ carte.unite }}</span>
         </div>
+        <span class="kpi-loupe" *ngIf="carte.filtreStatut" aria-hidden="true">
+          {{ carte.filtreStatut === filtreActif ? '✕' : '🔎' }}
+        </span>
       </div>
     </div>
   `,
@@ -86,10 +111,54 @@ export interface CarteKpi {
     /* Une couverture dégradée annonce un bilan largement bâti sur des replis. */
     .kpi-alerte { border-left-color: #D97706; background: #FFFBF5; }
     .kpi-alerte .kpi-valeur { color: #B4652F; }
+
+    /* Une carte qui filtre doit s'annoncer comme telle avant le clic. */
+    .kpi-cliquable { cursor: pointer; position: relative; }
+    .kpi-cliquable:hover { border-color: #1E92CD; box-shadow: 0 2px 10px rgba(30,146,205,.16); }
+    .kpi-cliquable:focus-visible { outline: 2px solid #1E92CD; outline-offset: 2px; }
+
+    .kpi-actif { border-color: #1E92CD; background: #F2F9FD; }
+    .kpi-actif.kpi-alerte { border-color: #D97706; background: #FFF4E6; }
+
+    .kpi-loupe {
+      margin-left: auto;
+      font-size: 13px;
+      opacity: .55;
+      flex: 0 0 auto;
+    }
+    .kpi-cliquable:hover .kpi-loupe { opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .kpi-cliquable { transition: none; }
+    }
   `]
 })
 export class KpisCategorieComponent {
   @Input({ required: true }) cartes: CarteKpi[] = [];
+
+  /** Filtre actuellement appliqué au tableau, pour marquer la carte active. */
+  @Input() filtreActif: FiltreStatut | string = 'Tous';
+
+  /**
+   * Filtre demandé par un clic sur une carte d'alerte.
+   *
+   * <p>L'écran reste maître : le composant dit ce qui a été demandé, il
+   * n'impose rien. Cliquer une carte déjà active la relâche, pour qu'on
+   * revienne au tableau complet par le même geste.</p>
+   */
+  @Output() filtrer = new EventEmitter<FiltreStatut>();
+
+  basculer(carte: CarteKpi): void {
+    if (!carte.filtreStatut) return;
+    this.filtrer.emit(carte.filtreStatut === this.filtreActif ? 'Tous' : carte.filtreStatut);
+  }
+
+  /** Ce que le clic va faire, annoncé avant qu'il ne soit fait. */
+  infobulle(carte: CarteKpi): string {
+    return carte.filtreStatut === this.filtreActif
+      ? 'Cliquer pour revenir au tableau complet'
+      : 'Cliquer pour n’afficher que les lignes concernées';
+  }
 }
 
 /** Ligne valorisée, quelle que soit la catégorie qui la porte. */

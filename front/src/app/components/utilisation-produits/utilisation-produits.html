@@ -48,6 +48,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="gamme" libelle="Gamme de produit"
+                        libelleTous="Toutes les gammes"
+                        [source]="listeEmissions" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="gammes"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
              placeholder="Recherche par référence, gamme, établissement ou base…" class="search-input">
 
@@ -180,11 +189,9 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="5">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td colspan="10">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
             <td class="ta-right num-fort">{{ totalQuantiteVendue | number:'1.0-0' }} unités</td>
-            <td colspan="2"></td>
-            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
-            <td></td>
+            <td colspan="1"></td>
           </tr>
         </tfoot>
       </table>

@@ -1,6 +1,8 @@
 import {
   ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID, isDevMode
 } from '@angular/core';
+import { colonnesIdentite } from '../../core/colonnes-identite';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -66,7 +68,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-franchises',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './franchises.html',
   styleUrl: './franchises.css'
@@ -246,10 +248,40 @@ export class FranchisesComponent implements OnInit {
 
   // ---------- Tableau et pagination ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+  }
+
   get emissionsFiltrees(): EmissionFranchise[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.listeEmissions.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.approche !== this.filtreMetier) return false;
       if (this.filtreApproche !== 'Toutes' && item.approche !== this.filtreApproche) return false;
       if (this.filtreProvenance !== 'Toutes' && item.provenance !== this.filtreProvenance) return false;
       if (!terme) return true;
@@ -508,6 +540,8 @@ export class FranchisesComponent implements OnInit {
   telechargerGabarit(): void {
     const exemples = [
       {
+      // Colonnes d'identité, aux intitulés que les parseurs reconnaissent.
+      ...colonnesIdentite('MS3C14FR', 'FRA-0002'),
         'Référence': 'FRA-0001', 'Franchisé': 'Réseau MISFAT Auto Nord',
         'Localisation': 'Bizerte, Tunisie', 'Approche': 'Par site', 'Quantité': 12
       },

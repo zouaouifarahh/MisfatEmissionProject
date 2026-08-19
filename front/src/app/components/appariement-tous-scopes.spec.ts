@@ -22,6 +22,8 @@ import { VoyagesAffairesComponent } from './voyages-affaires/voyages-affaires';
 import { InvestissementsComponent } from './investissements/investissements';
 import { BiensServicesComponent } from './biens-services/biens-services';
 import { BiensEquipementComponent } from './biens-equipement/biens-equipement';
+import { EmissionListComponent } from './emission-list/emission-list';
+import { CombustionVehiculesComponent } from './combustion-vehicules/combustion-vehicules';
 
 /**
  * Colonnes d'appariement, présentes sur tous les scopes.
@@ -37,8 +39,10 @@ import { BiensEquipementComponent } from './biens-equipement/biens-equipement';
  */
 describe('Appariement au référentiel — tous les scopes', () => {
 
-  /** Les dix-sept écrans de collecte, avec le scope qu'ils documentent. */
+  /** Les dix-neuf écrans de collecte, avec le scope qu'ils documentent. */
   const ECRANS: Array<{ scope: string; nom: string; composant: Type<unknown> }> = [
+    { scope: 'Scope 1', nom: 'Combustion dans les usines', composant: EmissionListComponent },
+    { scope: 'Scope 1', nom: 'Combustion des véhicules', composant: CombustionVehiculesComponent },
     { scope: 'Scope 1', nom: 'Émissions de réfrigérants', composant: EmissionsRefrigerantsComponent },
     { scope: 'Scope 2', nom: 'Électricité achetée', composant: ElectriciteAcheteeComponent },
     { scope: 'Scope 3 · 1', nom: 'Biens et services achetés', composant: BiensServicesComponent },
@@ -87,16 +91,20 @@ describe('Appariement au référentiel — tous les scopes', () => {
     it(`${scope} — ${nom} expose la référence carbone et le code article ERP`, () => {
       const colonnes = entetes(monter(composant));
 
+      // Un entête triable porte son icône de tri à la suite du libellé : on
+      // vérifie le début, non l'égalité stricte.
       expect(colonnes.length).toBeGreaterThan(0);
-      expect(colonnes).toContain('Référence carbone');
-      expect(colonnes).toContain('Code article ERP');
+      expect(colonnes.some(c => c.startsWith('Référence carbone'))).toBe(true);
+      expect(colonnes.some(c => c.startsWith('Code article ERP'))).toBe(true);
     }, 30_000);
   }
 
-  it('couvre les dix-sept écrans de collecte', () => {
+  it('couvre les dix-neuf écrans de collecte', () => {
     // Le décompte est volontaire : ajouter un écran de collecte sans l'inscrire
     // ici le laisserait repartir avec des tirets, sans que rien ne le dise.
-    expect(ECRANS).toHaveLength(17);
+    // Dix-neuf, et non dix-sept : le Scope 1 en compte trois, la combustion des
+    // usines et celle des véhicules étant deux écrans distincts.
+    expect(ECRANS).toHaveLength(19);
 
     const scopes = new Set(ECRANS.map(e => e.scope.split(' · ')[0]));
     expect([...scopes].sort()).toEqual(['Scope 1', 'Scope 2', 'Scope 3']);

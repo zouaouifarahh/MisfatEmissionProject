@@ -25,6 +25,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="categorieCarbone" libelle="Catégorie d'équipement"
+                        libelleTous="Toutes les catégories"
+                        [source]="listeEmissions" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="categoriesCarbone"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte"
              placeholder="Recherche par équipement, étiquette, référence ou usine…" class="search-input">
 

@@ -1,4 +1,5 @@
 import { Component, OnInit, Inject, PLATFORM_ID, ChangeDetectorRef, inject } from '@angular/core';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmissionService, EmissionFactor } from '../../services/emission';
@@ -48,7 +49,7 @@ export interface Emission {
 @Component({
   selector: 'app-combustion-vehicules',
   standalone: true,
-  imports: [KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './combustion-vehicules.html',
   styleUrl: './combustion-vehicules.css'
@@ -481,8 +482,47 @@ export class CombustionVehiculesComponent implements OnInit {
     }
   }
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarderDansLocalStorage();
+
+    const clesVentilees = evenement.avant
+      .map((ligne: any) => ligne?.cleVentilation)
+      .filter((cle: unknown): cle is string => typeof cle === 'string' && cle.length > 0);
+
+    if (clesVentilees.length) {
+      const facteur = Number(evenement.apres[0]?.facteur ?? 0);
+      this.dispatchStore.reprendreFacteur(clesVentilees, facteur);
+    }
+  }
+
   get emissionsFiltrees(): Emission[] {
     let list = this.toutesLignes.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.emissionSource !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
       const correspondEtab = this.filtreEtablissement === 'Tous' || item.etablissement === this.filtreEtablissement;
@@ -863,7 +903,8 @@ export class CombustionVehiculesComponent implements OnInit {
   telechargerModeleExcel() {
     const dataExemple = [
       {
-        'Référence Carb': 'MS1COC',
+        'Référence Carbone': 'MS1COC',
+        'Code Article ERP': 'VEH-0042',
         'Type': 'Diesel medium and heavy duty truck',
         'Établissement': 'Misfat 1',
         'Type Donnee': 'Physique',
@@ -1047,7 +1088,10 @@ export class CombustionVehiculesComponent implements OnInit {
         libelle: 'Couverture MS SQL', icone: '🎯', accent: 'couverture',
         valeur: couverture.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %',
         unite: 'sinon repli ADEME',
-        alerte: couverture < 80
+        alerte: couverture < 80,
+        // Cliquer la carte n'affiche que les lignes qu'elle signale : celles
+        // qu'aucun facteur du référentiel n'adosse.
+        filtreStatut: 'Fallback' as const
       }
     ];
   }

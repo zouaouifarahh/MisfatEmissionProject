@@ -29,7 +29,30 @@ export interface MesureStandard {
   scope: string;
   categorie: string;
   etablissement: string;
+  /**
+   * Référence du référentiel carbone, et rien d'autre.
+   *
+   * <p>Elle portait auparavant le compte comptable de la ligne ventilée : la
+   * colonne « Référence carbone » affichait donc 601000 ou 625000, des numéros
+   * qui identifient une écriture et non un facteur d'émission. Le compte a
+   * désormais sa propre colonne.</p>
+   */
   reference: string;
+  /**
+   * Compte comptable ou référence du document source.
+   *
+   * <p>C'est là que va le 601000 : utile pour retrouver l'écriture, sans
+   * prétendre documenter le facteur appliqué.</p>
+   */
+  codeArticle: string;
+  /**
+   * Clé de la ligne dans le magasin de répartition.
+   *
+   * <p>Elle seule permet à une reprise en masse de rendre la ligne au magasin :
+   * l'identifiant négatif d'une ligne ventilée est reconstruit à chaque
+   * conversion et ne survivrait pas à un rafraîchissement.</p>
+   */
+  cleVentilation?: string;
   emissionSource: string;
   typeDonnee: 'Physique' | 'Monetaire';
   quantite: number;
@@ -84,7 +107,12 @@ export function adapterVersMesure(
     // L'usine du périmètre actif, non un libellé technique : la colonne
     // « Usine » doit rester lisible comme celle des saisies manuelles.
     etablissement: usine,
-    reference: ligne.mainAccount || ligne.reference || 'VENT',
+    // La référence carbone vient du facteur retenu à la valorisation, jamais du
+    // classeur. Vide sur un repli : la colonne affiche alors un tiret, ce qui
+    // dit exactement la vérité — aucune référence ne documente ce ratio.
+    reference: ligne.referenceCarbone ?? '',
+    codeArticle: ligne.mainAccount || ligne.reference || 'VENT',
+    cleVentilation: ligne.cle,
     emissionSource: ligne.nom,
     typeDonnee: 'Monetaire',
     quantite: ligne.quantite,
@@ -145,6 +173,12 @@ export interface ImmobilisationVentilee {
   creeLe: string;
   /** Provenance de la ligne, renseignée pour les seules lignes ventilées. */
   sourceData?: string;
+  /** Référence du référentiel carbone qui a désigné le facteur. */
+  referenceCarbone: string;
+  /** Compte comptable ou référence du document source. */
+  codeArticle: string;
+  /** Clé de la ligne dans le magasin de répartition. */
+  cleVentilation?: string;
 }
 
 export function adapterVersImmobilisation(
@@ -156,7 +190,12 @@ export function adapterVersImmobilisation(
     id: identifiantVentile(ligne, rang),
     scope: 'SCOPE_3',
     categorie: 'Investissements',
+    // Le numéro d'immobilisation identifie un actif comptable ; il garde donc
+    // le compte, tandis que la référence carbone garde le code du facteur.
     numeroImmo: ligne.mainAccount || ligne.reference || 'VENT',
+    referenceCarbone: ligne.referenceCarbone ?? '',
+    codeArticle: ligne.mainAccount || ligne.reference || '',
+    cleVentilation: ligne.cle,
     designation: ligne.nom,
     categorieCarbone: ligne.categorieAbsente
       ? 'Équipements Ind. (Fallback #N/A)'

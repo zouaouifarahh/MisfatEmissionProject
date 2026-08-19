@@ -1,0 +1,241 @@
+<section class="cg-ecran">
+
+  <header class="cg-entete">
+    <div>
+      <h2 class="cg-titre">Consolidation Groupe</h2>
+      <p class="cg-sous-titre">
+        Les filiales côte à côte sur un même exercice, en valeur absolue et en intensité.
+      </p>
+    </div>
+
+    <label class="cg-exercice">
+      <span>Exercice</span>
+      <select [(ngModel)]="exercice" (ngModelChange)="charger()">
+        <option *ngFor="let a of annees" [ngValue]="a.valeur">{{ a.valeur }}</option>
+      </select>
+    </label>
+  </header>
+
+  <p class="cg-etat" *ngIf="chargement">Consolidation des filiales en cours…</p>
+
+  <ng-container *ngIf="!chargement && consolidation as g">
+
+    <!-- Un rapport dont une filiale repose sur les seuls relevés locaux doit
+         le déclarer : c'est la première question d'un vérificateur. -->
+    <p class="cg-reserve" *ngIf="!g.serveurJoignable">
+      Une ou plusieurs filiales n'ont pas été servies par le serveur d'émissions :
+      leur bilan repose sur les relevés locaux. Le total Groupe est à lire sous
+      cette réserve.
+    </p>
+
+    <div class="cg-chiffres">
+      <div class="cg-chiffre">
+        <span class="chiffre-libelle">Empreinte Groupe {{ exercice }}</span>
+        <span class="chiffre-valeur">{{ g.total | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e · {{ g.filiales }} filiales</span>
+      </div>
+      <div class="cg-chiffre">
+        <span class="chiffre-libelle">Scope 1</span>
+        <span class="chiffre-valeur">{{ g.scope1 | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e</span>
+      </div>
+      <div class="cg-chiffre">
+        <span class="chiffre-libelle">Scope 2</span>
+        <span class="chiffre-valeur">{{ g.scope2 | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e</span>
+      </div>
+      <div class="cg-chiffre">
+        <span class="chiffre-libelle">Scope 3</span>
+        <span class="chiffre-valeur">{{ g.scope3 | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e</span>
+      </div>
+      <div class="cg-chiffre">
+        <span class="chiffre-libelle">Intensité Groupe</span>
+        <span class="chiffre-valeur">
+          <ng-container *ngIf="g.intensiteEffectif !== null; else sansIntensite">
+            {{ g.intensiteEffectif | number:'1.0-2' }}
+          </ng-container>
+        </span>
+        <span class="chiffre-unite">tCO₂e / salarié</span>
+      </div>
+    </div>
+
+    <!-- Comparaison inter-filiales -->
+    <section class="cg-bloc">
+      <div class="cg-bloc-tete">
+        <h3>Comparaison entre filiales</h3>
+        <div class="cg-onglets" role="tablist" aria-label="Base de comparaison">
+          <button type="button" *ngFor="let i of INTENSITES" role="tab"
+                  [class.actif]="intensiteAffichee === i.code"
+                  [attr.aria-selected]="intensiteAffichee === i.code"
+                  (click)="intensiteAffichee = i.code">{{ i.libelle }}</button>
+        </div>
+      </div>
+
+      <p class="cg-avertissement" *ngIf="intensiteAffichee === 'chiffreAffaires' && devisesMelangees.length">
+        Les chiffres d'affaires sont déclarés en {{ devisesMelangees.join(', ') }} :
+        ces intensités ne sont pas directement comparables entre elles. Les
+        convertir au cours du jour ferait varier une intensité d'exercice clos à
+        chaque mouvement de change.
+      </p>
+
+      <ul class="cg-barres">
+        <li *ngFor="let b of barres">
+          <div class="barre-tete">
+            <span class="barre-nom">{{ b.libelle }}</span>
+            <span class="barre-pays">{{ b.pays }}</span>
+            <span class="barre-valeur" *ngIf="b.valeur !== null">
+              {{ b.valeur | number:'1.0-2' }} <small>{{ uniteAffichee }}</small>
+            </span>
+            <span class="barre-manque" *ngIf="b.valeur === null">
+              {{ b.manque }} non renseigné
+            </span>
+          </div>
+
+          <div class="barre-piste">
+            <div class="barre-remplie" [style.width.%]="b.largeur"></div>
+          </div>
+
+          <p class="barre-ecart" *ngIf="b.ecart !== null"
+             [class.ecart-defavorable]="b.ecart > 0"
+             [class.ecart-favorable]="b.ecart < 0">
+            {{ b.ecart > 0 ? '+' : '' }}{{ b.ecart | number:'1.0-1' }} % par rapport
+            à la médiane du Groupe
+          </p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Rapport autonome par filiale -->
+    <section class="cg-bloc">
+      <h3>Rapport par filiale</h3>
+
+      <div class="cg-tableau-cadre">
+        <table class="cg-tableau">
+          <thead>
+            <tr>
+              <th scope="col">Filiale</th>
+              <th scope="col">Pays</th>
+              <th scope="col" class="ta-right">Scope 1</th>
+              <th scope="col" class="ta-right">Scope 2</th>
+              <th scope="col" class="ta-right">Scope 3</th>
+              <th scope="col" class="ta-right">Total</th>
+              <th scope="col" class="ta-right">% Groupe</th>
+              <th scope="col" class="ta-right">t / salarié</th>
+              <th scope="col" class="ta-right">t / M CA</th>
+              <th scope="col" class="ta-right">kg / unité</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let l of g.lignes">
+              <td class="cellule-nom">{{ l.libelle }}</td>
+              <td>{{ l.pays || '—' }}</td>
+              <td class="ta-right">{{ l.scope1 | number:'1.0-0' }}</td>
+              <td class="ta-right">{{ l.scope2 | number:'1.0-0' }}</td>
+              <td class="ta-right">{{ l.scope3 | number:'1.0-0' }}</td>
+              <td class="ta-right num-fort">{{ l.total | number:'1.0-0' }}</td>
+              <td class="ta-right">{{ l.partGroupe | number:'1.0-1' }} %</td>
+              <td class="ta-right">
+                <ng-container *ngIf="l.intensiteEffectif !== null; else sansIntensite">
+                  {{ l.intensiteEffectif | number:'1.0-2' }}
+                </ng-container>
+              </td>
+              <td class="ta-right">
+                <ng-container *ngIf="l.intensiteChiffreAffaires !== null; else sansIntensite">
+                  {{ l.intensiteChiffreAffaires | number:'1.0-1' }}
+                  <small class="devise">{{ l.devise }}</small>
+                </ng-container>
+              </td>
+              <td class="ta-right">
+                <ng-container *ngIf="l.intensiteProduction !== null; else sansIntensite">
+                  {{ l.intensiteProduction | number:'1.0-3' }}
+                </ng-container>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">Groupe — {{ g.filiales }} filiales</td>
+              <td class="ta-right num-fort">{{ g.scope1 | number:'1.0-0' }}</td>
+              <td class="ta-right num-fort">{{ g.scope2 | number:'1.0-0' }}</td>
+              <td class="ta-right num-fort">{{ g.scope3 | number:'1.0-0' }}</td>
+              <td class="ta-right num-fort">{{ g.total | number:'1.0-0' }}</td>
+              <td class="ta-right num-fort">100,0 %</td>
+              <td class="ta-right num-fort">
+                <ng-container *ngIf="g.intensiteEffectif !== null; else sansIntensite">
+                  {{ g.intensiteEffectif | number:'1.0-2' }}
+                </ng-container>
+              </td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- Consolidation par pays -->
+    <section class="cg-bloc">
+      <h3>Consolidation par pays</h3>
+      <p class="cg-note">
+        Un pays réunit parfois plusieurs sociétés : c'est à cette maille que se
+        lisent le mix électrique et la réglementation applicable.
+      </p>
+
+      <div class="cg-tableau-cadre">
+        <table class="cg-tableau">
+          <thead>
+            <tr>
+              <th scope="col">Pays</th>
+              <th scope="col" class="ta-right">Filiales</th>
+              <th scope="col" class="ta-right">Scope 1</th>
+              <th scope="col" class="ta-right">Scope 2</th>
+              <th scope="col" class="ta-right">Scope 3</th>
+              <th scope="col" class="ta-right">Total</th>
+              <th scope="col" class="ta-right">% Groupe</th>
+              <th scope="col" class="ta-right">Effectif</th>
+              <th scope="col" class="ta-right">t / salarié</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of g.pays">
+              <td class="cellule-nom">{{ p.pays }}</td>
+              <td class="ta-right">{{ p.filiales }}</td>
+              <td class="ta-right">{{ p.scope1 | number:'1.0-0' }}</td>
+              <td class="ta-right">{{ p.scope2 | number:'1.0-0' }}</td>
+              <td class="ta-right">{{ p.scope3 | number:'1.0-0' }}</td>
+              <td class="ta-right num-fort">{{ p.total | number:'1.0-0' }}</td>
+              <td class="ta-right">{{ p.partGroupe | number:'1.0-1' }} %</td>
+              <td class="ta-right">
+                <ng-container *ngIf="p.effectif !== null; else sansIntensite">
+                  {{ p.effectif | number:'1.0-0' }}
+                </ng-container>
+              </td>
+              <td class="ta-right">
+                <ng-container *ngIf="p.intensiteEffectif !== null; else sansIntensite">
+                  {{ p.intensiteEffectif | number:'1.0-2' }}
+                </ng-container>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Ce qui reste à saisir pour que la comparaison soit complète -->
+    <p class="cg-appel" *ngIf="aCompleter.length">
+      <strong>À compléter&nbsp;:</strong> les dénominateurs d'intensité manquent pour
+      {{ aCompleter.join(', ') }}. Ils se saisissent dans l'écran
+      « Données d'activité », exercice par exercice. Tant qu'ils manquent, ces
+      filiales apparaissent sans intensité — les compter pour zéro les ferait
+      passer pour exemplaires.
+    </p>
+
+  </ng-container>
+
+  <p class="cg-vide" *ngIf="!chargement && !consolidation">
+    Aucune filiale n'est disponible pour cet exercice.
+  </p>
+
+  <ng-template #sansIntensite><span class="non-renseigne">—</span></ng-template>
+
+</section>

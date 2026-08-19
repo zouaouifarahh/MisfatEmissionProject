@@ -30,15 +30,19 @@ import { AppHeaderComponent } from '../../../shared/app-header/app-header.compon
 import { EmissionFactorsComponent } from '../../../components/emission-factors/emission-factors.component';
 import { ImportDataComponent } from '../../../components/import-data/import-data.component';
 import { CurrencyTrendComponent } from '../../../components/currency-trend/currency-trend.component';
+import { TrajectoireSbtiComponent } from '../../../components/trajectoire-sbti/trajectoire-sbti.component';
 import { ExchangeTickerComponent } from '../../../components/exchange-ticker/exchange-ticker.component';
 import { GestionSocietesComponent } from '../../../components/gestion-societes/gestion-societes.component';
 import { ReportingComponent } from '../../../components/reporting/reporting.component';
+import { ConsolidationGroupeComponent } from '../../../components/consolidation-groupe/consolidation-groupe.component';
 import { GestionEquipeComponent } from '../../../components/gestion-equipe/gestion-equipe.component';
 import { ActivityDataComponent } from '../../../components/activity-data/activity-data.component';
 
 // Services et Modèles
 import { RolesService, DroitsAcces, droitsPourRole } from '../../../core/roles.service';
 import { purgerMarqueursObsoletes, VERSION_APPARIEMENT } from '../../../core/appariement-referentiel';
+import { CommentairesService, Commentaire } from '../../../core/commentaires.service';
+import { TauxChangeService } from '../../../core/taux-change.service';
 import {
   AFFECTATIONS_PROPOSEES,
   Compte,
@@ -61,6 +65,25 @@ import { ReportFiltersService } from '../../../core/report-filters.service';
 import { TCo2ePipe } from '../../../shared/tco2e.pipe';
 import { catchError, forkJoin, of } from 'rxjs';
 import { RecalculFacteursService } from '../../../shared/dispatch/recalcul-facteurs';
+
+/**
+ * Ligne du tableau de suivi de saisie.
+ *
+ * <p>Nommée pour que le panneau de détail puisse la recevoir : sans type
+ * partagé, le clic sur l'œil transporterait un objet anonyme dont rien ne
+ * garantirait la forme.</p>
+ */
+export interface LigneSuiviSaisie {
+  scope: string;
+  scopeLabel: string;
+  classe: string;
+  categorie: string;
+  metier: string;
+  base: string;
+  quantite: string;
+  valeur: number;
+  pct: number;
+}
 
 interface DonneeAnnuelle {
   annee: number;
@@ -144,9 +167,11 @@ interface PointHistorique {
     EmissionFactorsComponent,
     ImportDataComponent,
     CurrencyTrendComponent,
+    TrajectoireSbtiComponent,
     ExchangeTickerComponent,
     GestionSocietesComponent,
     ReportingComponent,
+    ConsolidationGroupeComponent,
     GestionEquipeComponent,
     ActivityDataComponent,
     TCo2ePipe
@@ -186,6 +211,7 @@ export class DashboardComponent implements OnInit {
     'referentiel-carbone': 'emissionCarbone',
     'mesure': 'emissionCarbone',
     'reporting-executif': 'reporting',
+    'consolidation-groupe': 'reporting',
     'ghg': 'reporting',
     'societes': 'parametres',
     'sauvegarde-donnees': 'parametres',
@@ -1764,17 +1790,7 @@ export class DashboardComponent implements OnInit {
    * catégories : un poste à zéro atteste que la catégorie a été examinée, alors
    * que son absence laisserait penser qu'elle a été omise du périmètre.</p>
    */
-  get syntheseSources(): {
-    scope: string;
-    scopeLabel: string;
-    classe: string;
-    categorie: string;
-    metier: string;
-    base: string;
-    quantite: string;
-    valeur: number;
-    pct: number;
-  }[] {
+  get syntheseSources(): LigneSuiviSaisie[] {
     const total = this.statsReelles?.total ?? 0;
 
     const groupes = [
@@ -1820,6 +1836,97 @@ export class DashboardComponent implements OnInit {
   }
 
   /** Lignes du tableau après application du filtre de scope. */
+  // ---------- Détail d'une ligne de saisie et fil de commentaires ----------
+
+  private readonly commentairesService = inject(CommentairesService);
+  private readonly tauxChange = inject(TauxChangeService);
+
+  /** Ligne dont le panneau latéral est ouvert, ou null. */
+  ligneDetail: LigneSuiviSaisie | null = null;
+  /** Commentaire en cours de rédaction. */
+  commentaireSaisi = '';
+  erreurCommentaire = '';
+
+  /**
+   * Clé stable d'une ligne de suivi.
+   *
+   * <p>Le scope et la catégorie l'identifient : l'index de tableau changerait
+   * au moindre filtre, et le fil de commentaires se rattacherait alors à la
+   * mauvaise ligne.</p>
+   */
+  cleLigne(ligne: { scope: string; categorie: string }): string {
+    return `${ligne.scope}|${ligne.categorie}`;
+  }
+
+  nombreCommentaires(ligne: { scope: string; categorie: string }): number {
+    return this.commentairesService.compter(this.cleLigne(ligne));
+  }
+
+  /** Fil de la ligne ouverte, du plus ancien au plus récent. */
+  get commentairesDetail(): Commentaire[] {
+    if (!this.ligneDetail) return [];
+    return this.commentairesService.pourLigne(this.cleLigne(this.ligneDetail));
+  }
+
+  get peutSupprimerCommentaire(): boolean {
+    return this.commentairesService.peutSupprimer;
+  }
+
+  ouvrirDetailSaisie(ligne: LigneSuiviSaisie): void {
+    this.ligneDetail = ligne;
+    this.commentaireSaisi = '';
+    this.erreurCommentaire = '';
+  }
+
+  fermerDetailSaisie(): void {
+    this.ligneDetail = null;
+    this.commentaireSaisi = '';
+    this.erreurCommentaire = '';
+  }
+
+  /**
+   * Ajoute un commentaire au fil de la ligne ouverte.
+   *
+   * <p>L'horodatage est produit ici, au moment du geste : le service ne le
+   * fabrique pas lui-même pour rester vérifiable sans dépendre de l'heure.</p>
+   */
+  ajouterCommentaire(): void {
+    if (!this.ligneDetail) return;
+
+    const ecrit = this.commentairesService.ajouter(
+      this.cleLigne(this.ligneDetail),
+      this.commentaireSaisi,
+      this.nomUtilisateur,
+      new Date().toISOString()
+    );
+
+    if (!ecrit) {
+      this.erreurCommentaire = 'Saisissez un commentaire avant de l\'ajouter.';
+      return;
+    }
+
+    this.commentaireSaisi = '';
+    this.erreurCommentaire = '';
+    this.cdr.markForCheck();
+  }
+
+  supprimerCommentaire(id: number): void {
+    this.commentairesService.supprimer(id);
+    this.cdr.markForCheck();
+  }
+
+  /** Nom affiché sur les commentaires, tel que la session le porte. */
+  get nomUtilisateur(): string {
+    if (typeof sessionStorage === 'undefined') return 'Utilisateur';
+    try {
+      return sessionStorage.getItem('userName')
+        ?? localStorage.getItem('userName')
+        ?? 'Utilisateur';
+    } catch {
+      return 'Utilisateur';
+    }
+  }
+
   get syntheseFiltrees() {
     const lignes = this.syntheseSources;
     return this.scopeFiltre ? lignes.filter(l => l.scope === this.scopeFiltre) : lignes;
@@ -1983,6 +2090,11 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.purgerCachesObsoletes();
+
+    // Les cours sont chargés une fois pour toute la console : c'est eux qui
+    // ramènent au dinar les facteurs libellés en euros ou en dollars, et deux
+    // chargements séparés donneraient deux résultats pour la même ligne.
+    this.tauxChange.charger().subscribe();
 
     // Le rôle commande la navigation : il est lu avant tout le reste, pour
     // qu'aucun écran interdit ne s'affiche même le temps d'un cycle de rendu.

@@ -298,3 +298,25 @@
 .import-ok, .import-ko { padding: 10px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 600; }
 .import-ok { color: #2F7D50; background: #EEF7F2; border: 1px solid #CBEBD8; }
 .import-ko { color: #B4652F; background: #FCF4EE; border: 1px solid #F5DCC2; }
+
+
+/* ---------- Défilement horizontal des tableaux ---------- */
+/* overflow-x seul ne défile pas : sans borne de largeur, le conteneur s'étire
+   au min-width du tableau et déborde la page. La borne, plus min-width: 0 pour
+   lever la taille minimale automatique des éléments de flex, rend le
+   défilement effectif — aucune colonne n'est plus rognée à droite. */
+.table-container {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Le parent direct doit accepter de rétrécir, sinon il impose sa largeur. */
+.emission-card,
+.emission-container,
+.categorie-card,
+.categorie-container {
+  min-width: 0;
+  max-width: 100%;
+}

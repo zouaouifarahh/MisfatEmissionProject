@@ -241,7 +241,7 @@ describe('Persistance de la répartition', () => {
         colonnesEcartees: [], ecran: 'electricite-achetee', scope: 'SCOPE_2',
         motif: '', origineRoutage: 'compte', motCle: '606500', exclu: false,
         facteur: 1.443, uniteFacteur: 'TND', libelleFacteur: '', baseAppliquee: 'ADEME Fallback',
-        origineFacteur: 'ADEME Fallback', emissionKg: 1443
+        origineFacteur: 'ADEME Fallback', emissionKg: 1443, referenceCarbone: ''
       }],
       fichier: 'ancien.xlsx', importeLe: '', exclues: 0, nonVentilees: 0, exercice: 2025, entityId: null
     };

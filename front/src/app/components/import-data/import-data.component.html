@@ -212,7 +212,7 @@
 
 <!-- Détail d'un import -->
 <div class="modal-overlay" *ngIf="logDetaille" (click)="fermerDetails()">
-  <div class="modal" (click)="$event.stopPropagation()">
+  <div class="modal modal-detail" (click)="$event.stopPropagation()">
     <header class="modal-head">
       <h3>Détail de l'import</h3>
       <button type="button" class="btn-close" (click)="fermerDetails()">✕</button>
@@ -255,7 +255,15 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let poste of repartitionDetaillee">
+            <!-- Une ligne de répartition ouvre les écritures qui la composent. -->
+            <tr *ngFor="let poste of repartitionDetaillee" class="poste-cliquable"
+                role="button" tabindex="0"
+                [class.poste-actif]="selectionDetail?.libelle === poste.categorie"
+                [title]="'Cliquer pour voir les lignes de ' + poste.categorie"
+                (click)="ouvrirSelection({ libelle: poste.categorie, genre: 'poste',
+                                           ecran: poste.ecran, scope: poste.scope })"
+                (keydown.enter)="ouvrirSelection({ libelle: poste.categorie, genre: 'poste',
+                                                   ecran: poste.ecran, scope: poste.scope })">
               <td><span class="pill-scope">{{ poste.scope.replace('_', ' ') }}</span></td>
               <td>{{ poste.icone }} {{ poste.categorie }}</td>
               <td class="ta-center">{{ poste.lignes }}</td>
@@ -283,11 +291,57 @@
       <div class="detail-qualification" *ngIf="avertissementsDetailles.length">
         <p class="detail-section-title">Avertissements &amp; qualification</p>
 
-        <div class="qualif-ligne" *ngFor="let avertissement of avertissementsDetailles">
-          <span class="qualif-icone" aria-hidden="true">⚠️</span>
+        <!-- Une alerte corrigeable ouvre les lignes qu'elle signale. Les postes
+             écartés à dessein, eux, n'ont rien à corriger : leur donner une
+             loupe promettait un tableau que rien ne pouvait remplir. -->
+        <div class="qualif-ligne"
+             *ngFor="let avertissement of avertissementsDetailles"
+             [class.qualif-cliquable]="avertissementActionnable(avertissement)"
+             [class.qualif-active]="selectionDetail?.libelle === avertissement"
+             [attr.role]="avertissementActionnable(avertissement) ? 'button' : null"
+             [attr.tabindex]="avertissementActionnable(avertissement) ? 0 : null"
+             [title]="avertissementActionnable(avertissement)
+               ? (selectionDetail?.libelle === avertissement
+                   ? 'Cliquer pour refermer' : 'Cliquer pour corriger ces lignes')
+               : 'Information : aucune action requise'"
+             (click)="avertissementActionnable(avertissement)
+               && ouvrirSelection({ libelle: avertissement,
+                                    genre: genreAvertissement(avertissement),
+                                    ecran: ecranAvertissement(avertissement) })"
+             (keydown.enter)="avertissementActionnable(avertissement)
+               && ouvrirSelection({ libelle: avertissement,
+                                    genre: genreAvertissement(avertissement),
+                                    ecran: ecranAvertissement(avertissement) })">
+          <span class="qualif-icone" aria-hidden="true">
+            {{ avertissementActionnable(avertissement) ? '⚠️' : 'ℹ️' }}
+          </span>
           <span class="qualif-texte">{{ avertissement }}</span>
+          <span class="qualif-loupe" aria-hidden="true"
+                *ngIf="avertissementActionnable(avertissement)">
+            {{ selectionDetail?.libelle === avertissement ? '✕' : '🔎' }}
+          </span>
         </div>
       </div>
+
+      <!-- SOUS-TABLEAU DES LIGNES DÉSIGNÉES -->
+      <!-- Panneau de correction : les lignes que l'alerte désigne, avec la
+           catégorie, le facteur et le retrait. Rien n'est écrit avant la
+           validation, pour que l'utilisateur puisse se raviser. -->
+      <app-correction-anomalies
+        [ouvert]="!!selectionDetail"
+        [titre]="selectionDetail?.libelle || 'Corriger les lignes'"
+        [lignes]="lignesDetail"
+        [categories]="categoriesProposees"
+        [corrigeCategorie]="corrigeLaCategorie"
+        [champs]="champsCorrectionImport"
+        (fermer)="fermerSelection()"
+        (appliquer)="appliquerCorrectionsImport($event)"></app-correction-anomalies>
+
+      <p class="detail-correction-rendu" *ngIf="correctionMessage">
+        ✓ {{ correctionMessage }}
+        <button type="button" class="btn-icon" (click)="correctionMessage = ''"
+                aria-label="Masquer">×</button>
+      </p>
 
       <div class="detail-errors" *ngIf="logDetaille.errorDetail">
         <p class="detail-errors-title">

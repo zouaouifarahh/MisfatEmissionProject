@@ -1,4 +1,5 @@
 import { FacteurDetaille } from '../services/referential.service';
+import { referenceDepuisLibelle } from './traduction-libelles';
 
 /**
  * Appariement d'une ligne d'activité au référentiel carbone.
@@ -14,7 +15,8 @@ import { FacteurDetaille } from '../services/referential.service';
  */
 
 /** Degré de certitude qui a désigné le facteur. */
-export type Rapprochement = 'REFERENCE' | 'CODE_ARTICLE' | 'CATEGORIE' | 'FAMILLE';
+export type Rapprochement =
+  | 'REFERENCE' | 'CODE_ARTICLE' | 'CATEGORIE' | 'FAMILLE' | 'LIBELLE';
 
 /**
  * Version de l'appariement.
@@ -28,8 +30,25 @@ export type Rapprochement = 'REFERENCE' | 'CODE_ARTICLE' | 'CATEGORIE' | 'FAMILL
  * <p>v3 : les familles de l'écran des investissements sont désormais rattachées
  * à leurs références de la catégorie 15, là où la comparaison de libellés à
  * l'identique les laissait sans référence.</p>
+ *
+ * <p>v4 : les comptes comptables logés dans la colonne du référentiel — 601000,
+ * 625000 — rejoignent le code article, et la référence est reprise du facteur
+ * retenu. Les lignes migrées en v3 portent encore le compte : elles doivent
+ * repasser.</p>
+ *
+ * <p>v5 : les lignes de ventilation comptable reçoivent la référence du facteur
+ * que le magasin leur applique — celle que la table désigne, ou celle dont le
+ * ratio est déduit. Elles portaient un tiret faute de la conserver.</p>
+ *
+ * <p>v6 : un cinquième degré traduit le libellé français vers la référence
+ * anglaise du référentiel, et les lignes monétaires quittent le Scope 1. Les
+ * deux changent l'appariement des lignes déjà enregistrées.</p>
+ *
+ * <p>v7 : la règle d'import devient générale — tout achat monétaire quitte le
+ * Scope 1, quel que soit le classeur d'origine. Les répartitions déjà publiées
+ * doivent être rejouées pour en tenir compte.</p>
  */
-export const VERSION_APPARIEMENT = 3;
+export const VERSION_APPARIEMENT = 7;
 
 /** Préfixe commun à tous les marqueurs, toutes versions confondues. */
 const PREFIXE_MARQUEUR = 'misfat_ref_matching_v';
@@ -89,6 +108,15 @@ export interface CriteresAppariement {
    * quelles familles il manipule.</p>
    */
   motifFamille?: RegExp | null;
+  /**
+   * Libellé français de la ligne — désignation, étiquette, intitulé du compte.
+   *
+   * <p>Dernier recours, et le plus interprétatif de tous. Le référentiel est en
+   * anglais, les classeurs en français : « Achats matières premières » ne
+   * ressemble à aucun {@code typeName}, et aucun degré précédent ne peut le
+   * rattacher. La table de traduction fait ce pont, entrée par entrée.</p>
+   */
+  libelle?: string | null;
 }
 
 export interface FacteurApparie {
@@ -109,6 +137,22 @@ export function normaliserLibelle(valeur: unknown): string {
 /** Forme comparable d'un identifiant : sans espaces, en capitales. */
 function normaliserIdentifiant(valeur: unknown): string {
   return String(valeur ?? '').trim().toUpperCase();
+}
+
+/**
+ * La valeur ressemble-t-elle à un compte comptable plutôt qu'à une référence ?
+ *
+ * <p>Les références du référentiel MISFAT commencent toutes par « MS » et mêlent
+ * lettres et chiffres — MS3C1AAA, MS3C15EQ, MS1COV. Un compte du plan comptable
+ * est purement numérique : 601000, 601110, 625000. La distinction est nette, et
+ * c'est elle qui permet de rapatrier un compte égaré dans la colonne du
+ * référentiel sans risquer d'y déplacer une vraie référence.</p>
+ *
+ * <p>Quatre chiffres au moins : un « 12 » isolé serait trop ambigu pour qu'on
+ * décide à sa place.</p>
+ */
+export function estCompteComptable(valeur: unknown): boolean {
+  return /^\d{4,}$/.test(String(valeur ?? '').trim());
 }
 
 /**
@@ -153,6 +197,14 @@ export function apparier(
     if (parFamille) return { facteur: parFamille, rapprochement: 'FAMILLE' };
   }
 
+  // Dernier recours : le libellé français, traduit par la table.
+  const codeTraduit = referenceDepuisLibelle(criteres.libelle);
+  if (codeTraduit) {
+    const parLibelle = facteurs.find(f =>
+      normaliserIdentifiant(f.referenceCode) === codeTraduit);
+    if (parLibelle) return { facteur: parLibelle, rapprochement: 'LIBELLE' };
+  }
+
   return null;
 }
 
@@ -180,11 +232,21 @@ export interface AdaptateurLigne<T> {
   categorie(ligne: T): string | null | undefined;
   /** Motif de la famille que porte la ligne, quand l'écran en connaît un. */
   motifFamille?(ligne: T): RegExp | null | undefined;
+  /** Libellé français de la ligne, soumis à la table de traduction. */
+  libelle?(ligne: T): string | null | undefined;
   facteurActuel(ligne: T): number | null | undefined;
   baseActuelle(ligne: T): string | null | undefined;
   rapprochementActuel(ligne: T): Rapprochement | null | undefined;
   /** Rend une copie de la ligne rattachée au facteur retenu. */
   appliquer(ligne: T, apparie: FacteurApparie): T;
+  /**
+   * Rend une copie de la ligne dont le compte comptable a quitté la colonne du
+   * référentiel pour celle du code article.
+   *
+   * <p>Optionnel : un écran qui ne porte pas de code article ne peut pas
+   * déplacer, et sa ligne est alors laissée telle quelle.</p>
+   */
+  deplacerCompte?(ligne: T, compte: string): T;
 }
 
 export interface ResultatMigration<T> {
@@ -211,14 +273,36 @@ export function remigrerLignes<T>(
 
   let corrigees = 0;
 
-  const migrees = lignes.map(ligne => {
+  const migrees = lignes.map(ligneOrigine => {
+    let ligne = ligneOrigine;
+    let deplacee = false;
+
+    // Premier soin : un compte comptable logé dans la colonne du référentiel en
+    // sort, même si aucun facteur ne sera trouvé ensuite. Sinon la colonne
+    // continuerait d'afficher 601000 comme s'il documentait un facteur.
+    const referenceBrute = adaptateur.referenceCarbone(ligne);
+    const compteEgare = estCompteComptable(referenceBrute)
+      && !facteurs.some(f => normaliserIdentifiant(f.referenceCode) === normaliserIdentifiant(referenceBrute));
+
+    if (compteEgare && adaptateur.deplacerCompte) {
+      ligne = adaptateur.deplacerCompte(ligne, String(referenceBrute).trim());
+      deplacee = true;
+    }
+
     const apparie = apparier(facteurs, {
-      referenceCarbone: adaptateur.referenceCarbone(ligne),
+      // Le compte ne peut pas désigner une référence, mais il peut désigner un
+      // code article : il est essayé à ce titre, jamais à celui de référence.
+      referenceCarbone: compteEgare ? '' : referenceBrute,
       codeArticle: adaptateur.codeArticle(ligne),
       categorie: adaptateur.categorie(ligne),
-      motifFamille: adaptateur.motifFamille?.(ligne)
+      motifFamille: adaptateur.motifFamille?.(ligne),
+      libelle: adaptateur.libelle?.(ligne)
     });
-    if (!apparie) return ligne;
+
+    if (!apparie) {
+      if (deplacee) corrigees++;
+      return ligne;
+    }
 
     const memeFacteur =
       Math.abs((adaptateur.facteurActuel(ligne) ?? 0) - apparie.facteur.factorValue) < 1e-9;
@@ -226,7 +310,7 @@ export function remigrerLignes<T>(
       (adaptateur.baseActuelle(ligne) ?? '') === (apparie.facteur.databaseSource ?? '');
     const memeDegre = adaptateur.rapprochementActuel(ligne) === apparie.rapprochement;
 
-    if (memeFacteur && memeBase && memeDegre) return ligne;
+    if (memeFacteur && memeBase && memeDegre && !deplacee) return ligne;
 
     corrigees++;
     return adaptateur.appliquer(ligne, apparie);
@@ -249,6 +333,8 @@ export interface ChampsLigne {
    * rattachée que par sa référence, son code article ou sa catégorie.</p>
    */
   motifFamille?: (ligne: any) => RegExp | null;
+  /** Champ portant le libellé français, soumis à la table de traduction. */
+  libelle?: string;
   facteur: string;
   base?: string;
   uniteFacteur?: string;
@@ -282,9 +368,29 @@ export function adaptateurStandard<T extends Record<string, any>>(
     codeArticle: ligne => lire(ligne, champs.codeArticle),
     categorie: ligne => lire(ligne, champs.categorie),
     motifFamille: ligne => champs.motifFamille?.(ligne) ?? null,
+    libelle: ligne => lire(ligne, champs.libelle),
     facteurActuel: ligne => lire(ligne, champs.facteur),
     baseActuelle: ligne => lire(ligne, champs.base),
     rapprochementActuel: ligne => lire(ligne, champs.rapprochement),
+
+    /**
+     * Sort le compte comptable de la colonne du référentiel.
+     *
+     * <p>Il rejoint le code article quand celui-ci est libre. S'il est déjà
+     * occupé, le compte est simplement effacé de la référence : mieux vaut une
+     * colonne vide, qui dit « non documenté », qu'une colonne qui affiche un
+     * numéro de compte en prétendant nommer un facteur.</p>
+     */
+    deplacerCompte: (ligne, compte) => {
+      const migree: Record<string, any> = { ...ligne };
+      migree[champs.reference] = '';
+
+      if (champs.codeArticle && !String(lire(ligne, champs.codeArticle) ?? '').trim()) {
+        migree[champs.codeArticle] = compte;
+      }
+
+      return migree as T;
+    },
 
     appliquer: (ligne, apparie) => {
       const migree: Record<string, any> = { ...ligne };

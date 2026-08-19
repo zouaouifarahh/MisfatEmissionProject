@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   apparier, remigrerLignes, libelleRapprochement, normaliserLibelle,
   migrationFaite, marquerMigration, messagePourMigration, adaptateurStandard,
-  marqueurEcran, purgerMarqueursObsoletes, VERSION_APPARIEMENT,
+  marqueurEcran, purgerMarqueursObsoletes, VERSION_APPARIEMENT, estCompteComptable,
   AdaptateurLigne, Rapprochement
 } from './appariement-referentiel';
 import { FacteurDetaille } from '../services/referential.service';
@@ -393,6 +393,116 @@ describe('Appariement au référentiel carbone', () => {
       // déduite : la traçabilité du rapport en dépend.
       expect(libelleRapprochement('FAMILLE')).toContain('motif');
       expect(libelleRapprochement('FAMILLE')).not.toBe(libelleRapprochement('REFERENCE'));
+    });
+  });
+
+  describe('compte comptable égaré dans la colonne du référentiel', () => {
+
+    interface LigneAchat {
+      id: number;
+      reference: string;
+      codeArticle: string;
+      categorie: string;
+      facteur: number | null;
+      baseAppliquee: string;
+      rapprochement: Rapprochement | null;
+      emissionCalculee: number;
+    }
+
+    const ADAPTATEUR = adaptateurStandard<LigneAchat>({
+      reference: 'reference', codeArticle: 'codeArticle', categorie: 'categorie',
+      facteur: 'facteur', base: 'baseAppliquee',
+      emission: 'emissionCalculee', rapprochement: 'rapprochement'
+    });
+
+    const ligneDe = (sur: Partial<LigneAchat> = {}): LigneAchat => ({
+      id: 1, reference: '', codeArticle: '', categorie: '', facteur: null,
+      baseAppliquee: '', rapprochement: null, emissionCalculee: 0, ...sur
+    });
+
+    it('reconnaît un compte comptable', () => {
+      // Les références MISFAT mêlent lettres et chiffres ; un compte est
+      // purement numérique. La distinction est ce qui autorise le déplacement.
+      expect(estCompteComptable('601000')).toBe(true);
+      expect(estCompteComptable('601110')).toBe(true);
+      expect(estCompteComptable(' 625000 ')).toBe(true);
+
+      expect(estCompteComptable('MS3C1AAA')).toBe(false);
+      expect(estCompteComptable('MS3C15EQ')).toBe(false);
+      expect(estCompteComptable('ART-4417')).toBe(false);
+      // Trop court pour décider à la place de l'utilisateur.
+      expect(estCompteComptable('12')).toBe(false);
+      expect(estCompteComptable('')).toBe(false);
+    });
+
+    it('déplace le compte vers le code article et libère la référence', () => {
+      const avant = [ligneDe({
+        reference: '601000',
+        categorie: 'Category 1: Purchased goods and services',
+        facteur: 0.31, baseAppliquee: 'ADEME'
+      })];
+
+      const { lignes, corrigees } = remigrerLignes(avant, FACTEURS, ADAPTATEUR);
+
+      expect(corrigees).toBe(1);
+      expect(lignes[0].codeArticle).toBe('601000');
+      // La référence porte désormais le vrai code, trouvé par la catégorie.
+      expect(lignes[0].reference).toBe('MS3C1AAA');
+      expect(lignes[0].reference).not.toBe('601000');
+    });
+
+    it('sort le compte même quand aucun facteur n\'est trouvé', () => {
+      // C'est le cas le plus important : sans appariement possible, la colonne
+      // continuerait sinon d'afficher 601000 comme s'il nommait un facteur.
+      const orpheline = [ligneDe({
+        reference: '625000', categorie: 'Catégorie absente du référentiel',
+        facteur: 0.45, baseAppliquee: 'Saisie manuelle'
+      })];
+
+      const { lignes, corrigees } = remigrerLignes(orpheline, FACTEURS, ADAPTATEUR);
+
+      expect(corrigees).toBe(1);
+      expect(lignes[0].reference).toBe('');
+      expect(lignes[0].codeArticle).toBe('625000');
+      // Le facteur saisi à la main n'est pas touché pour autant.
+      expect(lignes[0].facteur).toBeCloseTo(0.45, 10);
+    });
+
+    it('n\'écrase pas un code article déjà renseigné', () => {
+      const avant = [ligneDe({
+        reference: '601110', codeArticle: 'ART-4417',
+        categorie: 'Category 1: Purchased goods and services', facteur: 1, baseAppliquee: ''
+      })];
+
+      const { lignes } = remigrerLignes(avant, FACTEURS, ADAPTATEUR);
+
+      // Le code article de l'ERP prime : le compte est écarté, non substitué.
+      expect(lignes[0].codeArticle).toBe('ART-4417');
+      expect(lignes[0].reference).not.toBe('601110');
+    });
+
+    it('respecte une référence numérique qui existe au référentiel', () => {
+      // Défense contre l'excès de zèle : si le référentiel portait un code
+      // purement numérique, le déplacer détruirait un appariement valide.
+      const numerique = [facteur('60100000', 'Poste numéroté', 1.5, 'Interne')];
+      const avant = [ligneDe({ reference: '60100000', facteur: 0, baseAppliquee: '' })];
+
+      const { lignes } = remigrerLignes(avant, numerique, ADAPTATEUR);
+
+      expect(lignes[0].reference).toBe('60100000');
+      expect(lignes[0].codeArticle).toBe('');
+    });
+
+    it('laisse intacte une vraie référence', () => {
+      const juste = [ligneDe({
+        reference: 'MS3C1AAA', facteur: 2.48, baseAppliquee: 'Ecoinvent',
+        rapprochement: 'REFERENCE'
+      })];
+
+      const { lignes, corrigees } = remigrerLignes(juste, FACTEURS, ADAPTATEUR);
+
+      expect(corrigees).toBe(0);
+      expect(lignes[0]).toBe(juste[0]);
     });
   });
 

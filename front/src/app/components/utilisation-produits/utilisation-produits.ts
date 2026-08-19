@@ -1,6 +1,8 @@
 import {
   ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID, isDevMode
 } from '@angular/core';
+import { colonnesIdentite } from '../../core/colonnes-identite';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -74,7 +76,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-utilisation-produits',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './utilisation-produits.html',
   styleUrl: './utilisation-produits.css'
@@ -262,10 +264,40 @@ export class UtilisationProduitsComponent implements OnInit {
 
   // ---------- Tableau et pagination ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantiteVendue', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+  }
+
   get emissionsFiltrees(): EmissionUtilisation[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.listeEmissions.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.gamme !== this.filtreMetier) return false;
       if (this.filtreGamme !== 'Toutes' && item.gamme !== this.filtreGamme) return false;
       if (this.filtreProvenance !== 'Toutes' && item.provenance !== this.filtreProvenance) {
         return false;
@@ -587,6 +619,8 @@ export class UtilisationProduitsComponent implements OnInit {
 
     const exemples = [
       {
+      // Colonnes d'identité, aux intitulés que les parseurs reconnaissent.
+      ...colonnesIdentite('MS3C11US', 'UTI-0077'),
         'Référence': 'USE-0001', 'Gamme': 'Filtre à Air', 'Établissement': usine,
         'Type Saisie': 'Kilométrage', 'Quantité Vendue': 10000,
         'Kilométrage (km)': DUREE_VIE_DEFAUT_KM, 'Montant': ''

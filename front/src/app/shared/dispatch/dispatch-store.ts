@@ -1,10 +1,12 @@
-import { Inject, Injectable, PLATFORM_ID } from '@angular/core';
+import { Inject, Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, Observable, map } from 'rxjs';
 
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
 import { LigneDispatchee } from './dispatch-excel';
 import { EcranDestination } from './regles-dispatch';
+import { referenceDepuisLibelle } from '../../core/traduction-libelles';
+import { TauxChangeService } from '../../core/taux-change.service';
 
 /**
  * État partagé des lignes comptables ventilées.
@@ -46,6 +48,51 @@ export const REPLIS_MONETAIRES: Record<EcranDestination, number> = {
   'dechets': 0.200
 };
 
+/**
+ * Référence du référentiel qui documente le facteur de chaque destination.
+ *
+ * <p>Deux raisons d'exister. D'abord, une destination dont le référentiel ne
+ * documente aucun facteur monétaire — la combustion, l'électricité, les
+ * réfrigérants n'en ont que des facteurs physiques, au litre ou au
+ * kilowattheure — se voyait appliquer un ratio anonyme, et sa colonne
+ * « Référence carbone » restait vide. Ensuite, une destination qui en documente
+ * plusieurs dizaines — la catégorie 1 en compte trente-huit — en retenait un par
+ * année de référence, donc à peu près au hasard : un achat de matières premières
+ * pouvait être valorisé par le facteur du cuivre laminé.</p>
+ *
+ * <p>Nommer la référence ici rend le choix explicite et discutable. Aucune
+ * n'est devinée : chacune est un code que la base porte réellement, et le
+ * commentaire dit ce qu'elle documente.</p>
+ */
+export const REFERENCES_VENTILATION: Partial<Record<EcranDestination, string>> = {
+  // Média filtrant : l'activité de MISFAT est la filtration, et ses achats de
+  // matières premières sont d'abord du papier transformé. 0,1011 kgCO₂e/TND.
+  'biens-services': 'MS3C1CP'
+};
+
+/**
+ * Ratios monétaires obtenus en divisant un facteur physique par un prix.
+ *
+ * <p>Le référentiel ne documente aucun facteur monétaire pour l'électricité : il
+ * la documente au kilowattheure. Le ratio par dinar s'en déduit, à condition de
+ * connaître le prix du kilowattheure — et c'est cette division, et elle seule,
+ * qui autorise à nommer la référence source dans la colonne du référentiel.</p>
+ *
+ * <p>La ligne reste marquée comme approximation : diviser par un prix moyen ne
+ * transforme pas un ratio en relevé. Mais un vérificateur peut désormais
+ * remonter au facteur employé, ce qu'un tiret lui interdisait.</p>
+ */
+export const DERIVATIONS_MONETAIRES: Partial<Record<EcranDestination, {
+  /** Référence physique dont le ratio est déduit. */
+  code: string;
+  /** Prix unitaire retenu, dans l'unité du facteur. */
+  prix: number;
+  /** Ce que le prix mesure, pour que la division reste lisible. */
+  uniteePrix: string;
+}>> = {
+  'electricite-achetee': { code: 'MS2ENEC', prix: PRIX_KWH_TND, uniteePrix: 'TND/kWh' }
+};
+
 /** Catégorie du référentiel MS SQL interrogée pour chaque destination. */
 const MOTIFS_CATEGORIE: Record<EcranDestination, RegExp> = {
   'combustion-etablissements': /stationary|combustion|fuel/i,
@@ -70,6 +117,14 @@ export interface LigneValorisee extends LigneDispatchee {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionKg: number;
+  /**
+   * Code du référentiel carbone qui a désigné le facteur.
+   *
+   * <p>Distinct de {@link LigneDispatchee.mainAccount}, le compte comptable, et
+   * de {@link LigneDispatchee.reference}, la référence du document source. Les
+   * trois cohabitaient sous un seul nom, et c'est le compte qui gagnait.</p>
+   */
+  referenceCarbone: string;
 }
 
 export interface EtatDispatch {
@@ -115,6 +170,9 @@ const CLE_HERITEE = 'repartitionGlobaleMisfat';
 
 @Injectable({ providedIn: 'root' })
 export class DispatchStore {
+
+  /** Cours de change partagés : ils ramènent les facteurs étrangers au dinar. */
+  private readonly tauxChange = inject(TauxChangeService);
 
   private readonly etat = new BehaviorSubject<EtatDispatch>(ETAT_VIDE);
 
@@ -261,8 +319,63 @@ export class DispatchStore {
    */
   facteurPour(ecran: EcranDestination): {
     valeur: number; origine: OrigineFacteur; libelle: string; base: string; unite: string;
+    /**
+     * Code du référentiel qui a désigné ce facteur.
+     *
+     * <p>Il était perdu ici, et les écrans affichaient alors le compte comptable
+     * — 601000, 625000 — dans la colonne « Référence carbone ». Un compte
+     * identifie une écriture, pas un facteur d'émission : les confondre ôte au
+     * rapport toute traçabilité du calcul.</p>
+     *
+     * <p>Vide sur un repli, à dessein : un ratio moyen n'a pas de référence, et
+     * lui en inventer une la rendrait indiscernable d'une valeur documentée.</p>
+     */
+    reference: string;
   } {
     const motif = MOTIFS_CATEGORIE[ecran];
+
+    // Une référence nommée pour cette destination prime sur le tri par année :
+    // choisir un facteur parmi trente-huit au millésime le plus récent n'est pas
+    // un choix, c'est un hasard.
+    const codeVoulu = REFERENCES_VENTILATION[ecran];
+    const designe = codeVoulu
+      ? this.facteurs.find(f =>
+          (f.referenceCode ?? '').trim().toUpperCase() === codeVoulu
+          && (f.dataType ?? '').toUpperCase() === 'MONETAIRE')
+      : undefined;
+
+    if (designe) {
+      return {
+        valeur: designe.factorValue,
+        origine: 'MS SQL BDD',
+        libelle: designe.typeName,
+        base: designe.databaseSource || 'MS SQL BDD',
+        unite: designe.currency?.trim() || designe.unit || 'TND',
+        reference: designe.referenceCode ?? ''
+      };
+    }
+
+    // Ratio déduit d'un facteur physique : la référence source est nommée, mais
+    // l'origine reste celle d'une approximation — diviser par un prix moyen ne
+    // fait pas d'un ratio un relevé.
+    const derivation = DERIVATIONS_MONETAIRES[ecran];
+    if (derivation && derivation.prix > 0) {
+      const source = this.facteurs.find(f =>
+        (f.referenceCode ?? '').trim().toUpperCase() === derivation.code);
+
+      if (source) {
+        const ratio = source.factorValue / derivation.prix;
+        return {
+          valeur: ratio,
+          origine: 'ADEME Fallback',
+          libelle: `${source.typeName} — ratio déduit : ${source.factorValue.toFixed(4)} `
+            + `÷ ${derivation.prix} ${derivation.uniteePrix}`,
+          base: source.databaseSource || 'MS SQL BDD',
+          unite: 'TND',
+          reference: source.referenceCode ?? ''
+        };
+      }
+    }
 
     const retenu = this.facteurs
       .filter(f => (f.dataType ?? '').toUpperCase() === 'MONETAIRE')
@@ -275,7 +388,8 @@ export class DispatchStore {
         origine: 'MS SQL BDD',
         libelle: retenu.typeName,
         base: retenu.databaseSource || 'MS SQL BDD',
-        unite: retenu.currency?.trim() || retenu.unit || 'TND'
+        unite: retenu.currency?.trim() || retenu.unit || 'TND',
+        reference: retenu.referenceCode ?? ''
       };
     }
 
@@ -284,31 +398,101 @@ export class DispatchStore {
       origine: 'ADEME Fallback',
       libelle: 'Ratio monétaire moyen (approche spend-based)',
       base: 'ADEME Fallback',
-      unite: 'TND'
+      unite: 'TND',
+      reference: ''
     };
   }
 
+  /**
+   * Les achats monétaires quittent-ils le Scope 1 à l'import ?
+   *
+   * <p>Non : le routage d'origine est rétabli. Une ligne de gazole part sur
+   * l'écran que ses règles désignent, et n'est comptée qu'une fois — chaque
+   * ligne ventilée porte une destination et une seule, ce qui exclut qu'elle
+   * pèse à la fois au Scope 1 et dans les achats.</p>
+   *
+   * <p>La constante subsiste pour que le choix reste nommé plutôt que
+   * simplement absent : au sens du GHG Protocol, brûler un carburant que l'on
+   * possède est une émission directe, quelle que soit la donnée d'activité.</p>
+   */
+  static readonly RECLASSER_MONETAIRE_SCOPE_1 = false;
+
+  /**
+   * Facteur désigné par le libellé français de la ligne.
+   *
+   * <p>« Achats matières combustibles Gasoil » ne ressemble à aucun type du
+   * référentiel, rédigé en anglais. La table de traduction fait le pont et
+   * désigne « market for diesel » — un facteur propre à cette ligne, là où la
+   * règle par destination applique le même à tout un poste.</p>
+   *
+   * <p>Seuls les facteurs monétaires sont retenus : la ligne porte des dinars,
+   * et un facteur au litre ne s'y applique pas.</p>
+   */
+  private facteurDepuisLibelle(libelle: string): {
+    valeur: number; origine: OrigineFacteur; libelle: string; base: string;
+    unite: string; reference: string;
+  } | null {
+
+    const code = referenceDepuisLibelle(libelle);
+    if (!code) return null;
+
+    const trouve = this.facteurs.find(f =>
+      (f.referenceCode ?? '').trim().toUpperCase() === code
+      && (f.dataType ?? '').toUpperCase() === 'MONETAIRE');
+
+    if (!trouve) return null;
+
+    return {
+      valeur: trouve.factorValue,
+      origine: 'MS SQL BDD',
+      libelle: trouve.typeName,
+      base: trouve.databaseSource || 'MS SQL BDD',
+      unite: trouve.currency?.trim() || trouve.unit || 'TND',
+      reference: trouve.referenceCode ?? ''
+    };
+  }
+
+
   /** Valorise des lignes ventilées, sans les publier. */
   valoriser(lignes: LigneDispatchee[]): LigneValorisee[] {
-    return lignes.map(ligne => {
+    return lignes.map(ligneRecue => {
+      const ligne = ligneRecue;
+
       if (!ligne.ecran) {
         return {
           ...ligne, facteur: 0, uniteFacteur: 'TND', libelleFacteur: '',
-          baseAppliquee: '', origineFacteur: 'ADEME Fallback' as OrigineFacteur, emissionKg: 0
+          baseAppliquee: '', origineFacteur: 'ADEME Fallback' as OrigineFacteur, emissionKg: 0,
+          referenceCarbone: ''
         };
       }
 
-      const facteur = this.facteurPour(ligne.ecran);
-      const emission = ligne.quantite * facteur.valeur;
+      // Le libellé du classeur est français, le référentiel anglais : la table
+      // de traduction est consultée avant la règle par destination, car elle
+      // désigne un facteur propre à la ligne quand la destination n'en connaît
+      // qu'un pour tout un poste.
+      const parLibelle = this.facteurDepuisLibelle(ligne.nom);
+      const facteur = parLibelle ?? this.facteurPour(ligne.ecran);
+
+      // Les montants ventilés sont en dinars ; un facteur libellé en euros ou
+      // en dollars s'y appliquerait sans commune mesure. Il est ramené au dinar
+      // au cours de l'exercice de la dépense — jamais au cours du jour, qui
+      // ferait bouger les émissions d'un exercice déjà clos.
+      const ramene = this.tauxChange.facteurEnDinars(
+        facteur.valeur, facteur.unite, this.exerciceActif);
+
+      const emission = ligne.quantite * ramene.facteur;
 
       return {
         ...ligne,
-        facteur: facteur.valeur,
-        uniteFacteur: facteur.unite,
-        libelleFacteur: facteur.libelle,
+        facteur: ramene.facteur,
+        uniteFacteur: ramene.converti ? 'TND' : facteur.unite,
+        libelleFacteur: ramene.converti
+          ? `${facteur.libelle} — converti au cours ${ramene.cours} TND/${facteur.unite}`
+          : facteur.libelle,
         baseAppliquee: facteur.base,
         origineFacteur: facteur.origine,
-        emissionKg: Number.isFinite(emission) ? emission : 0
+        emissionKg: Number.isFinite(emission) ? emission : 0,
+        referenceCarbone: facteur.reference
       };
     });
   }
@@ -322,6 +506,115 @@ export class DispatchStore {
   publier(etat: Omit<EtatDispatch, 'lignes'> & { lignes: LigneValorisee[] }): void {
     this.etat.next({ ...etat });
     this.persister();
+  }
+
+  /**
+   * Reprend le facteur de lignes ventilées désignées par leur clé.
+   *
+   * <p>Une reprise en masse portait jusqu'ici sur les seules lignes saisies :
+   * celles issues de la balance gardaient leur facteur, si bien qu'une
+   * catégorie corrigée restait à moitié à l'ancienne valeur, et le total ne
+   * bougeait pas comme l'utilisateur l'attendait.</p>
+   *
+   * <p>La correction vit dans le magasin, non dans l'écran : c'est lui qui
+   * détient ces lignes, et lui seul peut les republier à tous les abonnés — le
+   * tableau, les indicateurs et le bilan se mettent alors à jour ensemble.</p>
+   *
+   * <p>Elle est écrasée au prochain import du classeur, comme toute valeur
+   * portée par la répartition : la reprise vaut pour la répartition en cours.</p>
+   *
+   * @returns le nombre de lignes effectivement reprises.
+   */
+  reprendreFacteur(cles: readonly string[], facteur: number, base?: string): number {
+    if (!Array.isArray(cles) || !cles.length) return 0;
+    if (!Number.isFinite(facteur) || facteur <= 0) return 0;
+
+    const cibles = new Set(cles);
+    let reprises = 0;
+
+    const lignes = this.etat.value.lignes.map(ligne => {
+      if (!cibles.has(ligne.cle)) return ligne;
+      if (Math.abs(ligne.facteur - facteur) < 1e-9) return ligne;
+
+      reprises++;
+      const emission = ligne.quantite * facteur;
+
+      return {
+        ...ligne,
+        facteur,
+        emissionKg: Number.isFinite(emission) ? emission : ligne.emissionKg,
+        baseAppliquee: base ?? 'Saisie manuelle (reprise en masse)',
+        origineFacteur: 'ADEME Fallback' as OrigineFacteur
+      };
+    });
+
+    if (!reprises) return 0;
+
+    this.etat.next({ ...this.etat.value, lignes });
+    this.persister();
+    return reprises;
+  }
+
+  /**
+   * Renseigne la catégorie carbone d'une ligne, et la revalorise.
+   *
+   * <p>Une ligne dont le classeur ne portait pas de catégorie est valorisée par
+   * le libellé de son compte, faute de mieux. Lui donner sa catégorie ne suffit
+   * pas : il faut rejouer la valorisation, sans quoi le facteur resterait celui
+   * du repli et la correction n'aurait aucun effet sur le bilan.</p>
+   *
+   * <p>La ligne cesse alors d'être comptée parmi les « sans catégorie » : c'est
+   * ce qui fait décroître l'avertissement à mesure qu'on la corrige.</p>
+   *
+   * @returns vrai si la ligne a été retrouvée et corrigée.
+   */
+  corrigerCategorie(cle: string, categorie: string): boolean {
+    const libelle = String(categorie ?? '').trim();
+    if (!cle || !libelle) return false;
+
+    const etat = this.etat.value;
+    const cible = etat.lignes.find(ligne => ligne.cle === cle);
+    if (!cible) return false;
+
+    const corrigee: LigneDispatchee = {
+      ...cible,
+      categorieCarboneTexte: libelle,
+      categorieAbsente: false
+    };
+
+    const [revalorisee] = this.valoriser([corrigee]);
+    const lignes = etat.lignes.map(ligne => (ligne.cle === cle ? revalorisee : ligne));
+
+    this.etat.next({ ...etat, lignes });
+    this.persister();
+    return true;
+  }
+
+  /**
+   * Retire des lignes de la répartition, par leur clé.
+   *
+   * <p>Une ligne écartée depuis le détail d'un import doit disparaître partout
+   * à la fois : de la grille de son écran, des indicateurs et du bilan. Le
+   * magasin la retire et republie, ce qu'aucun écran ne pourrait faire seul.</p>
+   *
+   * <p>Le compte des lignes non ventilées suit : la ligne n'est pas devenue
+   * inclassable, elle a été jugée hors périmètre.</p>
+   *
+   * @returns le nombre de lignes effectivement retirées.
+   */
+  supprimerLignes(cles: readonly string[]): number {
+    if (!Array.isArray(cles) || !cles.length) return 0;
+
+    const cibles = new Set(cles);
+    const etat = this.etat.value;
+    const restantes = etat.lignes.filter(ligne => !cibles.has(ligne.cle));
+
+    const retirees = etat.lignes.length - restantes.length;
+    if (!retirees) return 0;
+
+    this.etat.next({ ...etat, lignes: restantes, exclues: etat.exclues + retirees });
+    this.persister();
+    return retirees;
   }
 
   vider(): void {

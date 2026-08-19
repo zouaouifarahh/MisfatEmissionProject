@@ -11,7 +11,11 @@ import {
   ReferentialImportLog
 } from '../../services/referential-import.service';
 
-import { DispatchStore, exerciceDepuisNom } from '../../shared/dispatch/dispatch-store';
+import { DispatchStore, exerciceDepuisNom, LigneValorisee } from '../../shared/dispatch/dispatch-store';
+import { facteurSaisi } from '../../core/modification-masse';
+import {
+  CorrectionAnomaliesComponent, ResultatCorrections
+} from '../../shared/ui/correction-anomalies';
 import { ConfirmationService } from '../../shared/ui/confirmation.service';
 import { lireClasseurDispatch, RapportDispatch } from '../../shared/dispatch/dispatch-excel';
 import { REGLES, EcranDestination, CodeScope } from '../../shared/dispatch/regles-dispatch';
@@ -27,6 +31,8 @@ const CLE_DEPOTS_MASQUES = 'misfat_import_masques';
 /** Poste de la répartition d'un dépôt, restitué dans la modale de détail. */
 export interface PosteVentilation {
   scope: CodeScope;
+  /** Destination, pour retrouver les lignes du poste sans passer par son libellé. */
+  ecran?: string;
   categorie: string;
   icone: string;
   lignes: number;
@@ -66,7 +72,7 @@ const COLONNES_MISFAT = [
 @Component({
   selector: 'app-import-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, FlagIconComponent],
+  imports: [CorrectionAnomaliesComponent, CommonModule, FormsModule, FlagIconComponent],
   templateUrl: './import-data.component.html',
   styleUrl: './import-data.component.css'
 })
@@ -428,6 +434,7 @@ export class ImportDataComponent implements OnInit {
       const lues = rapport.lignes.filter(l => l.ecran === regle.ecran);
       return {
         scope: regle.scope,
+        ecran: regle.ecran,
         categorie: regle.libelle,
         icone: regle.icone,
         lignes: lues.length,
@@ -466,11 +473,14 @@ export class ImportDataComponent implements OnInit {
   get repartitionDetaillee(): PosteVentilation[] {
     if (!this.logDetaille) return [];
 
-    const memorisee = this.repartitionsParEntree.get(this.logDetaille.id);
-    if (memorisee?.length) return memorisee;
+    // Même règle que pour les avertissements : tant que le magasin détient ce
+    // dépôt, c'est lui qui fait foi. Le total tCO₂e en découle et suit donc
+    // chaque correction ou suppression, sans rechargement.
+    if (this.dispatchStore.instantane.fichier === this.logDetaille.fileName) {
+      return this.repartitionDuMagasin();
+    }
 
-    if (this.dispatchStore.instantane.fichier !== this.logDetaille.fileName) return [];
-    return this.repartitionDuMagasin();
+    return this.repartitionsParEntree.get(this.logDetaille.id) ?? [];
   }
 
   /**
@@ -483,12 +493,225 @@ export class ImportDataComponent implements OnInit {
   get avertissementsDetailles(): string[] {
     if (!this.logDetaille) return [];
 
-    const memorises = this.avertissementsParEntree.get(this.logDetaille.id);
-    if (memorises?.length) return memorises;
+    // Le magasin détient ce dépôt : ses lignes font foi, et les avertissements
+    // se recomptent sur elles. Une liste mémorisée resterait figée — corriger
+    // ou écarter des lignes ne ferait pas bouger le message, et l'alerte
+    // continuerait d'annoncer six lignes là où il n'en reste que deux.
+    if (this.dispatchStore.instantane.fichier === this.logDetaille.fileName) {
+      return this.avertissementsDuMagasin(this.ecarteesDe(this.logDetaille),
+                                          this.logDetaille.errorCount);
+    }
 
-    if (this.dispatchStore.instantane.fichier !== this.logDetaille.fileName) return [];
-    return this.avertissementsDuMagasin(this.ecarteesDe(this.logDetaille),
-                                        this.logDetaille.errorCount);
+    // Dépôt plus ancien que la répartition en cours : la trace mémorisée est
+    // tout ce qui en reste.
+    return this.avertissementsParEntree.get(this.logDetaille.id) ?? [];
+  }
+
+  // ---------- Sous-tableau du détail d'import ----------
+
+  /**
+   * Ce qu'une carte d'avertissement ou une ligne de répartition désigne.
+   *
+   * <p>Un avertissement qui annonce « 19 lignes sans catégorie » laissait
+   * l'utilisateur les chercher lui-même dans la balance. Le filtre fait de la
+   * carte le chemin le plus court vers ce qu'elle signale.</p>
+   */
+  selectionDetail: { libelle: string; genre: 'repli' | 'sans-categorie' | 'poste' | 'informatif';
+                     ecran?: string; scope?: string; categorie?: string } | null = null;
+
+  /** Compte rendu de la dernière validation dans la modale. */
+  correctionMessage = '';
+
+  /**
+   * Catégories déjà documentées dans le dépôt, proposées à la correction.
+   *
+   * <p>Tirées des lignes présentes plutôt que d'une liste figée : la
+   * nomenclature d'un classeur comptable n'est pas connue d'avance, et une
+   * catégorie apportée par l'import doit pouvoir être réemployée.</p>
+   */
+  get categoriesProposees(): string[] {
+    const presentes = this.dispatchStore.instantane.lignes
+      .filter(l => !l.categorieAbsente)
+      .map(l => String(l.categorieCarboneTexte ?? '').trim())
+      .filter(Boolean);
+
+    return [...new Set(presentes)].sort((a, b) => a.localeCompare(b, 'fr'));
+  }
+
+  /** Champs que le panneau de correction lit sur une ligne ventilée. */
+  readonly champsCorrectionImport = {
+    identifiant: 'cle', reference: 'referenceCarbone', codeArticle: 'mainAccount',
+    libelle: 'nom', grandeur: 'quantite', categorie: 'categorieCarboneTexte',
+    facteur: 'facteur'
+  };
+
+  /**
+   * Applique les corrections rendues par le panneau.
+   *
+   * <p>Une catégorie renseignée fait revaloriser la ligne par le magasin : elle
+   * quitte le décompte de l'alerte, rejoint sa catégorie et le total du dépôt
+   * suit. Un facteur saisi prime, l'utilisateur ayant tranché.</p>
+   */
+  appliquerCorrectionsImport(resultat: ResultatCorrections): void {
+    let corrigees = 0;
+
+    for (const correction of resultat.corrections) {
+      const cle = String(correction.id);
+
+      if (correction.categorie) {
+        if (this.dispatchStore.corrigerCategorie(cle, correction.categorie)) corrigees++;
+      }
+      if (correction.facteur !== undefined) {
+        this.dispatchStore.reprendreFacteur(
+          [cle], correction.facteur, 'Correction manuelle (détail import)');
+        corrigees++;
+      }
+    }
+
+    const retirees = resultat.suppressions.length
+      ? this.dispatchStore.supprimerLignes(resultat.suppressions.map(String))
+      : 0;
+
+    this.correctionMessage =
+      `${corrigees} correction(s) appliquée(s) et ${retirees} ligne(s) retirée(s) du bilan.`;
+    this.fermerSelection();
+    this.cdr.markForCheck();
+  }
+
+  /** Ligne en cours d'édition dans le sous-tableau, et son facteur saisi. */
+  ligneEditee: string | null = null;
+  facteurEdite = '';
+  erreurEdition = '';
+
+  /** Lignes que la sélection courante désigne, relues au magasin. */
+  get lignesDetail(): LigneValorisee[] {
+    const selection = this.selectionDetail;
+    if (!selection) return [];
+
+    const lignes = this.dispatchStore.instantane.lignes.filter(l => l.ecran);
+
+    if (selection.genre === 'repli') {
+      return lignes.filter(l => l.origineFacteur === 'ADEME Fallback');
+    }
+    if (selection.genre === 'sans-categorie') {
+      return lignes.filter(l => l.categorieAbsente
+        && (selection.ecran === 'investissements'
+          ? l.ecran === 'investissements'
+          : l.ecran !== 'investissements'));
+    }
+    return lignes.filter(l => l.ecran === selection.ecran);
+  }
+
+  /** Émissions du sous-tableau, en kgCO₂e. */
+  get totalDetailSelection(): number {
+    return this.lignesDetail.reduce((somme, l) => somme + (l.emissionKg ?? 0), 0);
+  }
+
+  /**
+   * Nature de ce qu'un avertissement signale, déduite de son texte.
+   *
+   * <p>Les avertissements sont produits comme des phrases, pour être lus. Plutôt
+   * que de les transformer en objets et de réécrire leur fabrication, on les
+   * reconnaît à leur amorce — l'ordre des tests suit celui de leur écriture.</p>
+   */
+  genreAvertissement(texte: string): 'repli' | 'sans-categorie' | 'informatif' {
+    if (/repli ADEME/i.test(texte)) return 'repli';
+    if (/sans catégorie carbone/i.test(texte)) return 'sans-categorie';
+
+    // Les postes écartés à dessein et les lignes qu'aucune règle n'a rattachées
+    // ne se corrigent pas ici : leur proposer une loupe promettait un tableau
+    // que rien ne pouvait remplir, et l'utilisateur y lisait « aucune ligne ne
+    // correspond » comme un défaut.
+    return 'informatif';
+  }
+
+  /** L'avertissement mène-t-il à des lignes corrigeables ? */
+  avertissementActionnable(texte: string): boolean {
+    return this.genreAvertissement(texte) !== 'informatif';
+  }
+
+  /** Écran visé par un avertissement de catégorie absente, s'il en vise un. */
+  ecranAvertissement(texte: string): string | undefined {
+    return /immobilisation/i.test(texte) ? 'investissements' : undefined;
+  }
+
+  ouvrirSelection(selection: typeof this.selectionDetail): void {
+    // Cliquer la sélection déjà ouverte la referme : le même geste dans les
+    // deux sens, sans avoir à chercher où annuler.
+    const memeCible = this.selectionDetail?.libelle === selection?.libelle;
+    this.selectionDetail = memeCible ? null : selection;
+    this.annulerEdition();
+  }
+
+  fermerSelection(): void {
+    this.selectionDetail = null;
+    this.annulerEdition();
+  }
+
+  /** Catégorie saisie, quand la ligne éditée en manque une. */
+  categorieEditee = '';
+
+  /**
+   * La sélection courante appelle-t-elle une saisie de catégorie ?
+   *
+   * <p>Les deux alertes ne se corrigent pas de la même façon : une ligne sous
+   * repli attend un facteur, une ligne sans catégorie attend sa catégorie.
+   * Proposer les deux partout obligerait l'utilisateur à deviner laquelle
+   * compte.</p>
+   */
+  get corrigeLaCategorie(): boolean {
+    return this.selectionDetail?.genre === 'sans-categorie';
+  }
+
+  editerLigne(ligne: LigneValorisee): void {
+    this.ligneEditee = ligne.cle;
+    this.facteurEdite = String(ligne.facteur ?? '').replace('.', ',');
+    this.categorieEditee = ligne.categorieAbsente ? '' : (ligne.categorieCarboneTexte ?? '');
+    this.erreurEdition = '';
+  }
+
+  annulerEdition(): void {
+    this.ligneEditee = null;
+    this.facteurEdite = '';
+    this.categorieEditee = '';
+    this.erreurEdition = '';
+  }
+
+  /**
+   * Enregistre le facteur corrigé d'une ligne.
+   *
+   * <p>Le magasin recalcule l'émission et republie : les totaux de la modale,
+   * ceux des écrans et le bilan suivent sans rechargement.</p>
+   */
+  enregistrerEdition(ligne: LigneValorisee): void {
+    // Une ligne sans catégorie se corrige par sa catégorie : le magasin la
+    // revalorise alors, et elle quitte le décompte de l'alerte.
+    if (this.corrigeLaCategorie) {
+      const categorie = this.categorieEditee.trim();
+      if (!categorie) {
+        this.erreurEdition = 'Choisissez ou saisissez une catégorie carbone.';
+        return;
+      }
+
+      this.dispatchStore.corrigerCategorie(ligne.cle, categorie);
+      this.annulerEdition();
+      return;
+    }
+
+    const facteur = facteurSaisi(this.facteurEdite);
+    if (facteur === null) {
+      this.erreurEdition = 'Saisissez un facteur strictement positif.';
+      return;
+    }
+
+    this.dispatchStore.reprendreFacteur([ligne.cle], facteur, 'Correction manuelle (détail import)');
+    this.annulerEdition();
+  }
+
+  /** Écarte une ligne de la répartition, après confirmation. */
+  supprimerLigneDetail(ligne: LigneValorisee): void {
+    this.dispatchStore.supprimerLignes([ligne.cle]);
+    if (this.ligneEditee === ligne.cle) this.annulerEdition();
   }
 
   /** Avertissements déduits des lignes que le magasin détient. */

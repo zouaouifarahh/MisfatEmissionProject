@@ -352,3 +352,111 @@
 /* Référence carbone absente : la ligne sera valorisée par famille, ce que la
    colonne « Base appliquée » signale déjà. */
 .ref-absente { color: #94a3b8; }
+
+/* ---------- Reprise en masse du facteur ---------- */
+/* Le panneau s'ouvre entre la barre de filtres et le tableau : la portée de la
+   reprise est ainsi lue juste au-dessus des lignes qu'elle va toucher. */
+.btn-masse {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #D97706;
+  background: #FFFBF5;
+  color: #B4652F;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-masse:hover { background: #FFF4E6; }
+
+.masse-panneau {
+  margin: 12px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid #FDBA74;
+  border-left: 4px solid #D97706;
+  border-radius: 10px;
+  background: #FFFBF5;
+}
+
+.masse-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #7C3D12;
+}
+
+.masse-portee {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: #78350F;
+  max-width: 72ch;
+}
+
+.masse-saisie {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.masse-saisie label { font-size: 13px; font-weight: 600; color: #7C3D12; }
+.masse-saisie .search-input { max-width: 180px; }
+
+.masse-erreur { margin: 10px 0 0; font-size: 13px; color: #B91C1C; }
+
+.masse-compte-rendu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #166534;
+  font-size: 13px;
+}
+
+.btn-annuler {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #475569;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-annuler:hover { background: #F1F5F9; border-color: #94A3B8; }
+.btn-annuler:focus-visible { outline: 2px solid #1E92CD; outline-offset: 2px; }
+
+
+/* ---------- Défilement horizontal des tableaux ---------- */
+/* overflow-x seul ne défile pas : sans borne de largeur, le conteneur s'étire
+   au min-width du tableau et déborde la page. La borne, plus min-width: 0 pour
+   lever la taille minimale automatique des éléments de flex, rend le
+   défilement effectif — aucune colonne n'est plus rognée à droite. */
+.table-container {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Le parent direct doit accepter de rétrécir, sinon il impose sa largeur. */
+.emission-card,
+.emission-container,
+.categorie-card,
+.categorie-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Une bannière qui annonce un millier de lignes doit y mener. */
+.ref-warning-cliquable { cursor: pointer; }
+.ref-warning-cliquable:hover { filter: brightness(0.98); }
+.ref-warning-cliquable:focus-visible { outline: 2px solid #1E92CD; outline-offset: 2px; }
+
+.ref-warning-action {
+  margin-left: auto;
+  font-weight: 700;
+  white-space: nowrap;
+}

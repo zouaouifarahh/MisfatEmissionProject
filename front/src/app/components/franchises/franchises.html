@@ -69,6 +69,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="approche" libelle="Approche"
+                        libelleTous="Toutes les approches"
+                        [source]="listeEmissions" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="approches"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
              placeholder="Recherche par référence, franchisé, localisation ou base…" class="search-input">
 
@@ -194,11 +203,9 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="4">Total — {{ emissionsFiltrees.length }} franchise(s)</td>
+            <td colspan="9">Total — {{ emissionsFiltrees.length }} franchise(s)</td>
             <td class="ta-right num-fort">{{ totalSites | number:'1.0-0' }} sites</td>
-            <td colspan="2"></td>
-            <td class="ta-right num-fort">{{ (sansReseau ? 0 : totalEmissions) | number:'1.0-2' }}</td>
-            <td></td>
+            <td colspan="1"></td>
           </tr>
         </tfoot>
       </table>

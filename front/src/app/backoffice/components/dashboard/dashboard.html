@@ -95,6 +95,7 @@
         </button>
         <div *ngIf="menus.reporting && !isSidebarCollapsed" class="sub-menu sub-menu-indent">
           <button type="button" (click)="setActive('reporting-executif')" class="sub-btn" [class.active-sub]="activeSub === 'reporting-executif' || activeSub === 'ghg'">• Bilan Carbone Exécutif</button>
+          <button type="button" (click)="setActive('consolidation-groupe')" class="sub-btn" [class.active-sub]="activeSub === 'consolidation-groupe'">• Consolidation Groupe</button>
         </div>
         </ng-container>
 
@@ -280,13 +281,18 @@
       <app-referentiel-carbone></app-referentiel-carbone>
     </div>
 
+    <!-- Consolidation Groupe : les filiales côte à côte sur un même exercice -->
+    <div *ngIf="activeSub === 'consolidation-groupe' && droits.reporting">
+      <app-consolidation-groupe></app-consolidation-groupe>
+    </div>
+
     <!-- Reporting exécutif : configuration des scopes puis document imprimable -->
     <div *ngIf="(activeSub === 'reporting-executif' || activeSub === 'ghg') && droits.reporting">
       <app-reporting></app-reporting>
     </div>
 
     <!-- MESURES / CRUD -->
-    <div *ngIf="activeSub !== 'acces' && activeSub !== 'm-prof' && activeSub !== 'dashboard-home' && activeSub !== 'societes' && activeSub !== 'mesure' && activeSub !== 'referentiel-carbone' && activeSub !== 'facteurs' && activeSub !== 'import-data' && activeSub !== 'sauvegarde-donnees' && activeSub !== 'reporting-executif' && activeSub !== 'ghg' && activeSub !== 'm-equipe' && activeSub !== 'donnees-activite' && droits.emissionCarbone">
+    <div *ngIf="activeSub !== 'acces' && activeSub !== 'm-prof' && activeSub !== 'dashboard-home' && activeSub !== 'societes' && activeSub !== 'mesure' && activeSub !== 'referentiel-carbone' && activeSub !== 'facteurs' && activeSub !== 'import-data' && activeSub !== 'sauvegarde-donnees' && activeSub !== 'reporting-executif' && activeSub !== 'ghg' && activeSub !== 'consolidation-groupe' && activeSub !== 'm-equipe' && activeSub !== 'donnees-activite' && droits.emissionCarbone">
       <div *ngIf="activeSub === 'combustion-etablissements'">
         <app-emission-list></app-emission-list>
       </div>
@@ -778,6 +784,12 @@
             </div>
           </div>
         </section>
+
+        <!-- L'évolution ci-dessus raconte l'histoire des exercices ; celle-ci
+             mesure l'écart à l'engagement, qui est la question de l'auditeur. -->
+        <app-trajectoire-sbti class="bloc-sbti"
+                              [exercices]="historique"
+                              [titrePerimetre]="filialeLabel"></app-trajectoire-sbti>
 
         </div>
 
@@ -1382,7 +1394,7 @@
         <div class="synthese-head">
           <div>
             <h2 class="details-title">
-              Synthèse des Sources d'Émission
+              Suivi de saisie des données d'émissions
               <span class="info-hint"
                     tabindex="0"
                     role="img"
@@ -1425,6 +1437,7 @@
                   <th class="ta-right">Quantité &amp; Unité</th>
                   <th class="ta-right">Émissions ({{ uniteStats }})</th>
                   <th class="ta-right">% du Total</th>
+                  <th class="ta-center">Détail</th>
                 </tr>
               </thead>
               <tbody>
@@ -1443,6 +1456,19 @@
                       </div>
                     </div>
                   </td>
+
+                  <!-- L'œil ouvre le détail de la saisie et son fil de
+                       commentaires : le chiffre seul ne dit pas d'où il vient. -->
+                  <td class="ta-center">
+                    <button type="button" class="btn-oeil"
+                            [attr.aria-label]="'Voir le détail de ' + l.categorie"
+                            [title]="'Détail et commentaires — ' + l.categorie"
+                            (click)="ouvrirDetailSaisie(l)">
+                      <span aria-hidden="true">👁</span>
+                      <span class="oeil-pastille"
+                            *ngIf="nombreCommentaires(l)">{{ nombreCommentaires(l) }}</span>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
               <tfoot>
@@ -1454,6 +1480,7 @@
                   </td>
                   <td class="ta-right num-fort">{{ syntheseTotal | number:'1.0-2' }}</td>
                   <td class="ta-right num-fort">{{ syntheseTotalPct | number:'1.0-1' }} %</td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
@@ -1464,4 +1491,79 @@
     </div>
 
   </main>
+
+  <!-- Panneau de détail d'une ligne de saisie : ce que le chiffre recouvre, et
+       la discussion qui l'accompagne. Monté hors du tableau pour ne pas
+       dépendre de son défilement horizontal. -->
+  <div class="voile-detail" *ngIf="ligneDetail" (click)="fermerDetailSaisie()"></div>
+
+  <aside class="panneau-detail" *ngIf="ligneDetail"
+         role="dialog" aria-modal="true" aria-labelledby="titre-detail-saisie">
+    <header class="panneau-tete">
+      <div>
+        <span class="panneau-scope" [class]="ligneDetail.classe">{{ ligneDetail.scopeLabel }}</span>
+        <h3 id="titre-detail-saisie">{{ ligneDetail.categorie }}</h3>
+      </div>
+      <button type="button" class="panneau-fermer" aria-label="Fermer le détail"
+              (click)="fermerDetailSaisie()">×</button>
+    </header>
+
+    <div class="panneau-corps">
+
+      <section class="panneau-bloc">
+        <h4>Détail de la saisie</h4>
+        <dl class="detail-liste">
+          <div><dt>Établissement</dt><dd>{{ filialeLabel }}</dd></div>
+          <div><dt>Exercice</dt><dd>{{ selectedAnnee || '—' }}</dd></div>
+          <div><dt>Source d'émission</dt><dd>{{ ligneDetail.metier }}</dd></div>
+          <div><dt>Base de calcul</dt><dd>{{ ligneDetail.base }}</dd></div>
+          <div><dt>Quantité / montant</dt><dd>{{ ligneDetail.quantite }}</dd></div>
+          <div><dt>Émissions</dt>
+            <dd class="detail-fort">{{ ligneDetail.valeur | number:'1.0-2' }} tCO₂e</dd></div>
+          <div><dt>Part du total</dt><dd>{{ ligneDetail.pct | number:'1.0-1' }} %</dd></div>
+        </dl>
+      </section>
+
+      <section class="panneau-bloc">
+        <h4>Commentaires
+          <span class="compteur-fil">{{ commentairesDetail.length }}</span>
+        </h4>
+
+        <p class="fil-vide" *ngIf="!commentairesDetail.length">
+          Aucun commentaire sur cette ligne. Consignez ici une observation, une
+          référence de facture ou un arbitrage d'imputation.
+        </p>
+
+        <ul class="fil-commentaires">
+          <li *ngFor="let c of commentairesDetail">
+            <div class="fil-tete">
+              <span class="fil-auteur">{{ c.auteur }}</span>
+              <span class="fil-role" [class.role-admin]="c.role === 'Master Admin'"
+                    [class.role-moderateur]="c.role === 'Modérateur'">{{ c.role }}</span>
+              <span class="fil-date">{{ c.ecritLe | date:'dd/MM/yyyy HH:mm' }}</span>
+              <button type="button" class="fil-supprimer" *ngIf="peutSupprimerCommentaire"
+                      [attr.aria-label]="'Supprimer le commentaire de ' + c.auteur"
+                      (click)="supprimerCommentaire(c.id)">×</button>
+            </div>
+            <p class="fil-texte">{{ c.texte }}</p>
+          </li>
+        </ul>
+
+        <div class="fil-saisie">
+          <label class="sr-only" for="nouveau-commentaire">Nouveau commentaire</label>
+          <textarea id="nouveau-commentaire" rows="3"
+                    placeholder="Votre commentaire…"
+                    [(ngModel)]="commentaireSaisi"></textarea>
+          <p class="fil-erreur" *ngIf="erreurCommentaire">{{ erreurCommentaire }}</p>
+          <div class="fil-actions">
+            <span class="fil-signature">Publié comme {{ nomUtilisateur }}</span>
+            <button type="button" class="btn-commenter" (click)="ajouterCommentaire()">
+              Ajouter le commentaire
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </aside>
 </div>

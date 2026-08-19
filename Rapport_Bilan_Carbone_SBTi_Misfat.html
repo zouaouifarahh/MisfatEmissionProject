@@ -1,0 +1,2381 @@
+<title>Bilan Carbone Misfat Filtration</title>
+
+<style>
+  :root {
+    --encre: #16202B;
+    --ardoise: #47576B;
+    --estompe: #7A8798;
+    --papier: #FBFAF8;
+    --feuille: #FFFFFF;
+    --trait: #DDE3E9;
+    --trait-doux: #EDF0F3;
+    --cuivre: #B5661E;
+    --cuivre-pale: #FAF0E6;
+    --hausse: #A3352C;
+    --hausse-pale: #FBEEEC;
+    --baisse: #1F6E5A;
+    --baisse-pale: #EAF4F0;
+    --vigilance: #C08A1E;
+    --vigilance-pale: #FDF6E7;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, sans-serif;
+    --mono: "Cascadia Mono", Consolas, "SF Mono", ui-monospace, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --encre: #E8EDF2;
+      --ardoise: #A6B3C2;
+      --estompe: #7D8B9B;
+      --papier: #10161D;
+      --feuille: #171F28;
+      --trait: #2C3844;
+      --trait-doux: #212B35;
+      --cuivre: #E09456;
+      --cuivre-pale: #2A1F14;
+      --hausse: #E8837A;
+      --hausse-pale: #2B1A18;
+      --baisse: #6BC0A5;
+      --baisse-pale: #14251F;
+      --vigilance: #E0B455;
+      --vigilance-pale: #29220F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --encre: #E8EDF2;
+    --ardoise: #A6B3C2;
+    --estompe: #7D8B9B;
+    --papier: #10161D;
+    --feuille: #171F28;
+    --trait: #2C3844;
+    --trait-doux: #212B35;
+    --cuivre: #E09456;
+    --cuivre-pale: #2A1F14;
+    --hausse: #E8837A;
+    --hausse-pale: #2B1A18;
+    --baisse: #6BC0A5;
+    --baisse-pale: #14251F;
+    --vigilance: #E0B455;
+    --vigilance-pale: #29220F;
+  }
+
+  body {
+    margin: 0;
+    padding: 24px 16px 64px;
+    background: var(--papier);
+    color: var(--encre);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Feuille A4 ---------- */
+  .feuille {
+    position: relative;
+    max-width: 210mm;
+    min-height: 290mm;
+    margin: 0 auto 28px;
+    padding: 20mm 18mm 16mm 26mm;
+    background: var(--feuille);
+    border: 1px solid var(--trait);
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(22, 32, 43, .05);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Rail de gouttière : folio et section, comme sur un certificat d'essai. */
+  .folio {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 26mm;
+    border-right: 1px solid var(--trait-doux);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20mm;
+    gap: 10px;
+  }
+  .folio-num {
+    font-family: var(--mono);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--cuivre);
+    font-variant-numeric: tabular-nums;
+  }
+  .folio-tag {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--estompe);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  .entete {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--trait);
+  }
+  .entete-oeil {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--estompe);
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: 34px;
+    line-height: 1.15;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: -.01em;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 21px;
+    line-height: 1.25;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: .01em;
+  }
+  p { margin: 0; max-width: 68ch; }
+  .chapo { font-size: 15px; color: var(--ardoise); max-width: 66ch; }
+
+  ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+  li { max-width: 66ch; }
+  li::marker { color: var(--cuivre); }
+
+  /* ---------- Tableaux ---------- */
+  .cadre-table { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--estompe);
+    padding-bottom: 6px;
+  }
+  th {
+    text-align: left;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--ardoise);
+    padding: 7px 8px;
+    border-bottom: 1.5px solid var(--encre);
+    white-space: nowrap;
+  }
+  td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--trait-doux);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: 1px solid var(--trait); }
+  .num { text-align: right; font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+  .code { font-family: var(--mono); font-size: 11px; color: var(--cuivre); white-space: nowrap; }
+  tfoot td {
+    font-weight: 700;
+    border-top: 1.5px solid var(--encre);
+    border-bottom: none;
+    background: var(--trait-doux);
+  }
+  .ligne-vedette td { background: var(--cuivre-pale); }
+
+  .hausse { color: var(--hausse); font-weight: 700; }
+  .baisse { color: var(--baisse); font-weight: 700; }
+  .neutre { color: var(--estompe); }
+
+  /* ---------- Encadrés ---------- */
+  .encadre {
+    border: 1px solid var(--trait);
+    border-left: 3px solid var(--cuivre);
+    border-radius: 2px;
+    padding: 13px 16px;
+    background: var(--feuille);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .encadre-alerte { border-left-color: var(--hausse); background: var(--hausse-pale); }
+  .encadre-ok { border-left-color: var(--baisse); background: var(--baisse-pale); }
+  .encadre-vigilance { border-left-color: var(--vigilance); background: var(--vigilance-pale); }
+  .encadre-titre {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ardoise);
+  }
+
+  /* ---------- Grilles ---------- */
+  .grille-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grille-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grille-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+  .kpi {
+    border: 1px solid var(--trait);
+    border-radius: 2px;
+    padding: 12px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .kpi-lib {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--estompe);
+  }
+  .kpi-val {
+    font-family: var(--serif);
+    font-size: 25px;
+    font-weight: 600;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-note { font-size: 10.5px; color: var(--ardoise); }
+
+  /* ---------- Donut ---------- */
+  .donut-bloc { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+  .donut {
+    width: 168px; height: 168px; border-radius: 50%;
+    flex: 0 0 auto;
+    background: conic-gradient(
+      var(--encre) 0 6.39%,
+      var(--cuivre) 6.39% 15.16%,
+      var(--ardoise) 15.16% 100%);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .donut::after {
+    content: "";
+    position: absolute;
+    inset: 34px;
+    background: var(--feuille);
+    border-radius: 50%;
+  }
+  .donut-coeur {
+    position: relative; z-index: 1; text-align: center;
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .donut-coeur strong { display: block; font-size: 17px; }
+  .donut-coeur span { font-size: 8.5px; letter-spacing: .08em; color: var(--estompe); }
+
+  .legende { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px; }
+  .legende-item { display: flex; align-items: baseline; gap: 9px; font-size: 12px; }
+  .puce { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 auto; }
+  .legende-item b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Barres ---------- */
+  .barres { display: flex; flex-direction: column; gap: 7px; }
+  .barre-ligne { display: grid; grid-template-columns: 128px 1fr 78px; gap: 10px; align-items: center; font-size: 11.5px; }
+  .barre-piste { height: 15px; background: var(--trait-doux); border-radius: 1px; position: relative; overflow: hidden; }
+  .barre-jauge { height: 100%; background: var(--ardoise); }
+  .barre-jauge.acc { background: var(--cuivre); }
+  .barre-val { font-family: var(--mono); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Pareto ---------- */
+  .pareto { display: flex; flex-direction: column; gap: 4px; }
+  .pareto-ligne { display: grid; grid-template-columns: 20px 132px 1fr 62px 62px; gap: 9px; align-items: center; font-size: 11px; }
+  .pareto-rang { font-family: var(--mono); font-size: 10px; color: var(--estompe); text-align: right; }
+  .pareto-piste { height: 17px; background: var(--trait-doux); position: relative; }
+  .pareto-jauge { height: 100%; background: var(--cuivre); }
+  .pareto-jauge.froid { background: var(--ardoise); }
+  .pareto-cumul { font-family: var(--mono); font-size: 10.5px; color: var(--ardoise); text-align: right; font-variant-numeric: tabular-nums; }
+  .pareto-seuil { border-top: 1px dashed var(--hausse); padding-top: 5px; margin-top: 3px; }
+
+  /* ---------- Heatmap ---------- */
+  .heat { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr) 1.1fr; gap: 3px; font-size: 11px; }
+  .heat-th {
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ardoise); padding: 5px 7px;
+  }
+  .heat-c { padding: 8px 9px; border-radius: 2px; }
+  .heat-n { background: var(--feuille); border: 1px solid var(--trait); font-weight: 600; }
+  /* Fond rouge soutenu en clair, rouge pâle en sombre : le texte prend la
+     couleur de la feuille, donc clair sur clair-fond-foncé et inversement. */
+  .h4 { background: color-mix(in srgb, var(--hausse) 82%, transparent); color: var(--feuille); font-weight: 700; }
+  .h3 { background: color-mix(in srgb, var(--hausse) 46%, transparent); }
+  .h2 { background: color-mix(in srgb, var(--vigilance) 42%, transparent); }
+  .h1 { background: color-mix(in srgb, var(--baisse) 26%, transparent); }
+
+  /* ---------- Gantt ---------- */
+  .gantt { display: grid; grid-template-columns: 152px repeat(5, 1fr); gap: 3px; font-size: 10.5px; align-items: center; }
+  .gantt-an { font-family: var(--mono); font-size: 9px; text-align: center; color: var(--estompe); letter-spacing: .06em; }
+  .gantt-lib { font-size: 10.5px; padding: 4px 0; }
+  .gantt-cell { height: 15px; background: var(--trait-doux); }
+  .gantt-cell.on { background: var(--cuivre); }
+  .gantt-cell.prep { background: color-mix(in srgb, var(--cuivre) 32%, transparent); }
+
+  /* ---------- Divers ---------- */
+  .etiquette {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid var(--trait);
+    border-radius: 2px;
+    color: var(--ardoise);
+  }
+  .etiquette-acc { border-color: var(--cuivre); color: var(--cuivre); background: var(--cuivre-pale); }
+  .etiquette-crit { border-color: var(--hausse); color: var(--hausse); background: var(--hausse-pale); }
+
+  .fig {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--estompe);
+    border-top: 1px solid var(--trait-doux);
+    padding-top: 5px;
+  }
+
+  .filet { border: none; border-top: 1px solid var(--trait); margin: 2px 0; }
+
+  .sommaire { display: flex; flex-direction: column; gap: 2px; }
+  .som-ligne {
+    display: grid; grid-template-columns: 32px 1fr auto; gap: 12px;
+    padding: 6px 0; border-bottom: 1px solid var(--trait-doux); font-size: 12.5px;
+    align-items: baseline;
+  }
+  .som-num { font-family: var(--mono); font-size: 10.5px; color: var(--cuivre); }
+  .som-pages { font-family: var(--mono); font-size: 10.5px; color: var(--estompe); }
+  .som-part {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ardoise); padding: 12px 0 4px; border-bottom: 1.5px solid var(--encre);
+  }
+
+  .garde {
+    justify-content: space-between;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--cuivre) 5%, transparent) 0%, transparent 42%),
+      var(--feuille);
+  }
+  .garde-marque {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--cuivre);
+  }
+  .garde-titre { font-size: 46px; line-height: 1.06; }
+  .garde-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; font-size: 12px; }
+  .garde-meta div { display: flex; flex-direction: column; gap: 2px; }
+  .garde-meta dt {
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--estompe);
+  }
+  .garde-meta dd { margin: 0; font-weight: 600; }
+
+  @media (max-width: 640px) {
+    body { padding: 12px 8px 40px; }
+    .feuille { padding: 16px 14px 14px 20px; min-height: 0; }
+    .folio { width: 20px; padding-top: 16px; }
+    .folio-tag { display: none; }
+    .grille-2, .grille-3, .grille-4 { grid-template-columns: 1fr; }
+    .garde-titre { font-size: 32px; }
+    h1 { font-size: 26px; }
+  }
+
+  @media print {
+    body { padding: 0; background: #fff; }
+    .feuille {
+      margin: 0; border: none; box-shadow: none;
+      page-break-after: always; break-after: page;
+      min-height: 297mm;
+    }
+    .encadre, table, .kpi { break-inside: avoid; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<!-- ============================== PAGE 1 ============================== -->
+<section class="feuille garde">
+  <div class="folio"><span class="folio-num">01</span><span class="folio-tag">Garde</span></div>
+
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span class="garde-marque">Misfat Filtration · Groupe MISFAT</span>
+    <hr class="filet">
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <h1 class="garde-titre">Bilan Carbone<br>&amp; Trajectoire SBTi</h1>
+    <p class="chapo">
+      Inventaire des émissions de gaz à effet de serre sur les périmètres 1, 2 et 3,
+      comparaison de l'exercice 2023 à l'année de référence 2021, et évaluation de
+      l'écart à la trajectoire 1,5 °C validée le 10 novembre 2025.
+    </p>
+
+    <div class="grille-3">
+      <div class="kpi">
+        <span class="kpi-lib">Empreinte 2023</span>
+        <span class="kpi-val">83 944</span>
+        <span class="kpi-note">tCO₂e · scopes 1+2+3</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-lib">Écart 2021 → 2023</span>
+        <span class="kpi-val baisse">−1,90 %</span>
+        <span class="kpi-note">soit −1 629 tCO₂e</span>
+      </div>
+      <div class="kpi" style="border-color:var(--hausse)">
+        <span class="kpi-lib">Écart à la trajectoire</span>
+        <span class="kpi-val hausse">+7 973</span>
+        <span class="kpi-note">tCO₂e au-dessus du jalon 2023</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <hr class="filet">
+    <dl class="garde-meta">
+      <div><dt>Année de référence</dt><dd>2021</dd></div>
+      <div><dt>Exercice rapporté</dt><dd>2023</dd></div>
+      <div><dt>Référentiels</dt><dd>GHG Protocol · ISO 14064-1 · SBTi</dd></div>
+      <div><dt>Cibles validées</dt><dd>10 novembre 2025</dd></div>
+      <div><dt>Consolidation</dt><dd>Contrôle opérationnel</dd></div>
+      <div><dt>Unité</dt><dd>tCO₂e — PRG 100 ans, AR5</dd></div>
+    </dl>
+    <p style="font-size:10.5px;color:var(--estompe);max-width:none">
+      Document de travail interne. Les chiffres d'émissions sont ceux transmis par la
+      direction RSE ; les scénarios de réduction sont des hypothèses de travail à valider
+      avec les données fournisseurs et industrielles.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 2 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">02</span><span class="folio-tag">Sommaire</span></div>
+  <div class="entete"><span class="entete-oeil">Sommaire</span><span class="entete-oeil">28 pages</span></div>
+
+  <h2>Ce que contient ce rapport</h2>
+
+  <div class="sommaire">
+    <div class="som-part">Partie I — Cadre et périmètre</div>
+    <div class="som-ligne"><span class="som-num">01</span><span>Page de garde et indicateurs d'ouverture</span><span class="som-pages">p. 1</span></div>
+    <div class="som-ligne"><span class="som-num">02</span><span>Sommaire</span><span class="som-pages">p. 2</span></div>
+    <div class="som-ligne"><span class="som-num">03</span><span>Tableau de bord : répartition par scope, donut et poids relatifs</span><span class="som-pages">p. 3</span></div>
+    <div class="som-ligne"><span class="som-num">04</span><span>Périmètre organisationnel et opérationnel</span><span class="som-pages">p. 4</span></div>
+    <div class="som-ligne"><span class="som-num">05</span><span>Règles d'imputation appliquées chez Misfat</span><span class="som-pages">p. 5</span></div>
+
+    <div class="som-part">Partie II — Comparaison 2021 / 2023</div>
+    <div class="som-ligne"><span class="som-num">06</span><span>Tableau comparatif complet, poste par poste</span><span class="som-pages">p. 6</span></div>
+    <div class="som-ligne"><span class="som-num">07</span><span>Écarts supérieurs à ±10 % : trois postes sous revue</span><span class="som-pages">p. 7</span></div>
+    <div class="som-ligne"><span class="som-num">08</span><span>Lecture à périmètre constant : ce que masque le −1,90 %</span><span class="som-pages">p. 8</span></div>
+
+    <div class="som-part">Partie III — Hotspots</div>
+    <div class="som-ligne"><span class="som-num">09</span><span>Diagramme de Pareto des émissions 2023</span><span class="som-pages">p. 9</span></div>
+    <div class="som-ligne"><span class="som-num">10</span><span>Cartographie de criticité (heatmap)</span><span class="som-pages">p. 10</span></div>
+    <div class="som-ligne"><span class="som-num">11</span><span>Classement des cinq foyers prioritaires</span><span class="som-pages">p. 11</span></div>
+
+    <div class="som-part">Partie IV — Plan d'action</div>
+    <div class="som-ligne"><span class="som-num">12</span><span>Fiche 1 · Acier et médias filtrants — volet matière</span><span class="som-pages">p. 12</span></div>
+    <div class="som-ligne"><span class="som-num">13</span><span>Fiche 1 · Acier et médias filtrants — volet fournisseurs</span><span class="som-pages">p. 13</span></div>
+    <div class="som-ligne"><span class="som-num">14</span><span>Fiche 2 · Électricité renouvelable — photovoltaïque et PPA</span><span class="som-pages">p. 14</span></div>
+    <div class="som-ligne"><span class="som-num">15</span><span>Fiche 3 · Fret amont et aval</span><span class="som-pages">p. 15</span></div>
+    <div class="som-ligne"><span class="som-num">16</span><span>Fiche 4 · Combustion directe et électrification</span><span class="som-pages">p. 16</span></div>
+    <div class="som-ligne"><span class="som-num">17</span><span>Fiche 5 · Énergie amont et effets d'entraînement</span><span class="som-pages">p. 17</span></div>
+    <div class="som-ligne"><span class="som-num">18</span><span>Matrice effort / gain et hiérarchisation</span><span class="som-pages">p. 18</span></div>
+    <div class="som-ligne"><span class="som-num">19</span><span>Planning d'exécution 2026 – 2030</span><span class="som-pages">p. 19</span></div>
+
+    <div class="som-part">Partie V — Trajectoire SBTi</div>
+    <div class="som-ligne"><span class="som-num">20</span><span>Cibles validées : transcription et portée</span><span class="som-pages">p. 20</span></div>
+    <div class="som-ligne"><span class="som-num">21</span><span>Trajectoire scopes 1 et 3 — courbe année par année</span><span class="som-pages">p. 21</span></div>
+    <div class="som-ligne"><span class="som-num">22</span><span>Trajectoire scope 2 — montée en charge du renouvelable</span><span class="som-pages">p. 22</span></div>
+    <div class="som-ligne"><span class="som-num">23</span><span>Scénarios de convergence : atteint-on la cible ?</span><span class="som-pages">p. 23</span></div>
+
+    <div class="som-part">Partie VI — Pilotage et annexes</div>
+    <div class="som-ligne"><span class="som-num">24</span><span>Gouvernance et instances de décision</span><span class="som-pages">p. 24</span></div>
+    <div class="som-ligne"><span class="som-num">25</span><span>Tableau de bord des indicateurs de suivi</span><span class="som-pages">p. 25</span></div>
+    <div class="som-ligne"><span class="som-num">26</span><span>Annexes techniques : facteurs, sources, réconciliation</span><span class="som-pages">p. 26</span></div>
+    <div class="som-ligne"><span class="som-num">27</span><span>Limites, incertitudes et plan de fiabilisation</span><span class="som-pages">p. 27</span></div>
+    <div class="som-ligne"><span class="som-num">28</span><span>Feuille de route des 90 premiers jours</span><span class="som-pages">p. 28</span></div>
+  </div>
+</section>
+
+<!-- ============================== PAGE 3 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">03</span><span class="folio-tag">Tableau de bord</span></div>
+  <div class="entete"><span class="entete-oeil">Partie I · Cadre</span><span class="entete-oeil">Exercice 2023</span></div>
+
+  <h2>Où se situe l'empreinte</h2>
+  <p class="chapo">
+    Huit émissions sur dix se produisent en dehors des murs de l'usine. Le pilotage
+    industriel classique — énergie, procédés — ne touche qu'un septième du total.
+  </p>
+
+  <div class="grille-4">
+    <div class="kpi">
+      <span class="kpi-lib">Scope 1</span>
+      <span class="kpi-val">5 364</span>
+      <span class="kpi-note">6,39 % · <span class="hausse">+2,31 %</span></span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-lib">Scope 2 market</span>
+      <span class="kpi-val">7 365</span>
+      <span class="kpi-note">8,77 % · <span class="baisse">−25,64 %</span></span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-lib">Scope 3</span>
+      <span class="kpi-val">71 215</span>
+      <span class="kpi-note">84,84 % · <span class="hausse">+1,12 %</span></span>
+    </div>
+    <div class="kpi" style="border-color:var(--cuivre);background:var(--cuivre-pale)">
+      <span class="kpi-lib">Total</span>
+      <span class="kpi-val">83 944</span>
+      <span class="kpi-note">tCO₂e · <span class="baisse">−1,90 %</span></span>
+    </div>
+  </div>
+
+  <div class="donut-bloc">
+    <div class="donut">
+      <div class="donut-coeur"><strong>83 944</strong><span>TCO₂E 2023</span></div>
+    </div>
+    <div class="legende">
+      <div class="legende-item">
+        <span class="puce" style="background:var(--encre)"></span>
+        <span>Scope 1 — combustion directe, flotte, fluides</span><b>6,39 %</b>
+      </div>
+      <div class="legende-item">
+        <span class="puce" style="background:var(--cuivre)"></span>
+        <span>Scope 2 — électricité achetée (market-based)</span><b>8,77 %</b>
+      </div>
+      <div class="legende-item">
+        <span class="puce" style="background:var(--ardoise)"></span>
+        <span>Scope 3 — chaîne de valeur amont et aval</span><b>84,84 %</b>
+      </div>
+      <hr class="filet">
+      <p style="font-size:11px;color:var(--ardoise)">
+        <b>Graphique — Donut.</b> Trois secteurs, part de l'empreinte totale 2023.
+        Le scope 3 occupe 305° de la circonférence.
+      </p>
+    </div>
+  </div>
+
+  <hr class="filet">
+
+  <h3>Poids relatif des neuf postes — barres horizontales</h3>
+  <div class="barres">
+    <div class="barre-ligne"><span>Cat 1 · Achats</span><span class="barre-piste"><span class="barre-jauge acc" style="width:100%"></span></span><span class="barre-val">61,80 %</span></div>
+    <div class="barre-ligne"><span>Scope 2 · Électricité</span><span class="barre-piste"><span class="barre-jauge" style="width:14.2%"></span></span><span class="barre-val">8,77 %</span></div>
+    <div class="barre-ligne"><span>Cat 3 · Énergie amont</span><span class="barre-piste"><span class="barre-jauge" style="width:12.5%"></span></span><span class="barre-val">7,74 %</span></div>
+    <div class="barre-ligne"><span>Cat 4 · Fret amont</span><span class="barre-piste"><span class="barre-jauge" style="width:10.5%"></span></span><span class="barre-val">6,47 %</span></div>
+    <div class="barre-ligne"><span>Scope 1 · Combustion</span><span class="barre-piste"><span class="barre-jauge" style="width:10.3%"></span></span><span class="barre-val">6,39 %</span></div>
+    <div class="barre-ligne"><span>Cat 12 · Fin de vie</span><span class="barre-piste"><span class="barre-jauge" style="width:7.7%"></span></span><span class="barre-val">4,74 %</span></div>
+    <div class="barre-ligne"><span>Cat 9 · Fret aval</span><span class="barre-piste"><span class="barre-jauge" style="width:4.2%"></span></span><span class="barre-val">2,59 %</span></div>
+    <div class="barre-ligne"><span>Autres cat. 3</span><span class="barre-piste"><span class="barre-jauge" style="width:2.1%"></span></span><span class="barre-val">1,30 %</span></div>
+    <div class="barre-ligne"><span>Cat 2 · Équipements</span><span class="barre-piste"><span class="barre-jauge" style="width:0.3%"></span></span><span class="barre-val">0,20 %</span></div>
+  </div>
+  <p class="fig">Fig. 1 — Échelle relative au poste dominant (catégorie 1 = 100 %)</p>
+</section>
+
+<!-- ============================== PAGE 4 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">04</span><span class="folio-tag">Périmètre</span></div>
+  <div class="entete"><span class="entete-oeil">Partie I · Cadre</span><span class="entete-oeil">Périmètre</span></div>
+
+  <h2>Périmètre d'évaluation</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Périmètre organisationnel</caption>
+      <thead><tr><th>Dimension</th><th>Choix retenu</th><th>Conséquence sur l'inventaire</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Méthode de consolidation</td>
+          <td>Contrôle opérationnel</td>
+          <td>Toutes les émissions des sites exploités par Misfat sont intégrées à 100 %, sans prorata capitalistique.</td>
+        </tr>
+        <tr>
+          <td>Entités incluses</td>
+          <td>Sites de production et fonctions support du groupe</td>
+          <td>À figer nominativement en annexe : toute entité omise fausse la comparabilité 2021 / 2023.</td>
+        </tr>
+        <tr>
+          <td>Exercice</td>
+          <td>Année civile</td>
+          <td>Cohérent avec l'année de référence 2021 retenue par la cible SBTi.</td>
+        </tr>
+        <tr>
+          <td>Gaz couverts</td>
+          <td>Les sept gaz du protocole de Kyoto</td>
+          <td>Exprimés en CO₂e, PRG 100 ans du cinquième rapport du GIEC (AR5).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Périmètre opérationnel — catégories retenues et écartées</caption>
+      <thead><tr><th>Scope</th><th>Poste</th><th>Statut</th><th>Justification</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Combustion fixe et mobile, fluides frigorigènes</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Sources détenues ou contrôlées.</td></tr>
+        <tr><td>2</td><td>Électricité achetée — market et location based</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Double comptabilisation exigée par le GHG Protocol.</td></tr>
+        <tr><td>3</td><td>Cat 1 · Biens et services achetés</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Poste dominant : acier, médias filtrants, composants.</td></tr>
+        <tr><td>3</td><td>Cat 2 · Biens d'équipement</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Immobilisations de l'exercice.</td></tr>
+        <tr><td>3</td><td>Cat 3 · Combustibles et énergie</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Émissions amont des énergies consommées.</td></tr>
+        <tr><td>3</td><td>Cat 4 · Transport amont</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Approvisionnements entrants.</td></tr>
+        <tr><td>3</td><td>Cat 9 · Transport aval</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Distribution des produits finis.</td></tr>
+        <tr><td>3</td><td>Cat 12 · Fin de vie des produits vendus</td><td><span class="etiquette-acc etiquette">Inclus</span></td><td>Filtres usagés, emballages.</td></tr>
+        <tr class="ligne-vedette"><td>3</td><td>Cat 5, 6, 7, 8, 11, 13, 14, 15</td><td><span class="etiquette etiquette-crit">À expliciter</span></td><td>Non détaillées dans les données transmises. Elles représentent le résidu de réconciliation traité page 26.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Point d'attention méthodologique</span>
+    <p>
+      Une catégorie non renseignée n'est pas une catégorie nulle. Le GHG Protocol
+      demande, pour chaque catégorie du scope 3 écartée, une justification écrite
+      d'exclusion ou une mention de non-matérialité étayée. Huit catégories sont
+      aujourd'hui sans statut documenté : c'est le premier point à traiter avant
+      toute vérification externe.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 5 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">05</span><span class="folio-tag">Imputation</span></div>
+  <div class="entete"><span class="entete-oeil">Partie I · Cadre</span><span class="entete-oeil">Règles d'imputation</span></div>
+
+  <h2>Règles d'imputation, appliquées à Misfat</h2>
+  <p class="chapo">
+    Une seule page : la théorie n'a d'intérêt que ramenée aux flux réels de l'entreprise.
+  </p>
+
+  <div class="grille-3">
+    <div class="encadre">
+      <span class="encadre-titre">Scope 1 — direct</span>
+      <p style="font-size:12px">Ce que Misfat <b>brûle ou relâche</b> elle-même.</p>
+      <ul style="font-size:11.5px">
+        <li>Chaudières et fours des lignes de production</li>
+        <li>Gazole de la flotte détenue</li>
+        <li>Fuites de fluides frigorigènes</li>
+      </ul>
+      <p style="font-size:11px;color:var(--ardoise)">
+        <b>Règle :</b> mesuré en litres, m³ ou kg — jamais en dinars.
+      </p>
+    </div>
+    <div class="encadre">
+      <span class="encadre-titre">Scope 2 — indirect énergie</span>
+      <p style="font-size:12px">Ce que Misfat <b>achète comme électricité</b>.</p>
+      <ul style="font-size:11.5px">
+        <li>Consommation des sites, en kWh</li>
+        <li>Facteur réseau tunisien (location-based)</li>
+        <li>Contrats et garanties d'origine (market-based)</li>
+      </ul>
+      <p style="font-size:11px;color:var(--ardoise)">
+        <b>Règle :</b> la cible SBTi porte sur le market-based ; c'est lui qui pilote.
+      </p>
+    </div>
+    <div class="encadre">
+      <span class="encadre-titre">Scope 3 — chaîne de valeur</span>
+      <p style="font-size:12px">Ce que Misfat <b>provoque sans le brûler</b>.</p>
+      <ul style="font-size:11.5px">
+        <li>Acier et médias filtrants achetés</li>
+        <li>Fret entrant et sortant</li>
+        <li>Fin de vie des filtres vendus</li>
+      </ul>
+      <p style="font-size:11px;color:var(--ardoise)">
+        <b>Règle :</b> physique dès que possible, monétaire à défaut, jamais l'inverse.
+      </p>
+    </div>
+  </div>
+
+  <hr class="filet">
+
+  <h3>Arbitrages d'imputation propres à l'activité de filtration</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Flux Misfat</th><th>Scope</th><th>Catégorie</th><th>Règle appliquée</th></tr></thead>
+      <tbody>
+        <tr><td>Bobine d'acier reçue à l'usine</td><td class="num">3</td><td class="code">Cat 1</td><td>Émissions incorporées du fournisseur, par tonnage × facteur matière</td></tr>
+        <tr><td>Camion du fournisseur d'acier</td><td class="num">3</td><td class="code">Cat 4</td><td>Fret amont, jamais dans la catégorie 1 — sinon double compte</td></tr>
+        <tr><td>Gazole de la flotte Misfat</td><td class="num">1</td><td class="code">—</td><td>Combustion mobile, litres relevés</td></tr>
+        <tr><td>Émissions amont de ce même gazole</td><td class="num">3</td><td class="code">Cat 3</td><td>Extraction et raffinage, hors combustion</td></tr>
+        <tr><td>Électricité STEG consommée</td><td class="num">2</td><td class="code">—</td><td>kWh × facteur réseau</td></tr>
+        <tr><td>Pertes réseau de cette électricité</td><td class="num">3</td><td class="code">Cat 3</td><td>Ni scope 1 ni scope 2 : amont énergétique</td></tr>
+        <tr><td>Presse hydraulique immobilisée</td><td class="num">3</td><td class="code">Cat 2</td><td>Bien d'équipement, l'année de l'acquisition</td></tr>
+        <tr><td>Filtre vendu, mis en décharge par le client</td><td class="num">3</td><td class="code">Cat 12</td><td>Fin de vie, tonnage vendu × filière de traitement</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Les trois erreurs que ces règles évitent</span>
+    <ul>
+      <li><b>Le fret compté deux fois</b> — une fois dans le prix de l'acier, une fois dans la catégorie 4.</li>
+      <li><b>Le gazole compté une seule fois</b> — la combustion en scope 1 sans son amont en catégorie 3.</li>
+      <li><b>L'estimation monétaire en scope 1</b> — un montant en dinars n'est pas une consommation ; il documenterait la partie la mieux maîtrisée de l'inventaire par sa donnée la moins fiable.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================== PAGE 6 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">06</span><span class="folio-tag">Comparatif</span></div>
+  <div class="entete"><span class="entete-oeil">Partie II · Comparaison</span><span class="entete-oeil">2021 / 2023</span></div>
+
+  <h2>Comparaison poste par poste</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Émissions en tCO₂e — année de référence 2021 et exercice 2023</caption>
+      <thead>
+        <tr>
+          <th>Scope</th><th>Poste</th>
+          <th style="text-align:right">2021</th><th style="text-align:right">2023</th>
+          <th style="text-align:right">Δ absolu</th><th style="text-align:right">Δ %</th>
+          <th style="text-align:right">Part 2023</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">1</td><td>Combustion, flotte, fluides</td>
+          <td class="num">5 243,00</td><td class="num">5 364,00</td>
+          <td class="num hausse">+121,00</td><td class="num hausse">+2,31 %</td>
+          <td class="num">6,39 %</td>
+        </tr>
+        <tr>
+          <td class="num">2</td><td>Électricité achetée · market-based</td>
+          <td class="num">9 905,00</td><td class="num">7 365,00</td>
+          <td class="num baisse">−2 540,00</td><td class="num baisse">−25,64 %</td>
+          <td class="num">8,77 %</td>
+        </tr>
+        <tr class="ligne-vedette">
+          <td class="num">3</td><td><b>Cat 1</b> · Biens et services achetés</td>
+          <td class="num">47 466,20</td><td class="num">51 874,00</td>
+          <td class="num hausse">+4 407,80</td><td class="num hausse">+9,29 %</td>
+          <td class="num"><b>61,80 %</b></td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td><b>Cat 2</b> · Biens d'équipement</td>
+          <td class="num">4 026,08</td><td class="num">170,00</td>
+          <td class="num baisse">−3 856,08</td><td class="num baisse">−95,78 %</td>
+          <td class="num">0,20 %</td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td><b>Cat 3</b> · Combustibles et énergie</td>
+          <td class="num">6 361,00</td><td class="num">6 493,70</td>
+          <td class="num hausse">+132,70</td><td class="num hausse">+2,09 %</td>
+          <td class="num">7,74 %</td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td><b>Cat 4</b> · Transport amont</td>
+          <td class="num">5 846,95</td><td class="num">5 436,00</td>
+          <td class="num baisse">−410,95</td><td class="num baisse">−7,03 %</td>
+          <td class="num">6,47 %</td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td><b>Cat 9</b> · Transport aval</td>
+          <td class="num">1 926,52</td><td class="num">2 174,30</td>
+          <td class="num hausse">+247,78</td><td class="num hausse">+12,86 %</td>
+          <td class="num">2,59 %</td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td><b>Cat 12</b> · Fin de vie des produits</td>
+          <td class="num">3 863,45</td><td class="num">3 975,00</td>
+          <td class="num hausse">+111,55</td><td class="num hausse">+2,89 %</td>
+          <td class="num">4,74 %</td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td>Autres catégories · résidu de réconciliation</td>
+          <td class="num">934,80</td><td class="num">1 092,00</td>
+          <td class="num hausse">+157,20</td><td class="num hausse">+16,82 %</td>
+          <td class="num">1,30 %</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">Total inventaire</td>
+          <td class="num">85 573,00</td><td class="num">83 944,00</td>
+          <td class="num baisse">−1 629,00</td><td class="num baisse">−1,90 %</td>
+          <td class="num">100 %</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="grille-3">
+    <div class="kpi"><span class="kpi-lib">Scope 3 total 2021</span><span class="kpi-val" style="font-size:20px">70 425</span><span class="kpi-note">82,30 % du total</span></div>
+    <div class="kpi"><span class="kpi-lib">Scope 3 total 2023</span><span class="kpi-val" style="font-size:20px">71 215</span><span class="kpi-note">84,84 % du total</span></div>
+    <div class="kpi"><span class="kpi-lib">Δ scope 3</span><span class="kpi-val hausse" style="font-size:20px">+1,12 %</span><span class="kpi-note">soit +790 tCO₂e</span></div>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Lecture d'ensemble</span>
+    <p>
+      Le total recule de 1,90 %, mais aucune ligne du scope 3 ne recule pour une raison
+      industrielle. Les deux seules baisses substantielles viennent de l'électricité
+      (−2 540 t) et de l'effondrement des biens d'équipement (−3 856 t). Elles sont
+      presque intégralement absorbées par la croissance des achats (+4 408 t).
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 7 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">07</span><span class="folio-tag">Écarts</span></div>
+  <div class="entete"><span class="entete-oeil">Partie II · Comparaison</span><span class="entete-oeil">Seuil ±10 %</span></div>
+
+  <h2>Les trois postes qui franchissent ±10 %</h2>
+
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Poste</th><th style="text-align:right">Δ %</th><th style="text-align:right">Δ absolu</th><th>Sens</th><th>Cause probable à instruire</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Cat 2</b> · Biens d'équipement</td>
+          <td class="num baisse">−95,78 %</td><td class="num baisse">−3 856,08</td>
+          <td><span class="etiquette">Favorable en apparence</span></td>
+          <td>Cycle d'investissement. 2021 portait un programme d'équipement, 2023 non. Aucune décarbonation.</td>
+        </tr>
+        <tr>
+          <td><b>Scope 2</b> · Électricité</td>
+          <td class="num baisse">−25,64 %</td><td class="num baisse">−2 540,00</td>
+          <td><span class="etiquette-acc etiquette">Favorable</span></td>
+          <td>À décomposer : baisse de consommation, verdissement du contrat, ou évolution du facteur réseau ?</td>
+        </tr>
+        <tr>
+          <td><b>Cat 9</b> · Transport aval</td>
+          <td class="num hausse">+12,86 %</td><td class="num hausse">+247,78</td>
+          <td><span class="etiquette-crit etiquette">Défavorable</span></td>
+          <td>Croissance des volumes expédiés, allongement des distances, ou report modal vers la route.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Ce que le seuil relatif laisse passer</span>
+    <p>
+      La catégorie 1 progresse de <b>+9,29 %</b> : sous le seuil de ±10 %, elle n'est pas
+      signalée. Elle porte pourtant <b>la plus forte variation absolue de tout
+      l'inventaire — +4 407,80 tCO₂e</b>, soit dix-sept fois celle de la catégorie 9 qui,
+      elle, déclenche l'alerte.
+    </p>
+    <p>
+      <b>Recommandation :</b> compléter le seuil relatif par un seuil absolu — toute
+      variation supérieure à 1 % de l'empreinte totale, soit environ 840 tCO₂e, doit être
+      instruite quel que soit son pourcentage.
+    </p>
+  </div>
+
+  <h3>Variations absolues classées — barres divergentes</h3>
+  <div class="barres">
+    <div class="barre-ligne"><span>Cat 1</span><span class="barre-piste"><span class="barre-jauge" style="width:100%;background:var(--hausse)"></span></span><span class="barre-val hausse">+4 408</span></div>
+    <div class="barre-ligne"><span>Cat 2</span><span class="barre-piste"><span class="barre-jauge" style="width:87.5%;background:var(--baisse)"></span></span><span class="barre-val baisse">−3 856</span></div>
+    <div class="barre-ligne"><span>Scope 2</span><span class="barre-piste"><span class="barre-jauge" style="width:57.6%;background:var(--baisse)"></span></span><span class="barre-val baisse">−2 540</span></div>
+    <div class="barre-ligne"><span>Cat 4</span><span class="barre-piste"><span class="barre-jauge" style="width:9.3%;background:var(--baisse)"></span></span><span class="barre-val baisse">−411</span></div>
+    <div class="barre-ligne"><span>Cat 9</span><span class="barre-piste"><span class="barre-jauge" style="width:5.6%;background:var(--hausse)"></span></span><span class="barre-val hausse">+248</span></div>
+    <div class="barre-ligne"><span>Autres cat.</span><span class="barre-piste"><span class="barre-jauge" style="width:3.6%;background:var(--hausse)"></span></span><span class="barre-val hausse">+157</span></div>
+    <div class="barre-ligne"><span>Cat 3</span><span class="barre-piste"><span class="barre-jauge" style="width:3.0%;background:var(--hausse)"></span></span><span class="barre-val hausse">+133</span></div>
+    <div class="barre-ligne"><span>Scope 1</span><span class="barre-piste"><span class="barre-jauge" style="width:2.7%;background:var(--hausse)"></span></span><span class="barre-val hausse">+121</span></div>
+    <div class="barre-ligne"><span>Cat 12</span><span class="barre-piste"><span class="barre-jauge" style="width:2.5%;background:var(--hausse)"></span></span><span class="barre-val hausse">+112</span></div>
+  </div>
+  <p class="fig">Fig. 2 — Longueur proportionnelle à la valeur absolue ; couleur selon le sens · somme algébrique = −1 629 tCO₂e</p>
+</section>
+
+<!-- ============================== PAGE 8 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">08</span><span class="folio-tag">Périmètre constant</span></div>
+  <div class="entete"><span class="entete-oeil">Partie II · Comparaison</span><span class="entete-oeil">Analyse critique</span></div>
+
+  <h2>Ce que masque le −1,90 %</h2>
+  <p class="chapo">
+    La catégorie 2 est par nature discontinue : on achète une presse une année, pas la
+    suivante. La neutraliser révèle la tendance de fond.
+  </p>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Lecture à périmètre constant, hors biens d'équipement</caption>
+      <thead><tr><th>Base de comparaison</th><th style="text-align:right">2021</th><th style="text-align:right">2023</th><th style="text-align:right">Δ</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Inventaire complet</td>
+          <td class="num">85 573,00</td><td class="num">83 944,00</td>
+          <td class="num baisse">−1,90 %</td>
+          <td><span class="etiquette-acc etiquette">Baisse affichée</span></td>
+        </tr>
+        <tr class="ligne-vedette">
+          <td>Hors catégorie 2</td>
+          <td class="num">81 546,92</td><td class="num">83 774,00</td>
+          <td class="num hausse">+2,73 %</td>
+          <td><span class="etiquette-crit etiquette">Hausse réelle</span></td>
+        </tr>
+        <tr>
+          <td>Hors cat. 2 et hors scope 2</td>
+          <td class="num">71 641,92</td><td class="num">76 409,00</td>
+          <td class="num hausse">+6,65 %</td>
+          <td><span class="etiquette-crit etiquette">Hausse marquée</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Conclusion la plus importante de ce rapport</span>
+    <p>
+      <b>Sans l'effondrement des biens d'équipement, l'empreinte de Misfat aurait
+      augmenté de 2,73 %.</b> Et en neutralisant aussi l'électricité, elle progresse de
+      6,65 %.
+    </p>
+    <p>
+      Autrement dit : la seule décarbonation structurelle constatée sur 2021–2023 est
+      celle de l'électricité. Le cœur industriel et la chaîne d'approvisionnement n'ont
+      pas encore commencé à baisser.
+    </p>
+  </div>
+
+  <hr class="filet">
+
+  <h3>Décomposition de l'écart — cascade</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Étape</th><th style="text-align:right">Effet</th><th style="text-align:right">Cumul</th><th>Nature</th></tr></thead>
+      <tbody>
+        <tr><td>Empreinte 2021</td><td class="num">—</td><td class="num">85 573</td><td class="neutre">Point de départ</td></tr>
+        <tr><td>Croissance des achats (cat. 1)</td><td class="num hausse">+4 408</td><td class="num">89 981</td><td>Volume et mix matière</td></tr>
+        <tr><td>Autres hausses (cat. 3, 9, 12, scope 1, autres)</td><td class="num hausse">+770</td><td class="num">90 751</td><td>Dérive diffuse</td></tr>
+        <tr><td>Baisse du fret amont (cat. 4)</td><td class="num baisse">−411</td><td class="num">90 340</td><td>Optimisation logistique</td></tr>
+        <tr><td>Verdissement de l'électricité (scope 2)</td><td class="num baisse">−2 540</td><td class="num">87 800</td><td><b>Décarbonation réelle</b></td></tr>
+        <tr><td>Fin du cycle d'investissement (cat. 2)</td><td class="num baisse">−3 856</td><td class="num">83 944</td><td><b>Artefact comptable</b></td></tr>
+      </tbody>
+      <tfoot><tr><td>Empreinte 2023</td><td class="num baisse">−1 629</td><td class="num">83 944</td><td>−1,90 %</td></tr></tfoot>
+    </table>
+  </div>
+  <p class="fig">Fig. 3 — Graphique waterfall : barres flottantes, hausses vers le haut, baisses vers le bas</p>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">À vérifier avant publication externe</span>
+    <p>
+      Une chute de 95,78 % sur un poste doit être justifiée par une pièce : bon de
+      commande, tableau d'immobilisations, note de la direction industrielle. Si la baisse
+      provient d'un défaut de collecte plutôt que d'une absence d'achat, l'inventaire 2023
+      est sous-évalué de plusieurs milliers de tonnes et la comparaison avec 2021 est
+      invalide.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 9 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">09</span><span class="folio-tag">Pareto</span></div>
+  <div class="entete"><span class="entete-oeil">Partie III · Hotspots</span><span class="entete-oeil">Pareto</span></div>
+
+  <h2>Diagramme de Pareto des émissions 2023</h2>
+  <p class="chapo">
+    Cinq postes sur neuf portent 91,17 % de l'empreinte. L'effort doit s'y concentrer,
+    non se disperser sur les quatre derniers.
+  </p>
+
+  <div class="pareto">
+    <div class="pareto-ligne" style="font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ardoise)">
+      <span></span><span>Poste</span><span>Poids relatif</span><span style="text-align:right">Part</span><span style="text-align:right">Cumul</span>
+    </div>
+
+    <div class="pareto-ligne">
+      <span class="pareto-rang">1</span><span>Cat 1 · Achats</span>
+      <span class="pareto-piste"><span class="pareto-jauge" style="width:100%"></span></span>
+      <span class="pareto-cumul">61,80 %</span><span class="pareto-cumul"><b>61,80 %</b></span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">2</span><span>Scope 2 · Électricité</span>
+      <span class="pareto-piste"><span class="pareto-jauge" style="width:14.19%"></span></span>
+      <span class="pareto-cumul">8,77 %</span><span class="pareto-cumul"><b>70,57 %</b></span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">3</span><span>Cat 3 · Énergie amont</span>
+      <span class="pareto-piste"><span class="pareto-jauge" style="width:12.52%"></span></span>
+      <span class="pareto-cumul">7,74 %</span><span class="pareto-cumul"><b>78,31 %</b></span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">4</span><span>Cat 4 · Fret amont</span>
+      <span class="pareto-piste"><span class="pareto-jauge" style="width:10.48%"></span></span>
+      <span class="pareto-cumul">6,47 %</span><span class="pareto-cumul"><b>84,78 %</b></span>
+    </div>
+    <div class="pareto-ligne pareto-seuil">
+      <span class="pareto-rang">5</span><span>Scope 1 · Combustion</span>
+      <span class="pareto-piste"><span class="pareto-jauge" style="width:10.34%"></span></span>
+      <span class="pareto-cumul">6,39 %</span><span class="pareto-cumul"><b>91,17 %</b></span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">6</span><span>Cat 12 · Fin de vie</span>
+      <span class="pareto-piste"><span class="pareto-jauge froid" style="width:7.66%"></span></span>
+      <span class="pareto-cumul">4,74 %</span><span class="pareto-cumul">95,91 %</span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">7</span><span>Cat 9 · Fret aval</span>
+      <span class="pareto-piste"><span class="pareto-jauge froid" style="width:4.19%"></span></span>
+      <span class="pareto-cumul">2,59 %</span><span class="pareto-cumul">98,50 %</span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">8</span><span>Autres catégories</span>
+      <span class="pareto-piste"><span class="pareto-jauge froid" style="width:2.11%"></span></span>
+      <span class="pareto-cumul">1,30 %</span><span class="pareto-cumul">99,80 %</span>
+    </div>
+    <div class="pareto-ligne">
+      <span class="pareto-rang">9</span><span>Cat 2 · Équipements</span>
+      <span class="pareto-piste"><span class="pareto-jauge froid" style="width:0.33%"></span></span>
+      <span class="pareto-cumul">0,20 %</span><span class="pareto-cumul">100,00 %</span>
+    </div>
+  </div>
+  <p class="fig">Fig. 4 — Pareto : barres décroissantes en cuivre au-dessus du seuil de 90 %, en ardoise en dessous · courbe de cumul en colonne de droite</p>
+
+  <div class="grille-3">
+    <div class="kpi"><span class="kpi-lib">Seuil 80 %</span><span class="kpi-val" style="font-size:20px">3 postes</span><span class="kpi-note">Cat 1, scope 2, cat 3</span></div>
+    <div class="kpi"><span class="kpi-lib">Seuil 90 %</span><span class="kpi-val" style="font-size:20px">5 postes</span><span class="kpi-note">91,17 % de l'empreinte</span></div>
+    <div class="kpi"><span class="kpi-lib">Reste à couvrir</span><span class="kpi-val" style="font-size:20px">4 postes</span><span class="kpi-note">8,83 % — priorité basse</span></div>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Lecture opérationnelle</span>
+    <p>
+      La catégorie 1 pèse à elle seule plus que les huit autres postes réunis
+      (51 874 contre 32 070 tCO₂e). Aucun plan de décarbonation ne peut fonctionner s'il
+      ne commence pas par les achats.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 10 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">10</span><span class="folio-tag">Criticité</span></div>
+  <div class="entete"><span class="entete-oeil">Partie III · Hotspots</span><span class="entete-oeil">Heatmap</span></div>
+
+  <h2>Cartographie de criticité</h2>
+  <p class="chapo">
+    Trois axes croisés : le poids du poste, sa dynamique depuis 2021, et le degré de
+    maîtrise que Misfat exerce dessus. Un poste lourd mais peu maîtrisable n'appelle pas
+    la même réponse qu'un poste moyen et directement pilotable.
+  </p>
+
+  <div class="heat">
+    <span class="heat-th">Poste</span>
+    <span class="heat-th">Poids</span>
+    <span class="heat-th">Dynamique</span>
+    <span class="heat-th">Maîtrise</span>
+    <span class="heat-th">Criticité</span>
+
+    <span class="heat-c heat-n">Cat 1 · Achats</span>
+    <span class="heat-c h4">Très fort · 61,8 %</span>
+    <span class="heat-c h4">Hausse · +9,3 %</span>
+    <span class="heat-c h3">Indirecte</span>
+    <span class="heat-c h4">Maximale</span>
+
+    <span class="heat-c heat-n">Scope 2 · Électricité</span>
+    <span class="heat-c h2">Moyen · 8,8 %</span>
+    <span class="heat-c h1">Baisse · −25,6 %</span>
+    <span class="heat-c h1">Directe</span>
+    <span class="heat-c h2">Élevée — levier prêt</span>
+
+    <span class="heat-c heat-n">Cat 3 · Énergie amont</span>
+    <span class="heat-c h2">Moyen · 7,7 %</span>
+    <span class="heat-c h2">Hausse · +2,1 %</span>
+    <span class="heat-c h2">Induite</span>
+    <span class="heat-c h2">Élevée — dérivée</span>
+
+    <span class="heat-c heat-n">Cat 4 · Fret amont</span>
+    <span class="heat-c h2">Moyen · 6,5 %</span>
+    <span class="heat-c h1">Baisse · −7,0 %</span>
+    <span class="heat-c h2">Contractuelle</span>
+    <span class="heat-c h2">Moyenne</span>
+
+    <span class="heat-c heat-n">Scope 1 · Combustion</span>
+    <span class="heat-c h2">Moyen · 6,4 %</span>
+    <span class="heat-c h2">Hausse · +2,3 %</span>
+    <span class="heat-c h1">Directe</span>
+    <span class="heat-c h2">Moyenne — maîtrisable</span>
+
+    <span class="heat-c heat-n">Cat 12 · Fin de vie</span>
+    <span class="heat-c h1">Faible · 4,7 %</span>
+    <span class="heat-c h2">Hausse · +2,9 %</span>
+    <span class="heat-c h3">Très indirecte</span>
+    <span class="heat-c h2">Moyenne — long terme</span>
+
+    <span class="heat-c heat-n">Cat 9 · Fret aval</span>
+    <span class="heat-c h1">Faible · 2,6 %</span>
+    <span class="heat-c h3">Hausse · +12,9 %</span>
+    <span class="heat-c h2">Contractuelle</span>
+    <span class="heat-c h2">Moyenne — à surveiller</span>
+
+    <span class="heat-c heat-n">Autres catégories</span>
+    <span class="heat-c h1">Faible · 1,3 %</span>
+    <span class="heat-c h3">Hausse · +16,8 %</span>
+    <span class="heat-c h4">Non documentée</span>
+    <span class="heat-c h3">Risque de fiabilité</span>
+
+    <span class="heat-c heat-n">Cat 2 · Équipements</span>
+    <span class="heat-c h1">Marginal · 0,2 %</span>
+    <span class="heat-c h1">Chute · −95,8 %</span>
+    <span class="heat-c h1">Directe</span>
+    <span class="heat-c h3">Anomalie à instruire</span>
+  </div>
+  <p class="fig">Fig. 5 — Heatmap : intensité chromatique croissante de la maîtrise vers la criticité</p>
+
+  <div class="grille-2">
+    <div class="encadre encadre-alerte">
+      <span class="encadre-titre">Quadrant rouge — agir maintenant</span>
+      <ul style="font-size:11.5px">
+        <li><b>Cat 1</b> : poids maximal, dynamique défavorable, maîtrise indirecte. Le levier passe par les fournisseurs, donc par du temps contractuel.</li>
+        <li><b>Autres catégories</b> : poids faible mais statut non documenté. Risque de rejet en vérification externe.</li>
+      </ul>
+    </div>
+    <div class="encadre encadre-ok">
+      <span class="encadre-titre">Quadrant vert — capitaliser</span>
+      <ul style="font-size:11.5px">
+        <li><b>Scope 2</b> : la seule baisse structurelle acquise. Le chemin est ouvert jusqu'à 100 % renouvelable.</li>
+        <li><b>Cat 4</b> : baisse de 7 % déjà obtenue, à consolider par le contrat.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PAGE 11 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">11</span><span class="folio-tag">Top 5</span></div>
+  <div class="entete"><span class="entete-oeil">Partie III · Hotspots</span><span class="entete-oeil">Classement</span></div>
+
+  <h2>Les cinq foyers prioritaires</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Classement par masse d'émissions 2023 et potentiel d'action</caption>
+      <thead>
+        <tr><th>Rang</th><th>Foyer</th><th style="text-align:right">tCO₂e 2023</th><th style="text-align:right">Part</th><th>Levier principal</th><th>Horizon</th></tr>
+      </thead>
+      <tbody>
+        <tr class="ligne-vedette">
+          <td class="num">1</td><td><b>Achats acier et médias filtrants</b><br><span class="neutre" style="font-size:10.5px">Cat 1</span></td>
+          <td class="num"><b>51 874</b></td><td class="num">61,80 %</td>
+          <td>Acier bas carbone, taux de recyclé, écoconception</td>
+          <td>2026 – 2030</td>
+        </tr>
+        <tr>
+          <td class="num">2</td><td><b>Électricité achetée</b><br><span class="neutre" style="font-size:10.5px">Scope 2</span></td>
+          <td class="num">7 365</td><td class="num">8,77 %</td>
+          <td>Photovoltaïque en autoconsommation + PPA</td>
+          <td>2026 – 2029</td>
+        </tr>
+        <tr>
+          <td class="num">3</td><td><b>Énergie amont</b><br><span class="neutre" style="font-size:10.5px">Cat 3</span></td>
+          <td class="num">6 493,70</td><td class="num">7,74 %</td>
+          <td>Effet d'entraînement des scopes 1 et 2</td>
+          <td>Dérivé</td>
+        </tr>
+        <tr>
+          <td class="num">4</td><td><b>Fret amont et aval</b><br><span class="neutre" style="font-size:10.5px">Cat 4 + Cat 9</span></td>
+          <td class="num">7 610,30</td><td class="num">9,06 %</td>
+          <td>Report modal, taux de remplissage, sourcing local</td>
+          <td>2026 – 2028</td>
+        </tr>
+        <tr>
+          <td class="num">5</td><td><b>Combustion directe et flotte</b><br><span class="neutre" style="font-size:10.5px">Scope 1</span></td>
+          <td class="num">5 364</td><td class="num">6,39 %</td>
+          <td>Électrification des procédés et des véhicules</td>
+          <td>2027 – 2030</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Couverture des cinq foyers</td><td class="num">78 707</td><td class="num">93,76 %</td><td colspan="2">Cat 4 et 9 regroupées</td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Pourquoi ce regroupement</span>
+    <ul>
+      <li><b>Fret amont et aval réunis</b> — mêmes prestataires, mêmes contrats, mêmes leviers. Les traiter séparément dupliquerait la négociation.</li>
+      <li><b>Énergie amont classée en dérivé</b> — la catégorie 3 ne se pilote pas directement : elle suit mécaniquement la décarbonation de l'électricité et des combustibles.</li>
+      <li><b>Biens d'équipement hors top 5</b> — 170 tCO₂e en 2023. Le poste reste à instruire pour fiabilité, pas pour réduction.</li>
+    </ul>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Arithmétique de la cible</span>
+    <p>
+      La cible SBTi impose de retirer <b>32 692 tCO₂e</b> aux scopes 1 et 3 entre 2023 et
+      2030. Une réduction de 42 % appliquée à la seule catégorie 1 en fournirait
+      21 787 t, soit <b>67 % de l'effort total</b>. Sans mouvement sur les achats, la
+      cible est arithmétiquement hors d'atteinte.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 12 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">12</span><span class="folio-tag">Fiche 1 · Matière</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Fiche 1 / 5</span></div>
+
+  <h2>Fiche 1 · Acier et médias filtrants — volet matière</h2>
+
+  <div class="grille-4">
+    <div class="kpi"><span class="kpi-lib">Poste</span><span class="kpi-val" style="font-size:17px">Cat 1</span><span class="kpi-note">Biens et services achetés</span></div>
+    <div class="kpi"><span class="kpi-lib">Assiette 2023</span><span class="kpi-val" style="font-size:17px">51 874</span><span class="kpi-note">tCO₂e · 61,80 %</span></div>
+    <div class="kpi"><span class="kpi-lib">Dynamique</span><span class="kpi-val hausse" style="font-size:17px">+9,29 %</span><span class="kpi-note">depuis 2021</span></div>
+    <div class="kpi" style="border-color:var(--cuivre)"><span class="kpi-lib">Priorité</span><span class="kpi-val" style="font-size:17px">1</span><span class="kpi-note">Critique</span></div>
+  </div>
+
+  <h3>Les trois leviers matière</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Levier</th><th>Mécanisme</th><th>Ce qu'il faut obtenir du fournisseur</th><th>Maturité</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Acier recyclé (filière électrique)</b></td>
+          <td>Remplacer l'acier de haut fourneau par de l'acier de four à arc électrique : le facteur d'émission chute d'un facteur trois à cinq selon le mix électrique du sidérurgiste.</td>
+          <td>Taux de recyclé certifié, facteur d'émission spécifique par nuance, mix électrique du site producteur.</td>
+          <td><span class="etiquette-acc etiquette">Disponible</span></td>
+        </tr>
+        <tr>
+          <td><b>Acier à réduction directe</b></td>
+          <td>Réduction du minerai au gaz puis à l'hydrogène. Réduction plus profonde encore, mais offre européenne naissante et surcoût élevé.</td>
+          <td>Engagement de capacité, calendrier de mise en service, garantie d'origine de l'hydrogène.</td>
+          <td><span class="etiquette-vigilance etiquette">2028+</span></td>
+        </tr>
+        <tr>
+          <td><b>Médias filtrants et écoconception</b></td>
+          <td>Substitution de fibres, allègement, taux de cellulose recyclée, réduction des chutes de coupe.</td>
+          <td>Fiches techniques matière, données de production, tonnage réel par référence.</td>
+          <td><span class="etiquette-acc etiquette">Disponible</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Scénarios de réduction sur la catégorie 1</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Scénario</th><th>Hypothèse de travail</th><th style="text-align:right">Réduction</th><th style="text-align:right">Cat 1 en 2030</th><th style="text-align:right">Part de l'effort SBTi</th></tr></thead>
+      <tbody>
+        <tr><td>Prudent</td><td>Acier recyclé sur les nuances standard uniquement</td><td class="num">−20 %</td><td class="num">41 499</td><td class="num">31,7 %</td></tr>
+        <tr><td>Central</td><td>Recyclé généralisé + écoconception des médias</td><td class="num">−35 %</td><td class="num">33 718</td><td class="num">55,5 %</td></tr>
+        <tr class="ligne-vedette"><td><b>Ambitieux</b></td><td>Recyclé généralisé + réduction directe sur une part du volume</td><td class="num"><b>−50 %</b></td><td class="num"><b>25 937</b></td><td class="num"><b>79,3 %</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Statut de ces chiffres</span>
+    <p>
+      Les pourcentages ci-dessus sont des <b>hypothèses de travail appliquées à l'assiette
+      réelle de Misfat</b>, non des potentiels mesurés. Leur validation exige le tonnage
+      acheté par nuance et par fournisseur — donnée absente du jeu transmis. Aucun
+      engagement externe ne doit être pris sur cette base avant cette collecte.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 13 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">13</span><span class="folio-tag">Fiche 1 · Fournisseurs</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Fiche 1 / 5 — suite</span></div>
+
+  <h2>Fiche 1 · Volet fournisseurs et données</h2>
+  <p class="chapo">
+    La catégorie 1 ne se réduit pas dans l'usine : elle se réduit dans les contrats. Le
+    chemin critique est celui de la donnée primaire.
+  </p>
+
+  <h3>Séquence d'engagement fournisseurs</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Étape</th><th>Action</th><th>Livrable</th><th>Échéance</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Segmenter les achats par masse d'émissions, non par montant</td><td>Cartographie des vingt fournisseurs couvrant 80 % de la catégorie 1</td><td>T1 2026</td></tr>
+        <tr><td class="num">2</td><td>Adresser un questionnaire de données primaires</td><td>Facteurs d'émission spécifiques par nuance et par site</td><td>T2 2026</td></tr>
+        <tr><td class="num">3</td><td>Substituer les facteurs de base de données par les facteurs primaires</td><td>Inventaire recalculé, incertitude réduite</td><td>T3 2026</td></tr>
+        <tr><td class="num">4</td><td>Introduire une clause carbone aux appels d'offres</td><td>Grille de notation intégrant le facteur d'émission</td><td>T4 2026</td></tr>
+        <tr><td class="num">5</td><td>Co-construire des feuilles de route avec les cinq premiers fournisseurs</td><td>Engagements chiffrés et datés, contractualisés</td><td>2027</td></tr>
+        <tr><td class="num">6</td><td>Basculer les volumes vers les nuances bas carbone</td><td>Réduction constatée sur l'inventaire</td><td>2027 – 2030</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grille-2">
+    <div class="encadre">
+      <span class="encadre-titre">Ce qui change dans l'inventaire</span>
+      <ul style="font-size:11.5px">
+        <li>Passage d'une valorisation <b>monétaire</b> à une valorisation <b>physique</b> — tonnage × facteur matière.</li>
+        <li>Substitution progressive des facteurs de base de données par des facteurs <b>fournisseur</b>.</li>
+        <li>Traçabilité : chaque ligne d'achat porte sa référence carbone, vérifiable.</li>
+      </ul>
+    </div>
+    <div class="encadre encadre-alerte">
+      <span class="encadre-titre">Risque principal</span>
+      <p style="font-size:11.5px">
+        Une valorisation monétaire fait <b>croître</b> l'empreinte quand les prix montent,
+        même à volume constant. La hausse de +9,29 % constatée peut donc être en partie
+        un effet prix, non un effet volume. Impossible de trancher sans les tonnages.
+      </p>
+      <p style="font-size:11.5px">
+        <b>Conséquence :</b> tant que la catégorie 1 est monétaire, la trajectoire SBTi est
+        pilotée à l'aveugle sur 62 % de l'empreinte.
+      </p>
+    </div>
+  </div>
+
+  <h3>Indicateurs de la fiche</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Indicateur</th><th>Départ 2023</th><th>Jalon 2026</th><th>Cible 2030</th></tr></thead>
+      <tbody>
+        <tr><td>Part de la catégorie 1 valorisée en données physiques</td><td class="num">À établir</td><td class="num">60 %</td><td class="num">90 %</td></tr>
+        <tr><td>Part valorisée avec facteur fournisseur primaire</td><td class="num">À établir</td><td class="num">30 %</td><td class="num">70 %</td></tr>
+        <tr><td>Taux d'acier recyclé dans les achats</td><td class="num">À établir</td><td class="num">40 %</td><td class="num">80 %</td></tr>
+        <tr><td>Fournisseurs avec feuille de route carbone signée</td><td class="num">0</td><td class="num">5</td><td class="num">20</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================== PAGE 14 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">14</span><span class="folio-tag">Fiche 2 · Électricité</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Fiche 2 / 5</span></div>
+
+  <h2>Fiche 2 · Électricité renouvelable</h2>
+
+  <div class="grille-4">
+    <div class="kpi"><span class="kpi-lib">Poste</span><span class="kpi-val" style="font-size:17px">Scope 2</span><span class="kpi-note">Market-based</span></div>
+    <div class="kpi"><span class="kpi-lib">Assiette 2023</span><span class="kpi-val" style="font-size:17px">7 365</span><span class="kpi-note">tCO₂e · 8,77 %</span></div>
+    <div class="kpi"><span class="kpi-lib">Acquis</span><span class="kpi-val baisse" style="font-size:17px">−25,64 %</span><span class="kpi-note">depuis 2021</span></div>
+    <div class="kpi" style="border-color:var(--baisse)"><span class="kpi-lib">Cible 2030</span><span class="kpi-val" style="font-size:17px">100 %</span><span class="kpi-note">renouvelable</span></div>
+  </div>
+
+  <div class="encadre encadre-ok">
+    <span class="encadre-titre">Le seul poste dont la cible est binaire</span>
+    <p>
+      Les scopes 1 et 3 demandent −42 % : un arbitrage permanent entre leviers. Le scope 2
+      demande 100 % de renouvelable : une fois atteint, le poste tombe à un résidu proche
+      de zéro en market-based. C'est le levier le plus lisible du plan.
+    </p>
+  </div>
+
+  <h3>Les trois voies d'approvisionnement</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Voie</th><th>Principe</th><th>Part visée</th><th>Délai</th><th>Effort</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Photovoltaïque en toiture</b></td>
+          <td>Autoconsommation sur les surfaces de production disponibles.</td>
+          <td class="num">20 – 35 %</td><td>12 – 18 mois</td>
+          <td><span class="etiquette">€€ · investissement</span></td>
+        </tr>
+        <tr>
+          <td><b>Contrat d'achat direct (PPA)</b></td>
+          <td>Électricité renouvelable contractualisée à long terme avec un producteur.</td>
+          <td class="num">50 – 70 %</td><td>18 – 30 mois</td>
+          <td><span class="etiquette">€ · contractuel</span></td>
+        </tr>
+        <tr>
+          <td><b>Garanties d'origine</b></td>
+          <td>Attributs environnementaux acquis séparément, pour le résidu.</td>
+          <td class="num">Solde</td><td>Immédiat</td>
+          <td><span class="etiquette">€ · annuel</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Montée en charge et effet sur l'inventaire</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Année</th><th style="text-align:right">Part renouvelable</th><th style="text-align:right">Scope 2 market</th><th style="text-align:right">Gain cumulé</th><th>Jalon</th></tr></thead>
+      <tbody>
+        <tr><td>2023 · constaté</td><td class="num">à établir</td><td class="num">7 365</td><td class="num">—</td><td>Point de départ</td></tr>
+        <tr><td>2026</td><td class="num">30 %</td><td class="num">5 156</td><td class="num baisse">−2 209</td><td>Toitures en service</td></tr>
+        <tr><td>2028</td><td class="num">60 %</td><td class="num">2 946</td><td class="num baisse">−4 419</td><td>PPA signé et actif</td></tr>
+        <tr class="ligne-vedette"><td><b>2030</b></td><td class="num"><b>100 %</b></td><td class="num"><b>≈ 0</b></td><td class="num baisse"><b>−7 365</b></td><td><b>Cible SBTi atteinte</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fig">Fig. 6 — Courbe : part renouvelable croissante en cuivre, émissions résiduelles décroissantes en ardoise, axes opposés</p>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">À décomposer d'urgence</span>
+    <p>
+      La baisse de 25,64 % déjà obtenue n'est pas attribuée. Trois causes possibles,
+      qui n'ont pas la même valeur devant un vérificateur : baisse de la consommation,
+      verdissement du contrat, ou évolution du facteur du réseau tunisien. Seule la
+      deuxième compte comme progrès vers la cible.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 15 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">15</span><span class="folio-tag">Fiche 3 · Fret</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Fiche 3 / 5</span></div>
+
+  <h2>Fiche 3 · Fret amont et aval</h2>
+
+  <div class="grille-4">
+    <div class="kpi"><span class="kpi-lib">Postes</span><span class="kpi-val" style="font-size:17px">Cat 4 + 9</span><span class="kpi-note">Amont et aval</span></div>
+    <div class="kpi"><span class="kpi-lib">Assiette 2023</span><span class="kpi-val" style="font-size:17px">7 610</span><span class="kpi-note">tCO₂e · 9,06 %</span></div>
+    <div class="kpi"><span class="kpi-lib">Amont</span><span class="kpi-val baisse" style="font-size:17px">−7,03 %</span><span class="kpi-note">5 436 tCO₂e</span></div>
+    <div class="kpi" style="border-color:var(--hausse)"><span class="kpi-lib">Aval</span><span class="kpi-val hausse" style="font-size:17px">+12,86 %</span><span class="kpi-note">2 174 tCO₂e</span></div>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Deux dynamiques opposées sur un même métier</span>
+    <p>
+      L'amont baisse de 7 %, l'aval monte de 12,9 %. Cet écart n'est pas explicable par
+      la seule activité : il révèle probablement une optimisation des approvisionnements
+      sans contrepartie sur la distribution. Le fret aval est le poste à instruire en
+      premier.
+    </p>
+  </div>
+
+  <h3>Leviers, par ordre de rapidité</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Levier</th><th>Sur quel flux</th><th>Effet attendu</th><th>Délai</th></tr></thead>
+      <tbody>
+        <tr><td><b>Taux de remplissage</b></td><td>Amont et aval</td><td>Moins de trajets pour le même tonnage. Gain immédiat, sans investissement.</td><td>6 mois</td></tr>
+        <tr><td><b>Report modal route → mer ou rail</b></td><td>Amont longue distance</td><td>Facteur d'émission divisé par cinq à dix sur les segments concernés.</td><td>12 – 18 mois</td></tr>
+        <tr><td><b>Sourcing de proximité</b></td><td>Amont</td><td>Réduction des distances. Interagit avec la fiche 1 : un fournisseur local et bas carbone cumule les deux gains.</td><td>18 – 36 mois</td></tr>
+        <tr><td><b>Clause carbone transporteurs</b></td><td>Aval</td><td>Renouvellement de flotte, biocarburants, engagement de facteur.</td><td>12 – 24 mois</td></tr>
+        <tr><td><b>Optimisation des tournées</b></td><td>Aval</td><td>Regroupement des expéditions, réduction des livraisons partielles.</td><td>6 – 12 mois</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Scénarios sur l'assiette combinée</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Scénario</th><th>Composition</th><th style="text-align:right">Réduction</th><th style="text-align:right">Gain</th><th style="text-align:right">Fret 2030</th></tr></thead>
+      <tbody>
+        <tr><td>Prudent</td><td>Remplissage et tournées seuls</td><td class="num">−15 %</td><td class="num baisse">−1 142</td><td class="num">6 468</td></tr>
+        <tr><td>Central</td><td>+ report modal partiel</td><td class="num">−25 %</td><td class="num baisse">−1 903</td><td class="num">5 708</td></tr>
+        <tr class="ligne-vedette"><td><b>Ambitieux</b></td><td>+ sourcing de proximité et clause transporteurs</td><td class="num"><b>−35 %</b></td><td class="num baisse"><b>−2 664</b></td><td class="num"><b>4 947</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Donnée manquante bloquante</span>
+    <p>
+      Aucun tonne-kilomètre n'est disponible dans le jeu transmis. Or c'est l'unité du
+      fret : sans elle, impossible de distinguer une hausse de volume d'une dégradation
+      de performance. La collecte des t·km par mode et par segment est le préalable à
+      tout engagement chiffré sur cette fiche.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 16 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">16</span><span class="folio-tag">Fiche 4 · Scope 1</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Fiche 4 / 5</span></div>
+
+  <h2>Fiche 4 · Combustion directe et électrification</h2>
+
+  <div class="grille-4">
+    <div class="kpi"><span class="kpi-lib">Poste</span><span class="kpi-val" style="font-size:17px">Scope 1</span><span class="kpi-note">Émissions directes</span></div>
+    <div class="kpi"><span class="kpi-lib">Assiette 2023</span><span class="kpi-val" style="font-size:17px">5 364</span><span class="kpi-note">tCO₂e · 6,39 %</span></div>
+    <div class="kpi" style="border-color:var(--hausse)"><span class="kpi-lib">Dynamique</span><span class="kpi-val hausse" style="font-size:17px">+2,31 %</span><span class="kpi-note">depuis 2021</span></div>
+    <div class="kpi"><span class="kpi-lib">Cible 2030</span><span class="kpi-val" style="font-size:17px">3 041</span><span class="kpi-note">tCO₂e à −42 %</span></div>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Le seul poste totalement sous contrôle direct — et il monte</span>
+    <p>
+      Le scope 1 ne dépend d'aucun fournisseur ni d'aucun client. Sa hausse de 2,31 % est
+      donc entièrement imputable à des décisions internes. C'est le poste où l'écart
+      entre l'engagement et la pratique est le plus visible de l'extérieur.
+    </p>
+  </div>
+
+  <h3>Décomposition à obtenir</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Sous-poste</th><th>Unité de pilotage</th><th>Levier</th><th>Maturité technique</th></tr></thead>
+      <tbody>
+        <tr><td>Combustion fixe · chaudières et fours</td><td>m³ de gaz, litres de fioul</td><td>Électrification, récupération de chaleur, pompes à chaleur haute température</td><td><span class="etiquette-acc etiquette">Mature</span></td>
+        </tr>
+        <tr><td>Combustion mobile · flotte détenue</td><td>litres de gazole</td><td>Véhicules électriques, optimisation des tournées internes</td><td><span class="etiquette-acc etiquette">Mature</span></td></tr>
+        <tr><td>Fluides frigorigènes</td><td>kg rechargés</td><td>Étanchéité, bascule vers fluides à faible PRG</td><td><span class="etiquette-acc etiquette">Mature</span></td></tr>
+        <tr><td>Procédés</td><td>selon procédé</td><td>À instruire — absence de détail dans les données transmises</td><td><span class="etiquette-vigilance etiquette">À qualifier</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Scénarios d'électrification</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Scénario</th><th>Périmètre traité</th><th style="text-align:right">Réduction</th><th style="text-align:right">Gain</th><th>Condition</th></tr></thead>
+      <tbody>
+        <tr><td>Prudent</td><td>Étanchéité fluides + flotte légère</td><td class="num">−15 %</td><td class="num baisse">−805</td><td>Aucune</td></tr>
+        <tr><td>Central</td><td>+ récupération de chaleur</td><td class="num">−25 %</td><td class="num baisse">−1 341</td><td>Étude thermique</td></tr>
+        <tr class="ligne-vedette"><td><b>Ambitieux</b></td><td>+ électrification des fours compatibles</td><td class="num"><b>−40 %</b></td><td class="num baisse"><b>−2 146</b></td><td><b>Scope 2 déjà décarboné</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Séquencement impératif</span>
+    <p>
+      Électrifier avant d'avoir décarboné l'électricité <b>déplace</b> les émissions du
+      scope 1 vers le scope 2 sans les réduire. La fiche 4 est donc conditionnée à
+      l'avancement de la fiche 2 : les fours ne doivent basculer qu'à partir de 60 % de
+      renouvelable, soit 2028 au plus tôt.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 17 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">17</span><span class="folio-tag">Fiche 5 · Cat 3</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Fiche 5 / 5</span></div>
+
+  <h2>Fiche 5 · Énergie amont et effets d'entraînement</h2>
+
+  <div class="grille-4">
+    <div class="kpi"><span class="kpi-lib">Poste</span><span class="kpi-val" style="font-size:17px">Cat 3</span><span class="kpi-note">Combustibles et énergie</span></div>
+    <div class="kpi"><span class="kpi-lib">Assiette 2023</span><span class="kpi-val" style="font-size:17px">6 494</span><span class="kpi-note">tCO₂e · 7,74 %</span></div>
+    <div class="kpi"><span class="kpi-lib">Dynamique</span><span class="kpi-val hausse" style="font-size:17px">+2,09 %</span><span class="kpi-note">depuis 2021</span></div>
+    <div class="kpi"><span class="kpi-lib">Nature</span><span class="kpi-val" style="font-size:17px">Dérivée</span><span class="kpi-note">Suit les scopes 1 et 2</span></div>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Un poste qu'on ne pilote pas directement</span>
+    <p>
+      La catégorie 3 recense ce qui se passe <b>avant</b> que l'énergie n'arrive chez
+      Misfat : extraction, raffinage, transport des combustibles, pertes du réseau
+      électrique. Aucune action propre ne la réduit — elle décroît mécaniquement quand
+      les scopes 1 et 2 décroissent.
+    </p>
+  </div>
+
+  <h3>Effet d'entraînement des fiches 2 et 4</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Action source</th><th>Fiche</th><th>Mécanisme sur la catégorie 3</th><th style="text-align:right">Effet estimé</th></tr></thead>
+      <tbody>
+        <tr><td>Passage à 100 % d'électricité renouvelable</td><td class="code">Fiche 2</td><td>Suppression des pertes réseau associées à l'électricité fossile et de son amont</td><td class="num baisse">−20 à −25 %</td></tr>
+        <tr><td>Électrification des fours et de la flotte</td><td class="code">Fiche 4</td><td>Moins de combustibles achetés, donc moins d'amont d'extraction et de raffinage</td><td class="num baisse">−10 à −15 %</td></tr>
+        <tr><td>Efficacité énergétique des procédés</td><td class="code">Fiche 4</td><td>Réduction du volume d'énergie total, tous vecteurs confondus</td><td class="num baisse">−3 à −5 %</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="3">Effet cumulé attendu à 2030</td><td class="num baisse">−30 à −40 %</td></tr></tfoot>
+    </table>
+  </div>
+
+  <h3>Scénarios</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Scénario</th><th style="text-align:right">Réduction</th><th style="text-align:right">Gain</th><th style="text-align:right">Cat 3 en 2030</th></tr></thead>
+      <tbody>
+        <tr><td>Prudent</td><td class="num">−20 %</td><td class="num baisse">−1 299</td><td class="num">5 195</td></tr>
+        <tr><td>Central</td><td class="num">−35 %</td><td class="num baisse">−2 273</td><td class="num">4 221</td></tr>
+        <tr class="ligne-vedette"><td><b>Ambitieux</b></td><td class="num"><b>−40 %</b></td><td class="num baisse"><b>−2 597</b></td><td class="num"><b>3 896</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-ok">
+    <span class="encadre-titre">Pourquoi cette fiche compte malgré tout</span>
+    <p>
+      La catégorie 3 pèse 6 494 tCO₂e — davantage que le scope 1 tout entier, et presque
+      autant que le scope 2. Un gain de 40 % obtenu <b>sans action propre</b>, par simple
+      entraînement, représente 2 597 tCO₂e : c'est le meilleur rapport effort / résultat
+      de tout le plan.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 18 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">18</span><span class="folio-tag">Matrice</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">Hiérarchisation</span></div>
+
+  <h2>Matrice effort / gain</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Classement par gain à 2030, scénario ambitieux</caption>
+      <thead>
+        <tr><th>Fiche</th><th>Action</th><th style="text-align:right">Gain tCO₂e</th><th style="text-align:right">Part de l'effort</th><th>Effort financier</th><th>Effort organisationnel</th><th>Rendement</th></tr>
+      </thead>
+      <tbody>
+        <tr class="ligne-vedette">
+          <td class="code">F1</td><td>Achats bas carbone</td>
+          <td class="num"><b>25 937</b></td><td class="num">79,3 %</td>
+          <td><span class="etiquette">€€ surcoût matière</span></td>
+          <td><span class="etiquette-crit etiquette">Très élevé</span></td>
+          <td><b>Incontournable</b></td>
+        </tr>
+        <tr>
+          <td class="code">F2</td><td>Électricité renouvelable</td>
+          <td class="num">7 365</td><td class="num">—<span class="neutre" style="font-size:10px"> cible propre</span></td>
+          <td><span class="etiquette">€€ investissement</span></td>
+          <td><span class="etiquette">Moyen</span></td>
+          <td>Excellent</td>
+        </tr>
+        <tr>
+          <td class="code">F3</td><td>Fret amont et aval</td>
+          <td class="num">2 664</td><td class="num">8,1 %</td>
+          <td><span class="etiquette">€ contractuel</span></td>
+          <td><span class="etiquette">Moyen</span></td>
+          <td>Bon</td>
+        </tr>
+        <tr>
+          <td class="code">F5</td><td>Énergie amont — entraînement</td>
+          <td class="num">2 597</td><td class="num">7,9 %</td>
+          <td><span class="etiquette">— aucun propre</span></td>
+          <td><span class="etiquette">Faible</span></td>
+          <td><b>Optimal</b></td>
+        </tr>
+        <tr>
+          <td class="code">F4</td><td>Électrification scope 1</td>
+          <td class="num">2 146</td><td class="num">6,6 %</td>
+          <td><span class="etiquette">€€€ industriel</span></td>
+          <td><span class="etiquette-crit etiquette">Élevé</span></td>
+          <td>Moyen</td>
+        </tr>
+        <tr>
+          <td class="code">F6</td><td>Fin de vie — écoconception</td>
+          <td class="num">596</td><td class="num">1,8 %</td>
+          <td><span class="etiquette">€ étude</span></td>
+          <td><span class="etiquette">Moyen</span></td>
+          <td>Faible à court terme</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Total scopes 1 et 3</td><td class="num">33 940</td><td class="num">103,8 %</td><td colspan="3">Cible : 32 692 tCO₂e</td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Sur les montants</span>
+    <p>
+      Les colonnes d'effort sont exprimées en <b>classes qualitatives</b> et non en
+      montants. Le jeu de données transmis ne contient aucune information de coût :
+      afficher des chiffres serait leur donner une précision qu'ils n'ont pas.
+    </p>
+    <p>
+      <b>Méthode de chiffrage à engager :</b> pour chaque fiche, coût complet actualisé
+      sur la durée de vie, rapporté à la tonne évitée. Les cinq fiches se classeront
+      alors en coût par tonne — seule métrique qui permette d'arbitrer.
+    </p>
+  </div>
+
+  <h3>Lecture de la matrice — quatre quadrants</h3>
+  <div class="grille-2">
+    <div class="encadre encadre-ok">
+      <span class="encadre-titre">Gain élevé · effort faible — à lancer sans délai</span>
+      <p style="font-size:11.5px"><b>F5</b> énergie amont : aucun coût propre, 2 597 t. <b>F3</b> fret : levier contractuel, 2 664 t.</p>
+    </div>
+    <div class="encadre">
+      <span class="encadre-titre">Gain élevé · effort élevé — à structurer</span>
+      <p style="font-size:11.5px"><b>F1</b> achats : 79 % de l'effort, mais le plus long à mettre en œuvre. À démarrer immédiatement précisément parce qu'il est lent.</p>
+    </div>
+    <div class="encadre">
+      <span class="encadre-titre">Gain moyen · effort moyen — à planifier</span>
+      <p style="font-size:11.5px"><b>F2</b> électricité : cible propre, chemin balisé, à séquencer sur trois jalons.</p>
+    </div>
+    <div class="encadre encadre-vigilance">
+      <span class="encadre-titre">Gain moyen · effort élevé — à conditionner</span>
+      <p style="font-size:11.5px"><b>F4</b> électrification : subordonnée à F2. Engagée trop tôt, elle ne réduit rien.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PAGE 19 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">19</span><span class="folio-tag">Planning</span></div>
+  <div class="entete"><span class="entete-oeil">Partie IV · Plan d'action</span><span class="entete-oeil">2026 – 2030</span></div>
+
+  <h2>Planning d'exécution</h2>
+
+  <div class="cadre-table">
+    <div class="gantt">
+      <span></span>
+      <span class="gantt-an">2026</span><span class="gantt-an">2027</span><span class="gantt-an">2028</span><span class="gantt-an">2029</span><span class="gantt-an">2030</span>
+
+      <span class="gantt-lib"><b>F1</b> · Cartographie fournisseurs</span>
+      <span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F1</b> · Données primaires</span>
+      <span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F1</b> · Bascule acier recyclé</span>
+      <span class="gantt-cell prep"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span>
+
+      <span class="gantt-lib"><b>F1</b> · Réduction directe</span>
+      <span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell prep"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span>
+
+      <span class="gantt-lib"><b>F2</b> · Photovoltaïque toitures</span>
+      <span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F2</b> · Négociation et signature PPA</span>
+      <span class="gantt-cell prep"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F2</b> · Solde en garanties d'origine</span>
+      <span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span>
+
+      <span class="gantt-lib"><b>F3</b> · Remplissage et tournées</span>
+      <span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F3</b> · Report modal</span>
+      <span class="gantt-cell prep"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F3</b> · Clause transporteurs</span>
+      <span class="gantt-cell"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F4</b> · Étanchéité fluides</span>
+      <span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F4</b> · Étude thermique</span>
+      <span class="gantt-cell"></span><span class="gantt-cell on"></span><span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell"></span>
+
+      <span class="gantt-lib"><b>F4</b> · Électrification fours</span>
+      <span class="gantt-cell"></span><span class="gantt-cell"></span><span class="gantt-cell prep"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span>
+
+      <span class="gantt-lib"><b>F5</b> · Recalcul de l'amont</span>
+      <span class="gantt-cell"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span>
+
+      <span class="gantt-lib"><b>Suivi</b> · Inventaire annuel</span>
+      <span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span><span class="gantt-cell on"></span>
+    </div>
+  </div>
+  <p class="fig">Fig. 7 — Gantt : cuivre plein = exécution, cuivre pâle = préparation · granularité annuelle</p>
+
+  <h3>Jalons de contrôle</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Échéance</th><th>Jalon</th><th>Critère de passage</th></tr></thead>
+      <tbody>
+        <tr><td><b>T4 2026</b></td><td>Fiabilisation de l'inventaire</td><td>Catégorie 1 valorisée à 60 % en données physiques ; huit catégories du scope 3 documentées</td></tr>
+        <tr><td><b>T4 2027</b></td><td>Premiers effets contractuels</td><td>Cinq feuilles de route fournisseurs signées ; PPA signé</td></tr>
+        <tr><td><b>T4 2028</b></td><td>Point de non-retour</td><td>60 % de renouvelable atteint ; trajectoire scopes 1+3 revenue dans le couloir</td></tr>
+        <tr><td><b>T4 2030</b></td><td>Échéance SBTi</td><td>−42 % sur scopes 1+3 ; 100 % de renouvelable en scope 2</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================== PAGE 20 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">20</span><span class="folio-tag">Cibles SBTi</span></div>
+  <div class="entete"><span class="entete-oeil">Partie V · Trajectoire</span><span class="entete-oeil">Validation</span></div>
+
+  <h2>Cibles validées — transcription</h2>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Nature de cette page</span>
+    <p>
+      Ce qui suit est une <b>transcription du contenu des cibles</b>, non une reproduction
+      de la lettre officielle. Le courrier de validation doit être joint en annexe sous sa
+      forme originale : un document de communication externe ne peut s'appuyer sur une
+      retranscription.
+    </p>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Cibles validées le 10 novembre 2025</span>
+    <div class="cadre-table">
+      <table>
+        <thead><tr><th>Périmètre</th><th>Engagement</th><th>Année de référence</th><th>Échéance</th><th>Ambition</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Scopes 1 et 3</b></td>
+            <td>Réduction absolue de <b>42 %</b> des émissions</td>
+            <td class="num">2021</td><td class="num">2030</td>
+            <td><span class="etiquette-acc etiquette">1,5 °C</span></td>
+          </tr>
+          <tr>
+            <td><b>Scope 2</b></td>
+            <td>Passage à <b>100 % d'électricité renouvelable</b>, contre 0 % en 2021</td>
+            <td class="num">2021</td><td class="num">2030</td>
+            <td><span class="etiquette-acc etiquette">1,5 °C</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>Ce que les cibles impliquent en tonnes</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Périmètre</th><th style="text-align:right">Base 2021</th><th style="text-align:right">Cible 2030</th><th style="text-align:right">À retirer</th><th style="text-align:right">Rythme linéaire</th></tr></thead>
+      <tbody>
+        <tr><td>Scope 1</td><td class="num">5 243</td><td class="num">3 041</td><td class="num">2 202</td><td class="num">245 / an</td></tr>
+        <tr><td>Scope 3</td><td class="num">70 425</td><td class="num">40 847</td><td class="num">29 578</td><td class="num">3 286 / an</td></tr>
+        <tr class="ligne-vedette"><td><b>Scopes 1 + 3 · périmètre de la cible</b></td><td class="num"><b>75 668</b></td><td class="num"><b>43 887</b></td><td class="num"><b>31 781</b></td><td class="num"><b>3 531 / an</b></td></tr>
+        <tr><td>Scope 2 market-based</td><td class="num">9 905</td><td class="num">≈ 0</td><td class="num">9 905</td><td class="num">1 101 / an</td></tr>
+      </tbody>
+      <tfoot><tr><td>Total à retirer sur neuf ans</td><td class="num">85 573</td><td class="num">43 887</td><td class="num">41 686</td><td class="num">4 632 / an</td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="grille-2">
+    <div class="encadre">
+      <span class="encadre-titre">Pourquoi 42 %</span>
+      <p style="font-size:11.5px">
+        Une réduction absolue de 42 % sur neuf ans équivaut à <b>4,67 % par an</b> en
+        linéaire — au-dessus du minimum de 4,2 % par an que la SBTi exige pour une
+        trajectoire compatible 1,5 °C.
+      </p>
+    </div>
+    <div class="encadre">
+      <span class="encadre-titre">Particularité du scope 2</span>
+      <p style="font-size:11.5px">
+        La cible porte sur un <b>taux d'approvisionnement</b>, non sur un tonnage. Elle est
+        donc insensible à la croissance de la consommation : produire plus n'éloigne pas
+        de la cible, tant que l'électricité reste renouvelable.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PAGE 21 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">21</span><span class="folio-tag">Scopes 1+3</span></div>
+  <div class="entete"><span class="entete-oeil">Partie V · Trajectoire</span><span class="entete-oeil">Scopes 1 et 3</span></div>
+
+  <h2>Trajectoire scopes 1 et 3</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Couloir 1,5 °C et position constatée — tCO₂e</caption>
+      <thead><tr><th>Année</th><th style="text-align:right">Trajectoire</th><th style="text-align:right">Constaté</th><th style="text-align:right">Écart</th><th>Position</th></tr></thead>
+      <tbody>
+        <tr><td>2021 · référence</td><td class="num">75 668</td><td class="num">75 668</td><td class="num">0</td><td><span class="etiquette-acc etiquette">Sur la ligne</span></td></tr>
+        <tr><td>2022</td><td class="num">72 137</td><td class="num neutre">non communiqué</td><td class="num neutre">—</td><td><span class="etiquette">Donnée manquante</span></td></tr>
+        <tr class="ligne-vedette"><td><b>2023</b></td><td class="num">68 606</td><td class="num"><b>76 579</b></td><td class="num hausse"><b>+7 973</b></td><td><span class="etiquette-crit etiquette">Hors couloir</span></td></tr>
+        <tr><td>2024</td><td class="num">65 074</td><td class="num neutre">—</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2025</td><td class="num">61 543</td><td class="num neutre">—</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2026</td><td class="num">58 012</td><td class="num neutre">—</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2027</td><td class="num">54 481</td><td class="num neutre">—</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2028</td><td class="num">50 950</td><td class="num neutre">—</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2029</td><td class="num">47 419</td><td class="num neutre">—</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td><b>2030 · cible</b></td><td class="num"><b>43 887</b></td><td class="num neutre">—</td><td class="num neutre">—</td><td><span class="etiquette-acc etiquette">Objectif</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fig">Fig. 8 — Courbe : trajectoire linéaire en ardoise, point constaté 2023 en rouge nettement au-dessus, zone d'écart hachurée</p>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Constat central</span>
+    <p>
+      Deux ans après l'année de référence, les scopes 1 et 3 ne baissent pas : ils
+      progressent de <b>+911 tCO₂e</b> (de 75 668 à 76 579). L'écart au jalon 2023 atteint
+      <b>7 973 tCO₂e, soit 11,6 % au-dessus du couloir</b>.
+    </p>
+  </div>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Conséquence sur le rythme à tenir</caption>
+      <thead><tr><th>Base de calcul</th><th style="text-align:right">Reste à retirer</th><th style="text-align:right">Années</th><th style="text-align:right">Rythme annuel</th><th style="text-align:right">En % de la base</th></tr></thead>
+      <tbody>
+        <tr><td>Rythme prévu au départ, depuis 2021</td><td class="num">31 781</td><td class="num">9</td><td class="num">3 531</td><td class="num">4,67 %</td></tr>
+        <tr class="ligne-vedette"><td><b>Rythme désormais nécessaire, depuis 2023</b></td><td class="num"><b>32 692</b></td><td class="num"><b>7</b></td><td class="num"><b>4 670</b></td><td class="num"><b>6,10 %</b></td></tr>
+      </tbody>
+      <tfoot><tr><td>Accélération requise</td><td colspan="2"></td><td class="num hausse">+32 %</td><td class="num hausse">+1,43 pt</td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Lecture pour le comité</span>
+    <p>
+      Le retard ne se rattrape pas en maintenant le rythme initial : il faut désormais
+      retirer <b>4 670 tCO₂e par an</b> au lieu de 3 531, soit un tiers de plus. Chaque
+      année sans réduction ajoute environ 4 700 t à l'effort des années suivantes.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 22 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">22</span><span class="folio-tag">Scope 2</span></div>
+  <div class="entete"><span class="entete-oeil">Partie V · Trajectoire</span><span class="entete-oeil">Scope 2</span></div>
+
+  <h2>Trajectoire scope 2 — montée en charge du renouvelable</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Part renouvelable et émissions market-based résiduelles</caption>
+      <thead><tr><th>Année</th><th style="text-align:right">Part renouvelable cible</th><th style="text-align:right">Scope 2 attendu</th><th style="text-align:right">Constaté</th><th>Position</th></tr></thead>
+      <tbody>
+        <tr><td>2021 · référence</td><td class="num">0 %</td><td class="num">9 905</td><td class="num">9 905</td><td><span class="etiquette-acc etiquette">Sur la ligne</span></td></tr>
+        <tr><td>2022</td><td class="num">11,1 %</td><td class="num">8 805</td><td class="num neutre">non communiqué</td><td><span class="etiquette">Donnée manquante</span></td></tr>
+        <tr class="ligne-vedette"><td><b>2023</b></td><td class="num">22,2 %</td><td class="num">7 704</td><td class="num"><b>7 365</b></td><td><span class="etiquette-acc etiquette">En avance de 339 t</span></td></tr>
+        <tr><td>2024</td><td class="num">33,3 %</td><td class="num">6 603</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2025</td><td class="num">44,4 %</td><td class="num">5 503</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2026</td><td class="num">55,6 %</td><td class="num">4 402</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2027</td><td class="num">66,7 %</td><td class="num">3 302</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2028</td><td class="num">77,8 %</td><td class="num">2 201</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td>2029</td><td class="num">88,9 %</td><td class="num">1 101</td><td class="num neutre">—</td><td class="neutre">À venir</td></tr>
+        <tr><td><b>2030 · cible</b></td><td class="num"><b>100 %</b></td><td class="num"><b>≈ 0</b></td><td class="num neutre">—</td><td><span class="etiquette-acc etiquette">Objectif</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fig">Fig. 9 — Double courbe : part renouvelable croissante (cuivre, axe gauche), émissions résiduelles décroissantes (ardoise, axe droit)</p>
+
+  <div class="encadre encadre-ok">
+    <span class="encadre-titre">Le seul périmètre en avance</span>
+    <p>
+      Avec 7 365 tCO₂e en 2023 contre 7 704 attendues, le scope 2 est <b>en avance de
+      339 tCO₂e</b> sur son couloir. C'est le seul point du plan où Misfat devance son
+      engagement.
+    </p>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Réserve importante sur cette avance</span>
+    <p>
+      Cette lecture suppose que la baisse de 25,64 % provient bien d'un
+      <b>approvisionnement renouvelable</b>. Si elle provient d'une baisse de consommation
+      ou d'une évolution du facteur du réseau, la part renouvelable réelle peut être
+      restée à 0 % — et l'avance serait fictive.
+    </p>
+    <p>
+      <b>Preuve à produire :</b> attestations de garanties d'origine ou contrat vert pour
+      l'exercice 2023, en mégawattheures, à rapprocher de la consommation totale.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 23 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">23</span><span class="folio-tag">Scénarios</span></div>
+  <div class="entete"><span class="entete-oeil">Partie V · Trajectoire</span><span class="entete-oeil">Convergence 2030</span></div>
+
+  <h2>Atteint-on la cible ?</h2>
+  <p class="chapo">
+    Trois scénarios, construits en agrégeant les fiches d'action. Un seul converge.
+  </p>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Scénario central — ambition modérée sur chaque fiche</caption>
+      <thead><tr><th>Fiche</th><th>Hypothèse</th><th style="text-align:right">Gain</th></tr></thead>
+      <tbody>
+        <tr><td class="code">F1</td><td>Catégorie 1 · −35 %</td><td class="num baisse">−18 156</td></tr>
+        <tr><td class="code">F3</td><td>Fret · −25 %</td><td class="num baisse">−1 903</td></tr>
+        <tr><td class="code">F4</td><td>Scope 1 · −40 %</td><td class="num baisse">−2 146</td></tr>
+        <tr><td class="code">F5</td><td>Catégorie 3 · −35 %</td><td class="num baisse">−2 273</td></tr>
+        <tr><td class="code">F6</td><td>Fin de vie · −10 %</td><td class="num baisse">−398</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Scopes 1+3 en 2030</td><td class="num">51 705</td></tr>
+        <tr><td colspan="2">Cible</td><td class="num">43 887</td></tr>
+        <tr><td colspan="2"><b>Écart résiduel</b></td><td class="num hausse"><b>+7 818</b></td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Le scénario central ne suffit pas</span>
+    <p>
+      Une ambition modérée mais réelle sur les cinq fiches laisse un écart de
+      <b>7 818 tCO₂e</b>, soit 18 % au-dessus de la cible. La cible n'est pas atteignable
+      par un effort réparti : elle exige une rupture sur les achats.
+    </p>
+  </div>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Scénario ambitieux — rupture sur la catégorie 1</caption>
+      <thead><tr><th>Fiche</th><th>Hypothèse</th><th style="text-align:right">Gain</th></tr></thead>
+      <tbody>
+        <tr class="ligne-vedette"><td class="code">F1</td><td><b>Catégorie 1 · −50 %</b></td><td class="num baisse"><b>−25 937</b></td></tr>
+        <tr><td class="code">F3</td><td>Fret · −35 %</td><td class="num baisse">−2 664</td></tr>
+        <tr><td class="code">F4</td><td>Scope 1 · −40 %</td><td class="num baisse">−2 146</td></tr>
+        <tr><td class="code">F5</td><td>Catégorie 3 · −40 %</td><td class="num baisse">−2 597</td></tr>
+        <tr><td class="code">F6</td><td>Fin de vie · −15 %</td><td class="num baisse">−596</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Scopes 1+3 en 2030</td><td class="num">42 639</td></tr>
+        <tr><td colspan="2">Cible</td><td class="num">43 887</td></tr>
+        <tr><td colspan="2"><b>Marge</b></td><td class="num baisse"><b>−1 248</b></td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="encadre encadre-ok">
+    <span class="encadre-titre">Conclusion de la partie V</span>
+    <ul>
+      <li>La cible <b>est</b> atteignable — avec 1 248 tCO₂e de marge, soit 2,8 %.</li>
+      <li>Elle exige une <b>réduction de moitié</b> des émissions des achats. C'est la condition, non une option parmi d'autres.</li>
+      <li>Le scope 2 atteint sa cible indépendamment, par un chemin balisé.</li>
+      <li>La marge de 2,8 % est mince : toute croissance de volume non compensée la consomme.</li>
+    </ul>
+  </div>
+  <p class="fig">Fig. 10 — Barres empilées comparées : central et ambitieux face à la ligne de cible</p>
+</section>
+
+<!-- ============================== PAGE 24 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">24</span><span class="folio-tag">Gouvernance</span></div>
+  <div class="entete"><span class="entete-oeil">Partie VI · Pilotage</span><span class="entete-oeil">Gouvernance</span></div>
+
+  <h2>Gouvernance et instances</h2>
+
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Instance</th><th>Composition</th><th>Fréquence</th><th>Décide de</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Comité carbone</b></td>
+          <td>Direction générale, industrielle, achats, RSE, finance</td>
+          <td>Trimestrielle</td>
+          <td>Arbitrages d'investissement, validation des jalons, révision de trajectoire</td>
+        </tr>
+        <tr>
+          <td><b>Cellule achats bas carbone</b></td>
+          <td>Achats, qualité, R&amp;D, RSE</td>
+          <td>Mensuelle</td>
+          <td>Fiche 1 : sélection fournisseurs, clauses, substitutions matière</td>
+        </tr>
+        <tr>
+          <td><b>Cellule énergie</b></td>
+          <td>Maintenance, production, RSE</td>
+          <td>Mensuelle</td>
+          <td>Fiches 2 et 4 : photovoltaïque, PPA, électrification, efficacité</td>
+        </tr>
+        <tr>
+          <td><b>Cellule logistique</b></td>
+          <td>Supply chain, transport, RSE</td>
+          <td>Bimestrielle</td>
+          <td>Fiche 3 : report modal, remplissage, clauses transporteurs</td>
+        </tr>
+        <tr>
+          <td><b>Référent inventaire</b></td>
+          <td>RSE, contrôle de gestion</td>
+          <td>Continue</td>
+          <td>Qualité de la donnée, réconciliation, préparation de la vérification</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Répartition des responsabilités par fiche</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Fiche</th><th>Pilote</th><th>Contributeurs</th><th>Rend compte à</th></tr></thead>
+      <tbody>
+        <tr><td class="code">F1 · Achats</td><td>Direction des achats</td><td>Qualité, R&amp;D, RSE</td><td>Comité carbone</td></tr>
+        <tr><td class="code">F2 · Électricité</td><td>Direction industrielle</td><td>Maintenance, finance</td><td>Comité carbone</td></tr>
+        <tr><td class="code">F3 · Fret</td><td>Supply chain</td><td>Achats, RSE</td><td>Comité carbone</td></tr>
+        <tr><td class="code">F4 · Scope 1</td><td>Direction industrielle</td><td>Maintenance, HSE</td><td>Comité carbone</td></tr>
+        <tr><td class="code">F5 · Énergie amont</td><td>Référent inventaire</td><td>—</td><td>Comité carbone</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Point de vigilance organisationnel</span>
+    <p>
+      79 % de l'effort de réduction repose sur la <b>direction des achats</b>, dont le
+      mandat historique porte sur le coût et le délai. Sans intégration explicite du
+      critère carbone dans les objectifs de cette direction, la fiche 1 restera un vœu et
+      la cible sera manquée quels que soient les efforts des autres cellules.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 25 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">25</span><span class="folio-tag">Indicateurs</span></div>
+  <div class="entete"><span class="entete-oeil">Partie VI · Pilotage</span><span class="entete-oeil">Tableau de bord</span></div>
+
+  <h2>Tableau de bord des indicateurs</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Indicateurs de résultat — émissions</caption>
+      <thead><tr><th>Indicateur</th><th style="text-align:right">2021</th><th style="text-align:right">2023</th><th style="text-align:right">Cible 2030</th><th>Fréquence</th><th>État</th></tr></thead>
+      <tbody>
+        <tr><td>Émissions totales</td><td class="num">85 573</td><td class="num">83 944</td><td class="num">≈ 43 887</td><td>Annuelle</td><td><span class="etiquette-crit etiquette">Hors couloir</span></td></tr>
+        <tr><td>Scope 1</td><td class="num">5 243</td><td class="num">5 364</td><td class="num">3 041</td><td>Trimestrielle</td><td><span class="etiquette-crit etiquette">En hausse</span></td></tr>
+        <tr><td>Scope 2 market-based</td><td class="num">9 905</td><td class="num">7 365</td><td class="num">≈ 0</td><td>Trimestrielle</td><td><span class="etiquette-acc etiquette">En avance</span></td></tr>
+        <tr><td>Scope 3</td><td class="num">70 425</td><td class="num">71 215</td><td class="num">40 847</td><td>Annuelle</td><td><span class="etiquette-crit etiquette">En hausse</span></td></tr>
+        <tr><td>Scopes 1+3 · périmètre de la cible</td><td class="num">75 668</td><td class="num">76 579</td><td class="num">43 887</td><td>Annuelle</td><td><span class="etiquette-crit etiquette">+7 973 t d'écart</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Indicateurs d'action — avancement des leviers</caption>
+      <thead><tr><th>Indicateur</th><th style="text-align:right">2023</th><th style="text-align:right">Jalon 2026</th><th style="text-align:right">Cible 2030</th><th>Pilote</th></tr></thead>
+      <tbody>
+        <tr><td>Part d'électricité renouvelable</td><td class="num">à établir</td><td class="num">30 %</td><td class="num">100 %</td><td>Industrielle</td></tr>
+        <tr><td>Puissance photovoltaïque installée</td><td class="num">à établir</td><td class="num">—</td><td class="num">—</td><td>Industrielle</td></tr>
+        <tr><td>Taux d'acier recyclé</td><td class="num">à établir</td><td class="num">40 %</td><td class="num">80 %</td><td>Achats</td></tr>
+        <tr><td>Fournisseurs avec feuille de route signée</td><td class="num">0</td><td class="num">5</td><td class="num">20</td><td>Achats</td></tr>
+        <tr><td>Part du fret non routier</td><td class="num">à établir</td><td class="num">—</td><td class="num">—</td><td>Supply chain</td></tr>
+        <tr><td>Véhicules électriques dans la flotte</td><td class="num">à établir</td><td class="num">—</td><td class="num">—</td><td>Industrielle</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Indicateurs de qualité de donnée</caption>
+      <thead><tr><th>Indicateur</th><th style="text-align:right">2023</th><th style="text-align:right">Cible 2026</th><th>Enjeu</th></tr></thead>
+      <tbody>
+        <tr><td>Catégories du scope 3 avec statut documenté</td><td class="num">7 / 15</td><td class="num">15 / 15</td><td>Recevabilité en vérification</td></tr>
+        <tr><td>Part de la catégorie 1 en données physiques</td><td class="num">à établir</td><td class="num">60 %</td><td>Pilotage de 62 % de l'empreinte</td></tr>
+        <tr><td>Résidu de réconciliation</td><td class="num">1 092 t</td><td class="num">0</td><td>Traçabilité du total</td></tr>
+        <tr><td>Part des facteurs d'émission primaires</td><td class="num">à établir</td><td class="num">30 %</td><td>Réduction de l'incertitude</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre">
+    <span class="encadre-titre">Sur les cases « à établir »</span>
+    <p>
+      Elles ne sont pas des oublis : ce sont les données absentes du jeu transmis. Les
+      laisser vides plutôt que les estimer est un choix — un tableau de bord dont les
+      valeurs de départ sont inventées ne mesure aucun progrès.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 26 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">26</span><span class="folio-tag">Annexes</span></div>
+  <div class="entete"><span class="entete-oeil">Partie VI · Annexes</span><span class="entete-oeil">Technique</span></div>
+
+  <h2>Annexes techniques</h2>
+
+  <h3>A · Réconciliation des totaux</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Élément</th><th style="text-align:right">2021</th><th style="text-align:right">2023</th></tr></thead>
+      <tbody>
+        <tr><td>Somme des huit postes détaillés</td><td class="num">84 638,20</td><td class="num">82 852,00</td></tr>
+        <tr><td>Total d'inventaire communiqué</td><td class="num">85 573,00</td><td class="num">83 944,00</td></tr>
+        <tr class="ligne-vedette"><td><b>Résidu non détaillé</b></td><td class="num"><b>934,80</b></td><td class="num"><b>1 092,00</b></td></tr>
+        <tr><td>Part du total</td><td class="num">1,09 %</td><td class="num">1,30 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="encadre encadre-vigilance">
+    <span class="encadre-titre">Interprétation du résidu</span>
+    <p>
+      Ce résidu correspond vraisemblablement aux catégories 5, 6, 7, 8, 11, 13, 14 et 15
+      du scope 3, non détaillées dans les données transmises. Il est traité comme un poste
+      « Autres catégories » tout au long du rapport. Sa décomposition est le premier
+      livrable de fiabilisation.
+    </p>
+  </div>
+
+  <h3>B · Contrôle de cohérence des variations</h3>
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Poste</th><th style="text-align:right">Δ % communiqué</th><th style="text-align:right">Δ % recalculé</th><th>Contrôle</th></tr></thead>
+      <tbody>
+        <tr><td>Scope 1</td><td class="num">+2,31 %</td><td class="num">+2,308 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Scope 2</td><td class="num">−25,64 %</td><td class="num">−25,643 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Cat 1</td><td class="num">+9,29 %</td><td class="num">+9,286 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Cat 2</td><td class="num">−95,78 %</td><td class="num">−95,777 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Cat 3</td><td class="num">+2,09 %</td><td class="num">+2,086 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Cat 4</td><td class="num">−7,03 %</td><td class="num">−7,029 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Cat 9</td><td class="num">+12,86 %</td><td class="num">+12,861 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Cat 12</td><td class="num">+2,89 %</td><td class="num">+2,887 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+        <tr><td>Total</td><td class="num">−1,90 %</td><td class="num">−1,904 %</td><td><span class="etiquette-acc etiquette">Conforme</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>C · Référentiels appliqués</h3>
+  <ul>
+    <li><b>GHG Protocol Corporate Standard</b> — périmètres organisationnel et opérationnel, consolidation par contrôle opérationnel.</li>
+    <li><b>GHG Protocol Scope 2 Guidance</b> — double comptabilisation location-based et market-based.</li>
+    <li><b>GHG Protocol Corporate Value Chain (Scope 3) Standard</b> — quinze catégories, règles d'inclusion et d'exclusion.</li>
+    <li><b>ISO 14064-1</b> — quantification et déclaration des émissions à l'échelle de l'organisme.</li>
+    <li><b>Science Based Targets initiative</b> — critères de validation, trajectoires 1,5 °C, exigences de couverture du scope 3.</li>
+    <li><b>GIEC AR5</b> — potentiels de réchauffement global sur 100 ans.</li>
+  </ul>
+
+  <h3>D · Pièces à joindre au dossier</h3>
+  <ol>
+    <li>Lettre de validation SBTi du 10 novembre 2025, sous sa forme originale.</li>
+    <li>Liste nominative des entités du périmètre de consolidation.</li>
+    <li>Justificatifs de la variation de la catégorie 2 entre 2021 et 2023.</li>
+    <li>Attestations d'électricité renouvelable pour l'exercice 2023.</li>
+    <li>Registre des facteurs d'émission employés, avec source et millésime.</li>
+    <li>Note de position sur les huit catégories du scope 3 non détaillées.</li>
+  </ol>
+</section>
+
+<!-- ============================== PAGE 27 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">27</span><span class="folio-tag">Limites</span></div>
+  <div class="entete"><span class="entete-oeil">Partie VI · Annexes</span><span class="entete-oeil">Fiabilité</span></div>
+
+  <h2>Limites, incertitudes et plan de fiabilisation</h2>
+
+  <div class="cadre-table">
+    <table>
+      <caption>Limites identifiées, par gravité décroissante</caption>
+      <thead><tr><th>Limite</th><th>Effet sur le rapport</th><th>Gravité</th><th>Traitement</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Catégorie 1 vraisemblablement valorisée en monétaire</td>
+          <td>62 % de l'empreinte est sensible aux prix. La hausse de +9,29 % peut être un effet prix, non un effet volume.</td>
+          <td><span class="etiquette-crit etiquette">Critique</span></td>
+          <td>Collecte des tonnages par nuance — T1 2026</td>
+        </tr>
+        <tr>
+          <td>Chute de 95,78 % de la catégorie 2 non justifiée</td>
+          <td>Si elle procède d'un défaut de collecte, l'inventaire 2023 est sous-évalué et la comparaison invalide.</td>
+          <td><span class="etiquette-crit etiquette">Critique</span></td>
+          <td>Rapprochement avec le tableau d'immobilisations — T1 2026</td>
+        </tr>
+        <tr>
+          <td>Huit catégories du scope 3 sans statut documenté</td>
+          <td>Résidu de 1 092 t non traçable. Motif de réserve en vérification externe.</td>
+          <td><span class="etiquette-crit etiquette">Élevée</span></td>
+          <td>Note de matérialité par catégorie — T2 2026</td>
+        </tr>
+        <tr>
+          <td>Origine de la baisse du scope 2 non attribuée</td>
+          <td>L'avance de 339 t sur le couloir peut être fictive.</td>
+          <td><span class="etiquette-vigilance etiquette">Élevée</span></td>
+          <td>Production des attestations 2023 — T1 2026</td>
+        </tr>
+        <tr>
+          <td>Exercice 2022 absent</td>
+          <td>Impossible de distinguer une tendance d'un accident de mesure sur deux points seulement.</td>
+          <td><span class="etiquette-vigilance etiquette">Moyenne</span></td>
+          <td>Reconstitution rétrospective — T2 2026</td>
+        </tr>
+        <tr>
+          <td>Aucune donnée d'activité — production, chiffre d'affaires, effectif</td>
+          <td>Aucun indicateur d'intensité calculable. Impossible de séparer l'effet croissance de l'effet performance.</td>
+          <td><span class="etiquette-vigilance etiquette">Moyenne</span></td>
+          <td>Ajout au périmètre de collecte — T1 2026</td>
+        </tr>
+        <tr>
+          <td>Aucun tonne-kilomètre pour le fret</td>
+          <td>La fiche 3 ne peut pas être chiffrée finement.</td>
+          <td><span class="etiquette">Modérée</span></td>
+          <td>Collecte auprès des transporteurs — T2 2026</td>
+        </tr>
+        <tr>
+          <td>Aucune donnée de coût</td>
+          <td>La matrice effort / gain reste qualitative ; pas de coût par tonne évitée.</td>
+          <td><span class="etiquette">Modérée</span></td>
+          <td>Chiffrage par fiche — T3 2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Ce que ces limites impliquent</span>
+    <p>
+      Les <b>constats</b> de ce rapport reposent sur des chiffres vérifiés
+      arithmétiquement et sont solides : le hors-couloir de 7 973 t, la hausse réelle de
+      2,73 % à périmètre constant, la domination des achats à 61,80 %.
+    </p>
+    <p>
+      Les <b>scénarios de réduction</b>, en revanche, sont des hypothèses appliquées à ces
+      chiffres. Ils indiquent des ordres de grandeur et hiérarchisent les leviers ; ils ne
+      constituent pas des engagements chiffrables en l'état.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== PAGE 28 ============================== -->
+<section class="feuille">
+  <div class="folio"><span class="folio-num">28</span><span class="folio-tag">90 jours</span></div>
+  <div class="entete"><span class="entete-oeil">Partie VI · Pilotage</span><span class="entete-oeil">Démarrage</span></div>
+
+  <h2>Feuille de route des 90 premiers jours</h2>
+  <p class="chapo">
+    Aucune de ces actions ne réduit une tonne. Toutes conditionnent la capacité à en
+    réduire ensuite.
+  </p>
+
+  <div class="cadre-table">
+    <table>
+      <thead><tr><th>Sem.</th><th>Action</th><th>Pilote</th><th>Livrable</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1 – 2</td><td>Constituer le comité carbone et arrêter son mandat</td><td>Direction générale</td><td>Charte, calendrier, mandats des cellules</td></tr>
+        <tr><td class="num">2 – 4</td><td>Instruire la variation de la catégorie 2</td><td>Référent inventaire</td><td>Note justificative ou correction de l'inventaire</td></tr>
+        <tr><td class="num">3 – 6</td><td>Produire les attestations d'électricité 2023</td><td>Industrielle</td><td>Part renouvelable réelle 2023, en MWh</td></tr>
+        <tr><td class="num">4 – 8</td><td>Segmenter les achats par masse d'émissions</td><td>Achats</td><td>Liste des vingt fournisseurs couvrant 80 % de la catégorie 1</td></tr>
+        <tr><td class="num">6 – 10</td><td>Documenter le statut des huit catégories manquantes</td><td>Référent inventaire</td><td>Note de matérialité, résidu ramené à zéro</td></tr>
+        <tr><td class="num">8 – 12</td><td>Lancer la collecte des tonnages matière</td><td>Achats</td><td>Protocole de collecte, premiers tonnages par nuance</td></tr>
+        <tr><td class="num">10 – 12</td><td>Ouvrir l'étude photovoltaïque sur les toitures</td><td>Industrielle</td><td>Surfaces disponibles, puissance mobilisable</td></tr>
+        <tr><td class="num">12</td><td>Premier comité carbone sur données fiabilisées</td><td>Direction générale</td><td>Trajectoire révisée, arbitrages d'investissement</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="encadre encadre-alerte">
+    <span class="encadre-titre">Les trois décisions à prendre au premier comité</span>
+    <ol>
+      <li>
+        <b>Intégrer le critère carbone aux objectifs de la direction des achats.</b>
+        79 % de l'effort en dépend.
+      </li>
+      <li>
+        <b>Arbitrer entre le scénario central et le scénario ambitieux.</b> Le premier
+        manque la cible de 7 818 tCO₂e ; le second exige −50 % sur les achats. Il n'y a
+        pas de voie intermédiaire qui converge.
+      </li>
+      <li>
+        <b>Statuer sur la fiabilité de l'inventaire 2023</b> avant toute communication
+        externe, la catégorie 2 et le résidu de réconciliation restant non justifiés.
+      </li>
+    </ol>
+  </div>
+
+  <hr class="filet">
+
+  <div class="grille-3">
+    <div class="kpi"><span class="kpi-lib">Écart à combler</span><span class="kpi-val" style="font-size:20px">32 692</span><span class="kpi-note">tCO₂e entre 2023 et 2030</span></div>
+    <div class="kpi"><span class="kpi-lib">Rythme requis</span><span class="kpi-val" style="font-size:20px">4 670</span><span class="kpi-note">tCO₂e par an</span></div>
+    <div class="kpi" style="border-color:var(--cuivre);background:var(--cuivre-pale)"><span class="kpi-lib">Années restantes</span><span class="kpi-val" style="font-size:20px">7</span><span class="kpi-note">dont deux déjà consommées</span></div>
+  </div>
+
+  <p style="font-size:10.5px;color:var(--estompe);max-width:none">
+    Fin du rapport — 28 pages. Document de travail interne, à ne pas diffuser hors du
+    comité carbone avant fiabilisation de l'inventaire 2023.
+  </p>
+</section>

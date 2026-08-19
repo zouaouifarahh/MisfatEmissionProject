@@ -4,7 +4,9 @@
   <app-lignes-dispatchees ecran="transport-aval"></app-lignes-dispatchees>
 
   <!-- INDICATEURS DE SYNTHÈSE -->
-  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+  <app-kpis-categorie [cartes]="kpisCategorie"
+                      [filtreActif]="filtreStatut"
+                      (filtrer)="filtreStatut = $event"></app-kpis-categorie>
 
 
   <!-- EN-TÊTE DE LA CATÉGORIE -->
@@ -53,6 +55,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="mode" libelle="Mode de fret"
+                        libelleTous="Tous les modes"
+                        [source]="toutesLignes" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="modesFret"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte" (ngModelChange)="onFiltreChange()"
              placeholder="Recherche par expédition, destination, client ou base…" class="search-input">
 
@@ -190,11 +201,9 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="5">Total — {{ emissionsFiltrees.length }} expédition(s)</td>
+            <td colspan="10">Total — {{ emissionsFiltrees.length }} expédition(s)</td>
             <td class="ta-right num-fort">{{ totalTonneKm | number:'1.0-0' }} t.km</td>
-            <td colspan="2"></td>
-            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
-            <td></td>
+            <td colspan="1"></td>
           </tr>
         </tfoot>
       </table>

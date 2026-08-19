@@ -1,0 +1,358 @@
+/* ============================================================
+   Trajectoire SBTi — réel contre engagement
+   ------------------------------------------------------------
+   Deux couleurs seulement portent du sens : le réel et le
+   couloir. Tout le reste est gris, pour que l'écart entre les
+   deux soit la seule chose qui saute aux yeux.
+   ============================================================ */
+
+.sbti-card {
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 14px;
+    padding: 20px 22px 22px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.sbti-entete {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.sbti-titre {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.sbti-sous-titre {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sbti-statut {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    background: #f1f5f9;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.sbti-statut.statut-conforme { background: #dcfce7; color: #166534; }
+.sbti-statut.statut-derive { background: #fee2e2; color: #991b1b; }
+
+/* --- Paramètres de simulation --- */
+
+.sbti-parametres {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.sbti-parametres label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.sbti-parametres label span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.sbti-parametres select,
+.sbti-parametres input {
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 7px;
+    padding: 6px 9px;
+    font: inherit;
+    font-size: 13px;
+    background: var(--surface, #ffffff);
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.sbti-parametres input[type="number"] { width: 92px; }
+
+.sbti-retablir {
+    border: 1px solid #93c5fd;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 12px;
+    cursor: pointer;
+}
+
+/* Un écran qui a quitté l'engagement validé doit le dire, sans quoi une
+   simulation finit citée comme un engagement. */
+.sbti-simulation {
+    margin: 0 0 14px;
+    padding: 9px 12px;
+    border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #92400e;
+}
+
+/* --- Chiffres de tête --- */
+
+.sbti-chiffres {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.sbti-chiffre {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 11px 13px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    min-width: 0;
+}
+
+.chiffre-libelle {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.chiffre-valeur {
+    font-size: 21px;
+    font-weight: 700;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+
+.chiffre-unite {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.ecart-defavorable { color: #b91c1c; font-weight: 600; }
+.ecart-favorable { color: #15803d; font-weight: 600; }
+
+/* --- Graphique --- */
+
+.sbti-graphe {
+    position: relative;
+    padding: 0 0 22px 46px;
+    margin-bottom: 12px;
+}
+
+.sbti-graphe svg {
+    display: block;
+    width: 100%;
+    height: 300px;
+    overflow: visible;
+}
+
+.sbti-grille {
+    stroke: #e2e8f0;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.sbti-aire {
+    fill: rgba(220, 38, 38, .12);
+    stroke: none;
+}
+
+.sbti-trace-cible {
+    fill: none;
+    stroke: #16a34a;
+    stroke-width: 2;
+    stroke-dasharray: 7 5;
+    vector-effect: non-scaling-stroke;
+}
+
+.sbti-trace-reel {
+    fill: none;
+    stroke: #1d4ed8;
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.sbti-echeance {
+    stroke: #16a34a;
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+    vector-effect: non-scaling-stroke;
+}
+
+.sbti-point {
+    fill: #1d4ed8;
+    stroke: #ffffff;
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.sbti-point.point-derive { fill: #dc2626; }
+
+.sbti-echelle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 22px;
+    width: 42px;
+}
+
+.sbti-echelle span {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.sbti-annees {
+    position: absolute;
+    left: 46px;
+    right: 0;
+    bottom: 0;
+    height: 18px;
+}
+
+.sbti-annees span {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Les années sans mesure sont grisées : le lecteur ne doit pas les confondre
+   avec des exercices collectés. */
+.sbti-annees span.annee-projetee { color: #cbd5e1; }
+
+.sbti-legende {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+    font-size: 12px;
+    color: #475569;
+}
+
+.sbti-legende li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.puce {
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.puce-reel { background: #1d4ed8; }
+.puce-cible { background: repeating-linear-gradient(90deg, #16a34a 0 6px, transparent 6px 10px); }
+.puce-aire { background: rgba(220, 38, 38, .35); height: 10px; border-radius: 3px; }
+
+/* --- Tableau --- */
+
+.sbti-tableau-cadre {
+    overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+}
+
+.sbti-tableau {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.sbti-tableau th,
+.sbti-tableau td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    white-space: nowrap;
+}
+
+.sbti-tableau thead th {
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #64748b;
+    text-align: left;
+}
+
+.sbti-tableau tbody tr:last-child td { border-bottom: none; }
+
+.sbti-tableau .ta-right { text-align: right; font-variant-numeric: tabular-nums; }
+
+.sbti-tableau tr.ligne-projetee td { color: #94a3b8; }
+
+.non-collecte { color: #cbd5e1; }
+
+.badge-statut {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-ok { background: #dcfce7; color: #166534; }
+.badge-ko { background: #fee2e2; color: #991b1b; }
+.badge-vide { background: #f1f5f9; color: #94a3b8; }
+
+.sbti-note,
+.sbti-vide {
+    margin: 12px 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #64748b;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

@@ -1,11 +1,15 @@
 import { Component, OnInit, Inject, PLATFORM_ID, ChangeDetectorRef, inject } from '@angular/core';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
+import { ENTETE_REFERENCE, ENTETE_CODE_ARTICLE } from '../../core/colonnes-identite';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmissionService, EmissionFactor } from '../../services/emission';
 import { OrganizationService } from '../../services/organization.service';
 import { EntityContextService } from '../../core/entity-context.service';
 import { ReferentialService, FacteurDetaille } from '../../services/referential.service';
-import { marqueurEcran } from '../../core/appariement-referentiel';
+import {
+  marqueurEcran, Rapprochement, libelleRapprochement
+} from '../../core/appariement-referentiel';
 import { Filiale } from '../../models/organization.model';
 import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatchees';
 import { ConfirmationService } from '../../shared/ui/confirmation.service';
@@ -25,6 +29,16 @@ export interface Emission {
   categorie: string;
   etablissement: string;
   reference: string;          // Code de référence Carb (ex: MS1COC, MS1COV, MS1GZ...)
+  /**
+   * Compte comptable ou code article de l'ERP.
+   *
+   * <p>Il portait auparavant dans {@link reference} : la colonne « Référence »
+   * affichait donc 602100, un numéro de compte qui ne documente aucun facteur.
+   * Les deux identifiants ont désormais chacun leur colonne.</p>
+   */
+  codeArticle?: string;
+  /** Degré qui a désigné le facteur, ou null si la ligne reste orpheline. */
+  rapprochement?: Rapprochement | null;
   emissionSource: string;     // Source d'émission (ex: Gazole/Fioul, Gaz naturel...)
   typeDonnee: 'Physique' | 'Monetaire';
   quantite: number;
@@ -44,7 +58,7 @@ export interface Emission {
 @Component({
   selector: 'app-emission-list',
   standalone: true,
-  imports: [KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './emission-list.html',
   styleUrl: './emission-list.css'
@@ -359,8 +373,47 @@ export class EmissionListComponent implements OnInit {
     }
   }
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarderDansLocalStorage();
+
+    const clesVentilees = evenement.avant
+      .map((ligne: any) => ligne?.cleVentilation)
+      .filter((cle: unknown): cle is string => typeof cle === 'string' && cle.length > 0);
+
+    if (clesVentilees.length) {
+      const facteur = Number(evenement.apres[0]?.facteur ?? 0);
+      this.dispatchStore.reprendreFacteur(clesVentilees, facteur);
+    }
+  }
+
   get emissionsFiltrees(): Emission[] {
     let list = this.toutesLignes.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.emissionSource !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
       const correspondEtab = this.filtreEtablissement === 'Tous' || item.etablissement === this.filtreEtablissement;
@@ -460,9 +513,14 @@ genererCodeReference() {
     if (isPlatformBrowser(this.platformId)) {
       const XLSX = await import('xlsx');
       const structure = [
-        ['Établissement', 'Référence Carb', 'Source d\'Émission', 'Montant', 'Quantité', 'Unité', 'De', 'à', 'Hypothèse'],
-        ['Misfat 1', 'MS1GN', 'Gaz naturel', '', '12500', 'kWh', '01/01/2026', '31/01/2026', 'Réelle'],
-        ['Misfat 2', 'MS2GZ', 'Gazole/Fioul', '3500', '', 'TND', '01/01/2026', '15/01/2026', 'Estimation']
+        // « Référence Carb » ne figurait dans aucun alias reconnu : l'intitulé
+        // vient désormais du fournisseur commun, celui que les parseurs lisent.
+        ['Établissement', ENTETE_REFERENCE, ENTETE_CODE_ARTICLE, 'Source d\'Émission',
+         'Montant', 'Quantité', 'Unité', 'De', 'à', 'Hypothèse'],
+        ['Misfat 1', 'MS1GN', 'COMB-0003', 'Gaz naturel', '', '12500', 'kWh',
+         '01/01/2026', '31/01/2026', 'Réelle'],
+        ['Misfat 2', 'MS2GZ', 'COMB-0011', 'Gazole/Fioul', '3500', '', 'TND',
+         '01/01/2026', '15/01/2026', 'Estimation']
       ];
       const feuille = XLSX.utils.aoa_to_sheet(structure);
       const classeur = XLSX.utils.book_new();
@@ -980,7 +1038,10 @@ genererCodeReference() {
         libelle: 'Couverture MS SQL', icone: '🎯', accent: 'couverture',
         valeur: couverture.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %',
         unite: 'sinon repli ADEME',
-        alerte: couverture < 80
+        alerte: couverture < 80,
+        // Cliquer la carte n'affiche que les lignes qu'elle signale : celles
+        // qu'aucun facteur du référentiel n'adosse.
+        filtreStatut: 'Fallback' as const
       }
     ];
   }
@@ -1023,6 +1084,11 @@ genererCodeReference() {
    */
   get usineVentilation(): string {
     return this.etablissementsList[0] || this.societeActiveLabel || '';
+  }
+
+  /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
+  libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
+    return libelleRapprochement(rapprochement);
   }
 
 }

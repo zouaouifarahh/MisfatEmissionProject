@@ -22,6 +22,14 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="typeEnergie" libelle="Type d'énergie"
+                        libelleTous="Tous les types d'énergie"
+                        [source]="listeEmissions" [lignes]="emissionsFiltrees"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte"
              placeholder="Recherche par type d'énergie, étiquette, référence ou usine…" class="search-input">
 
@@ -106,7 +114,7 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="8">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
+            <td colspan="10">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
             <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
             <td colspan="3"></td>
           </tr>

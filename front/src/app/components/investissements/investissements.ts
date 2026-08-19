@@ -20,6 +20,10 @@ import {
 } from './investissements-facteur';
 
 import { lireClasseurImmobilisations } from './investissements-excel';
+import { appliquerFacteurEnMasse, facteurSaisi } from '../../core/modification-masse';
+import {
+  CorrectionAnomaliesComponent, ResultatCorrections
+} from '../../shared/ui/correction-anomalies';
 import { statutRetenu } from '../../shared/ui/kpis-categorie';
 import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatchees';
 import { provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } from '../../shared/ui/kpis-categorie';
@@ -71,7 +75,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-investissements',
   standalone: true,
-  imports: [LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [CorrectionAnomaliesComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './investissements.html',
   styleUrl: './investissements.css'
@@ -266,7 +270,109 @@ export class InvestissementsComponent implements OnInit {
   }
 
   get nombreReplis(): number {
-    return this.listeEmissions.filter(e => e.replique).length;
+    return this.lignesEnAnomalie.length;
+  }
+
+  // ---------- Correction des lignes en anomalie ----------
+
+  /** Panneau de correction ouvert depuis la bannière d'alerte. */
+  correctionOuverte = false;
+  correctionMessage = '';
+
+  /**
+   * Lignes que la bannière signale : celles dont la famille a été appliquée
+   * d'office, faute de catégorie exploitable dans le classeur.
+   */
+  get lignesEnAnomalie(): EmissionInvestissement[] {
+    return this.listeEmissions.filter(e => e.replique);
+  }
+
+  /** Catégories proposées à la correction, telles que l'écran les connaît. */
+  get categoriesProposees(): string[] {
+    return [...this.categoriesCarbone].filter(c => c !== this.categorieRepli);
+  }
+
+  /** Champs que le panneau lit sur une immobilisation. */
+  readonly champsCorrection = {
+    identifiant: 'id', reference: 'referenceCarbone', codeArticle: 'codeArticle',
+    libelle: 'designation', grandeur: 'montant', categorie: 'categorieCarbone',
+    facteur: 'facteur'
+  };
+
+  ouvrirCorrection(): void {
+    this.correctionOuverte = true;
+    this.correctionMessage = '';
+  }
+
+  fermerCorrection(): void {
+    this.correctionOuverte = false;
+  }
+
+  /**
+   * Applique les corrections rendues par le panneau.
+   *
+   * <p>Une ligne qui reçoit sa catégorie cesse d'être un repli : elle est
+   * revalorisée par le référentiel, bascule en statut documenté et rejoint le
+   * tableau principal. La bannière la décompte du même mouvement, puisqu'elle
+   * lit {@link lignesEnAnomalie}.</p>
+   */
+  appliquerCorrections(resultat: ResultatCorrections): void {
+    const retires = new Set(resultat.suppressions);
+    const parId = new Map(resultat.corrections.map(c => [c.id, c]));
+
+    this.listeEmissions = this.listeEmissions
+      .filter(ligne => !retires.has(ligne.id))
+      .map(ligne => {
+        const correction = parId.get(ligne.id);
+        if (!correction) return ligne;
+
+        const categorie = (correction.categorie ?? ligne.categorieCarbone) as CategorieCarbone;
+
+        // La catégorie renseignée désigne un facteur du référentiel ; le
+        // facteur saisi à la main prime sur lui, l'utilisateur ayant tranché.
+        const retenu = retenirFacteurCapex(this.facteursDisponibles, {
+          categorie, devise: this.deviseActive,
+          referenceCarbone: ligne.referenceCarbone, codeArticle: ligne.codeArticle
+        });
+
+        const facteur = correction.facteur ?? retenu.valeur;
+        const documente = Boolean(correction.categorie) || correction.facteur !== undefined;
+
+        return {
+          ...ligne,
+          categorieCarbone: categorie,
+          categorieTexte: correction.categorie ?? ligne.categorieTexte,
+          // La ligne cesse d'être un repli : c'est ce qui la sort de l'alerte.
+          replique: documente ? false : ligne.replique,
+          facteur,
+          uniteFacteur: retenu.unite,
+          libelleFacteur: retenu.libelle,
+          referenceCarbone: correction.facteur !== undefined
+            ? ligne.referenceCarbone
+            : (retenu.reference || ligne.referenceCarbone),
+          baseAppliquee: correction.facteur !== undefined
+            ? 'Correction manuelle (panneau d\'anomalies)'
+            : retenu.baseAppliquee,
+          origineFacteur: correction.facteur !== undefined ? 'ADEME Fallback' : retenu.origine,
+          emissionCalculee: calculerEmissionCapex(ligne.montant, facteur)
+        };
+      });
+
+    this.sauvegarder();
+
+    // Les lignes ventilées retirées quittent aussi le magasin, donc le bilan.
+    const clesVentilees = resultat.suppressions
+      .map(id => this.toutesLignes.find(l => l.id === id))
+      .map(ligne => (ligne as { cleVentilation?: string } | undefined)?.cleVentilation)
+      .filter((cle): cle is string => typeof cle === 'string' && cle.length > 0);
+
+    if (clesVentilees.length) this.dispatchStore.supprimerLignes(clesVentilees);
+
+    this.correctionMessage =
+      `${resultat.corrections.length} ligne(s) corrigée(s) et `
+      + `${resultat.suppressions.length} retirée(s) du bilan.`;
+    this.correctionOuverte = false;
+    this.cdr.detectChanges();
   }
 
   // ---------- Tableau et pagination ----------
@@ -512,16 +618,23 @@ export class InvestissementsComponent implements OnInit {
   }
 
   telechargerGabarit(): void {
+    // Les colonnes de référence figurent en tête : ce sont elles que
+    // l'importeur essaie d'abord, avant la catégorie.
     const exemples = [
       {
+        'Référence Carbone': 'MS3C15ME', 'Code Article ERP': 'IMM-20113',
         'Numéro d\'immobilisation': '20113', 'Nom': 'MOULE 25.088 ARGO',
         'Acquisitions': 34001, 'Catégorie Carbone': 'Metals / Metal Products'
       },
       {
+        'Référence Carbone': 'MS3C15AL', 'Code Article ERP': 'IMM-21580',
         'Numéro d\'immobilisation': '21580', 'Nom': 'PROFILE ALUMINIUM 6M',
         'Acquisitions': 12500, 'Catégorie Carbone': 'Alum / Aluminium'
       },
       {
+        // Ligne sans référence : le modèle montre aussi ce cas, que la famille
+        // de repli rattrape.
+        'Référence Carbone': '', 'Code Article ERP': 'IME-00851',
         'Numéro d\'immobilisation': 'IME-00851', 'Nom': 'CONVOYEUR A BANDE',
         'Acquisitions': 60000, 'Catégorie Carbone': '#N/A'
       }
@@ -668,6 +781,99 @@ export class InvestissementsComponent implements OnInit {
   /** Saisies de l'utilisateur et lignes ventilées, dans cet ordre d'affichage. */
   get toutesLignes(): EmissionInvestissement[] {
     return [...this.lignesVentilees, ...this.listeEmissions];
+  }
+
+  // ---------- Reprise en masse du facteur ----------
+
+  /** Panneau de reprise ouvert, une fois une catégorie choisie. */
+  masseOuverte = false;
+  /** Facteur saisi, laissé en texte pour admettre la virgule décimale. */
+  masseFacteur = '';
+  masseMessage = '';
+  masseErreur = '';
+
+  /**
+   * La reprise en masse est-elle proposée ?
+   *
+   * <p>Seulement après un filtre : appliquer un facteur à l'ensemble des
+   * immobilisations, toutes familles confondues, n'aurait aucun sens — un
+   * facteur documente une matière, pas un inventaire.</p>
+   */
+  get masseDisponible(): boolean {
+    return this.filtreCategorie !== 'Toutes' && this.lignesReprises.length > 0;
+  }
+
+  /**
+   * Lignes que la reprise touchera.
+   *
+   * <p>Les lignes ventilées y figurent désormais : les exclure laissait une
+   * catégorie corrigée à moitié à l'ancienne valeur, et le total ne bougeait
+   * pas comme l'utilisateur l'attendait. Elles sont rendues au magasin de
+   * répartition, qui seul peut les republier.</p>
+   */
+  get lignesReprises(): EmissionInvestissement[] {
+    return this.emissionsFiltrees;
+  }
+
+  /** Lignes saisies parmi celles que la reprise touche. */
+  private get saisiesReprises(): EmissionInvestissement[] {
+    const filtrees = new Set(this.emissionsFiltrees);
+    return this.listeEmissions.filter(l => filtrees.has(l));
+  }
+
+  ouvrirReprise(): void {
+    this.masseOuverte = true;
+    this.masseMessage = '';
+    this.masseErreur = '';
+    this.masseFacteur = '';
+  }
+
+  fermerReprise(): void {
+    this.masseOuverte = false;
+    this.masseErreur = '';
+  }
+
+  /**
+   * Applique le facteur saisi à toutes les lignes filtrées de la catégorie.
+   *
+   * <p>Le compte rendu chiffre l'écart d'émission produit : une reprise en
+   * masse déplace le total d'une catégorie entière, et l'utilisateur doit le
+   * voir ici plutôt que de le découvrir dans le rapport.</p>
+   */
+  appliquerReprise(): void {
+    const facteur = facteurSaisi(this.masseFacteur);
+
+    if (facteur === null) {
+      this.masseErreur = 'Saisissez un facteur strictement positif — par exemple 0,42.';
+      return;
+    }
+
+    const champs = {
+      grandeur: 'montant', facteur: 'facteur', emission: 'emissionCalculee',
+      base: 'baseAppliquee', origine: 'origineFacteur'
+    };
+
+    // Les lignes saisies sont réécrites ici et enregistrées ; les ventilées
+    // sont rendues au magasin, seul capable de les republier à ses abonnés.
+    const saisies = this.saisiesReprises;
+    const { lignes, modifiees, message } = appliquerFacteurEnMasse(saisies, facteur, champs);
+
+    if (modifiees) {
+      const reprises = new Map(saisies.map((ligne, rang) => [ligne, lignes[rang]]));
+      this.listeEmissions = this.listeEmissions.map(ligne => reprises.get(ligne) ?? ligne);
+      this.sauvegarder();
+    }
+
+    const clesVentilees = this.emissionsFiltrees
+      .map(ligne => (ligne as { cleVentilation?: string }).cleVentilation)
+      .filter((cle): cle is string => typeof cle === 'string' && cle.length > 0);
+
+    if (clesVentilees.length) this.dispatchStore.reprendreFacteur(clesVentilees, facteur);
+
+    this.masseErreur = '';
+    this.masseMessage = message;
+    this.masseOuverte = false;
+    this.cdr.detectChanges();
   }
 
   /**

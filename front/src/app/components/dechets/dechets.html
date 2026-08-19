@@ -4,7 +4,9 @@
   <app-lignes-dispatchees ecran="dechets"></app-lignes-dispatchees>
 
   <!-- INDICATEURS DE SYNTHÈSE -->
-  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+  <app-kpis-categorie [cartes]="kpisCategorie"
+                      [filtreActif]="filtreStatut"
+                      (filtrer)="filtreStatut = $event"></app-kpis-categorie>
 
 
   <!-- EN-TÊTE DE LA CATÉGORIE -->
@@ -39,6 +41,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="typeDechet" libelle="Type de déchet"
+                        libelleTous="Tous les types de déchet"
+                        [source]="toutesLignes" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="filieres"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte"
              placeholder="Recherche par déchet, prestataire, filière ou base…" class="search-input">
 
@@ -173,7 +184,7 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="8">Total — {{ emissionsFiltrees.length }} flux</td>
+            <td colspan="10">Total — {{ emissionsFiltrees.length }} flux</td>
             <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
             <td colspan="2"></td>
           </tr>

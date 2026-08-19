@@ -1,4 +1,7 @@
 import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID, inject } from '@angular/core';
+import { lireReferenceCarbone, lireCodeArticle } from '../../core/colonnes-identite';
+import { colonnesIdentite } from '../../core/colonnes-identite';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -63,7 +66,7 @@ const CLE_STOCKAGE = 'listeEmissionsElectricite';
 @Component({
   selector: 'app-electricite-achetee',
   standalone: true,
-  imports: [KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './electricite-achetee.html',
   styleUrl: './electricite-achetee.css'
@@ -247,10 +250,53 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
   // ---------- Tableau ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+
+    // Les lignes saisies vivent ici ; celles issues de la ventilation
+    // appartiennent au magasin, seul capable de les republier à tous ses
+    // abonnés — tableau, indicateurs et bilan se mettent à jour ensemble.
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+
+    const clesVentilees = evenement.avant
+      .map((ligne: any) => ligne?.cleVentilation)
+      .filter((cle: unknown): cle is string => typeof cle === 'string' && cle.length > 0);
+
+    if (clesVentilees.length) {
+      const facteur = Number(evenement.apres[0]?.facteur ?? 0);
+      this.dispatchStore.reprendreFacteur(clesVentilees, facteur);
+    }
+  }
+
   get emissionsFiltrees(): EmissionElectricite[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.toutesLignes.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.emissionSource !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
       if (this.filtreEtablissement !== 'Tous' && item.etablissement !== this.filtreEtablissement) {
@@ -560,6 +606,8 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
   telechargerGabarit(): void {
     const exemple: Record<string, string | number> = {
+      // Colonnes d'identité, aux intitulés que les parseurs reconnaissent.
+      ...colonnesIdentite('MS2ENEC', 'ELE-0001'),
       'Usine': this.usinesDisponibles[0]?.nom ?? 'MISFAT 1',
       'Source d emission': this.sourcesDisponibles[0] ?? 'Electricity consumption',
       'Reference': this.facteursDisponibles[0]?.referenceCode ?? 'MS2ENEC',
@@ -610,6 +658,10 @@ export class ElectriciteAcheteeComponent implements OnInit {
             return trouve ? ligne[trouve] : null;
           };
 
+          // Colonnes d'identité, aux intitulés que le modèle produit.
+          const refClasseur = lireReferenceCarbone(ligne);
+          const codeArticle = lireCodeArticle(ligne);
+
           const usine = String(valeur('Usine') ?? '').trim();
           const source = String(valeur('Source d emission') ?? '').trim();
           const base = String(valeur('Base appliquee') ?? '').trim();
@@ -623,7 +675,16 @@ export class ElectriciteAcheteeComponent implements OnInit {
           }
 
           const candidats = this.facteursDisponibles.filter(f => f.typeName === source);
-          const facteur = (base && candidats.find(f => f.databaseSource === base)) ?? candidats[0];
+
+          // La référence du classeur désigne un facteur ; la source et la base
+          // ne font qu'orienter. La première prime donc.
+          const parReference = refClasseur
+            ? this.facteursDisponibles.find(
+                f => (f.referenceCode ?? '').trim().toUpperCase() === refClasseur.toUpperCase())
+            : undefined;
+          const facteur = parReference
+            ?? (base && candidats.find(f => f.databaseSource === base))
+            ?? candidats[0];
           if (!facteur) {
             erreurs.push(`ligne ${index + 2} : source « ${source} » absente du référentiel`);
             return;
@@ -640,6 +701,7 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
           ajoutees.push({
             id: Date.now() + index,
+            codeArticle,
             scope: 'SCOPE_2',
             categorie: 'Électricité achetée',
             etablissement: usine,
@@ -751,7 +813,10 @@ export class ElectriciteAcheteeComponent implements OnInit {
         libelle: 'Couverture MS SQL', icone: '🎯', accent: 'couverture',
         valeur: couverture.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %',
         unite: 'sinon repli ADEME',
-        alerte: couverture < 80
+        alerte: couverture < 80,
+        // Cliquer la carte n'affiche que les lignes qu'elle signale : celles
+        // qu'aucun facteur du référentiel n'adosse.
+        filtreStatut: 'Fallback' as const
       }
     ];
   }

@@ -816,3 +816,25 @@
     border-style: dashed !important;
     opacity: 0.85;
 }
+
+
+/* ---------- Défilement horizontal des tableaux ---------- */
+/* overflow-x seul ne défile pas : sans borne de largeur, le conteneur s'étire
+   au min-width du tableau et déborde la page. La borne, plus min-width: 0 pour
+   lever la taille minimale automatique des éléments de flex, rend le
+   défilement effectif — aucune colonne n'est plus rognée à droite. */
+.table-container {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Le parent direct doit accepter de rétrécir, sinon il impose sa largeur. */
+.emission-card,
+.emission-container,
+.categorie-card,
+.categorie-container {
+  min-width: 0;
+  max-width: 100%;
+}

@@ -4,7 +4,9 @@
   <app-lignes-dispatchees ecran="biens-services"></app-lignes-dispatchees>
 
   <!-- INDICATEURS DE SYNTHÈSE -->
-  <app-kpis-categorie [cartes]="kpisCategorie"></app-kpis-categorie>
+  <app-kpis-categorie [cartes]="kpisCategorie"
+                      [filtreActif]="filtreStatut"
+                      (filtrer)="filtreStatut = $event"></app-kpis-categorie>
 
 
   <!-- EN-TÊTE DE LA CATÉGORIE -->
@@ -32,6 +34,15 @@
 
     <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="table-actions">
+      <!-- Filtre métier et reprise du facteur sur ce qu'il sélectionne -->
+      <app-filtre-masse champ="categorieCarbone" libelle="Catégorie carbone"
+                        libelleTous="Toutes les catégories"
+                        [source]="toutesLignes" [lignes]="emissionsFiltrees"
+                        [optionsParDefaut]="categoriesCarbone"
+                        [champsMasse]="champsMasse"
+                        [(valeur)]="filtreMetier"
+                        (reprises)="reprendreEnMasse($event)"></app-filtre-masse>
+
       <input type="text" [(ngModel)]="rechercheTexte"
              placeholder="Recherche par catégorie, étiquette, référence ou usine…" class="search-input">
 

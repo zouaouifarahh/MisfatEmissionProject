@@ -1,0 +1,336 @@
+/* ============================================================
+   Consolidation Groupe
+   ------------------------------------------------------------
+   Un écran de lecture, pas de saisie : la hiérarchie va du total
+   Groupe à la filiale, et la seule couleur signifiante marque
+   l'écart à la médiane.
+   ============================================================ */
+
+.cg-ecran {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.cg-entete {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.cg-titre {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.cg-sous-titre {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.cg-exercice {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cg-exercice span {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #64748b;
+}
+
+.cg-exercice select {
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font: inherit;
+    font-size: 13px;
+    background: var(--surface, #ffffff);
+}
+
+.cg-etat,
+.cg-vide,
+.cg-note {
+    margin: 12px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #64748b;
+}
+
+.cg-reserve {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #92400e;
+}
+
+.cg-avertissement {
+    margin: 0 0 14px;
+    padding: 9px 13px;
+    border-left: 3px solid #93c5fd;
+    background: #eff6ff;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #1e40af;
+}
+
+.cg-appel {
+    margin: 18px 0 0;
+    padding: 12px 15px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #475569;
+    background: #f8fafc;
+}
+
+/* --- Chiffres de tête --- */
+
+.cg-chiffres {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.cg-chiffre {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 13px 15px;
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    min-width: 0;
+}
+
+.chiffre-libelle {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.chiffre-valeur {
+    font-size: 23px;
+    font-weight: 700;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+    min-height: 30px;
+}
+
+.chiffre-unite {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* --- Blocs --- */
+
+.cg-bloc {
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 14px;
+    padding: 18px 20px 20px;
+    margin-bottom: 18px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.cg-bloc h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.cg-bloc-tete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.cg-bloc-tete h3 { margin: 0; }
+
+.cg-onglets {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    background: #f1f5f9;
+    border-radius: 9px;
+    padding: 3px;
+}
+
+.cg-onglets button {
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    padding: 6px 13px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.cg-onglets button.actif {
+    background: var(--surface, #ffffff);
+    color: #1d4ed8;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .1);
+}
+
+/* --- Barres comparatives --- */
+
+.cg-barres {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.barre-tete {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
+.barre-nom {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.barre-pays {
+    font-size: 11px;
+    color: #94a3b8;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+}
+
+.barre-valeur {
+    margin-left: auto;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+
+.barre-valeur small {
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+}
+
+/* Une filiale sans dénominateur n'est pas à zéro : elle est sans mesure, et
+   la mention prend la place de la valeur plutôt que d'une barre vide. */
+.barre-manque {
+    margin-left: auto;
+    font-size: 11px;
+    font-style: italic;
+    color: #94a3b8;
+}
+
+.barre-piste {
+    height: 10px;
+    border-radius: 5px;
+    background: #f1f5f9;
+    overflow: hidden;
+}
+
+.barre-remplie {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    transition: width .25s ease;
+}
+
+.barre-ecart {
+    margin: 5px 0 0;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.ecart-defavorable { color: #b91c1c; }
+.ecart-favorable { color: #15803d; }
+
+/* --- Tableaux --- */
+
+.cg-tableau-cadre {
+    overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+}
+
+.cg-tableau {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.cg-tableau th,
+.cg-tableau td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    white-space: nowrap;
+}
+
+.cg-tableau thead th {
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #64748b;
+    text-align: left;
+}
+
+.cg-tableau .ta-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.cg-tableau tbody tr:hover { background: #f8fafc; }
+
+.cellule-nom { font-weight: 600; color: #0f172a; }
+
+.num-fort { font-weight: 700; color: #0f172a; }
+
+.cg-tableau tfoot td {
+    background: #f8fafc;
+    border-bottom: none;
+    border-top: 2px solid var(--border, #e2e8f0);
+    font-weight: 600;
+}
+
+.devise {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-left: 2px;
+}
+
+.non-renseigne { color: #cbd5e1; }

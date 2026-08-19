@@ -1,4 +1,7 @@
 import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { lireReferenceCarbone, lireCodeArticle } from '../../core/colonnes-identite';
+import { colonnesIdentite } from '../../core/colonnes-identite';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -56,7 +59,7 @@ const LIBELLE_CATEGORIE = 'Activités liées à l\'énergie';
 @Component({
   selector: 'app-activites-energie',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './activites-energie.html',
   styleUrl: './activites-energie.css'
@@ -303,10 +306,40 @@ export class ActivitesEnergieComponent implements OnInit {
 
   // ---------- Tableau ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+  }
+
   get emissionsFiltrees(): EmissionEnergie[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.listeEmissions.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.typeEnergie !== this.filtreMetier) return false;
       if (this.filtreEtablissement !== 'Tous' && item.etablissement !== this.filtreEtablissement) {
         return false;
       }
@@ -562,6 +595,8 @@ export class ActivitesEnergieComponent implements OnInit {
       ?? 'Electricity grid, T&D losses, upstream emissions';
 
     const exemple: Record<string, string | number> = {
+      // Colonnes d'identité, aux intitulés que les parseurs reconnaissent.
+      ...colonnesIdentite('MS3C3FE', 'ENE-0007'),
       'Usine': this.usinesDisponibles[0]?.nom ?? 'MISFAT 1',
       'Type energie': typeExemple,
       'Etiquette': 'Pertes transformateur poste HT',
@@ -613,6 +648,10 @@ export class ActivitesEnergieComponent implements OnInit {
             return trouve ? ligne[trouve] : null;
           };
 
+          // Colonnes d'identité, aux intitulés que le modèle produit.
+          const refClasseur = lireReferenceCarbone(ligne);
+          const codeArticle = lireCodeArticle(ligne);
+
           const type = String(valeur('Type energie') ?? '').trim();
           const etiquette = String(valeur('Etiquette') ?? '').trim();
           if (!type) { ignorees++; return; }
@@ -621,12 +660,19 @@ export class ActivitesEnergieComponent implements OnInit {
             .filter(f => this.normaliser(f.typeName) === this.normaliser(type));
           if (!candidats.length) { sansFacteur.add(type); return; }
 
-          const facteur = candidats[0];
+          // La référence du classeur désigne un facteur ; le libellé ne fait
+          // qu'orienter vers une famille. La première prime donc.
+          const parReference = refClasseur
+            ? this.facteursDisponibles.find(
+                f => (f.referenceCode ?? '').trim().toUpperCase() === refClasseur.toUpperCase())
+            : undefined;
+          const facteur = parReference ?? candidats[0];
           const quantite = Number(valeur('Quantité'));
           if (!Number.isFinite(quantite)) { ignorees++; return; }
 
           ajoutees.push({
             id: Date.now() + index,
+            codeArticle,
             scope: 'SCOPE_3',
             categorie: LIBELLE_CATEGORIE,
             etablissement: String(valeur('Usine') ?? this.usinesDisponibles[0]?.nom ?? '').trim(),

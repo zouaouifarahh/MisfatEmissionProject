@@ -1,0 +1,197 @@
+<section class="sbti-card">
+
+  <header class="sbti-entete">
+    <div>
+      <h3 class="sbti-titre">Trajectoire SBTi — réel contre engagement</h3>
+      <p class="sbti-sous-titre">
+        {{ libelleDuPerimetre() }} · base {{ anneeBase() }} · −{{ reductionPct() }} %
+        à l'horizon {{ anneeCible() }}
+        <span *ngIf="titrePerimetre"> · {{ titrePerimetre }}</span>
+      </p>
+    </div>
+
+    <span class="sbti-statut"
+          [class.statut-conforme]="statut() === 'CONFORME'"
+          [class.statut-derive]="statut() === 'DERIVE'">
+      <ng-container [ngSwitch]="statut()">
+        <ng-container *ngSwitchCase="'CONFORME'">Dans le couloir</ng-container>
+        <ng-container *ngSwitchCase="'DERIVE'">Au-dessus du couloir</ng-container>
+        <ng-container *ngSwitchDefault>Trajectoire non évaluable</ng-container>
+      </ng-container>
+    </span>
+  </header>
+
+  <!-- Les paramètres restent modifiables : un pilotage doit pouvoir simuler.
+       Le bandeau ci-dessous rappelle quand l'affichage a quitté l'engagement. -->
+  <div class="sbti-parametres">
+    <label>
+      <span>Périmètre</span>
+      <select [ngModel]="perimetre()" (ngModelChange)="perimetre.set($event)">
+        <option *ngFor="let p of PERIMETRES" [value]="p.code">{{ p.libelle }}</option>
+      </select>
+    </label>
+
+    <label>
+      <span>Année de base</span>
+      <input type="number" min="2015" max="2035" step="1"
+             [ngModel]="anneeBase()" (ngModelChange)="anneeBase.set(+$event)">
+    </label>
+
+    <label>
+      <span>Échéance</span>
+      <input type="number" min="2025" max="2050" step="1"
+             [ngModel]="anneeCible()" (ngModelChange)="anneeCible.set(+$event)">
+    </label>
+
+    <label>
+      <span>Réduction visée</span>
+      <input type="number" min="0" max="100" step="1"
+             [ngModel]="reductionPct()" (ngModelChange)="reductionPct.set(+$event)">
+    </label>
+
+    <button type="button" class="sbti-retablir" *ngIf="!engagementIntact()"
+            (click)="retablirEngagement()">
+      ↺ Revenir à l'engagement validé
+    </button>
+  </div>
+
+  <p class="sbti-simulation" *ngIf="!engagementIntact()">
+    Simulation — ces paramètres ne sont plus ceux de la cible validée le
+    10 novembre 2025 ({{ libellePerimetreEngagement }}, base
+    {{ ANNEE_BASE_ENGAGEMENT }}, −{{ REDUCTION_ENGAGEMENT }} % en
+    {{ ANNEE_CIBLE_ENGAGEMENT }}).
+  </p>
+
+  <ng-container *ngIf="trajectoire() as t; else sansTrajectoire">
+
+    <div class="sbti-chiffres">
+      <div class="sbti-chiffre">
+        <span class="chiffre-libelle">Année de base {{ t.anneeBase }}</span>
+        <span class="chiffre-valeur">{{ t.valeurBase | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e</span>
+      </div>
+      <div class="sbti-chiffre">
+        <span class="chiffre-libelle">Cible {{ t.anneeCible }}</span>
+        <span class="chiffre-valeur">{{ t.valeurCible | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e</span>
+      </div>
+      <div class="sbti-chiffre" *ngIf="t.dernierExercice as dernier">
+        <span class="chiffre-libelle">Dernier exercice {{ dernier.annee }}</span>
+        <span class="chiffre-valeur">{{ dernier.reel | number:'1.0-0' }}</span>
+        <span class="chiffre-unite"
+              [class.ecart-defavorable]="dernier.conforme === false"
+              [class.ecart-favorable]="dernier.conforme === true">
+          {{ (dernier.ecartPct ?? 0) >= 0 ? '+' : '' }}{{ dernier.ecartPct | number:'1.0-1' }} %
+          vs couloir
+        </span>
+      </div>
+      <div class="sbti-chiffre" *ngIf="effortAnnuelRestant() as effort">
+        <span class="chiffre-libelle">Effort restant</span>
+        <span class="chiffre-valeur">{{ effort | number:'1.0-0' }}</span>
+        <span class="chiffre-unite">tCO₂e / an</span>
+      </div>
+    </div>
+
+    <div class="sbti-graphe">
+      <svg [attr.viewBox]="'0 0 ' + larg + ' ' + haut" preserveAspectRatio="none"
+           role="img"
+           [attr.aria-label]="'Trajectoire ' + libelleDuPerimetre() + ' de ' + t.anneeBase
+                              + ' à ' + t.anneeCible + ', réel contre cible'">
+
+        <line *ngFor="let repere of grille()" class="sbti-grille"
+              x1="0" [attr.y1]="repere.y" [attr.x2]="larg" [attr.y2]="repere.y"></line>
+
+        <!-- La surface entre réel et cible : la dette accumulée se lit d'un coup. -->
+        <path *ngIf="aireDerive()" class="sbti-aire" [attr.d]="aireDerive()"></path>
+
+        <!-- Cible en trait discontinu : la discontinuité dit qu'on n'y a rien mesuré. -->
+        <path class="sbti-trace-cible" [attr.d]="traceCible()"></path>
+
+        <!-- Réel plein, et arrêté net au dernier exercice collecté. -->
+        <path class="sbti-trace-reel" [attr.d]="traceReel()"></path>
+
+        <line class="sbti-echeance" [attr.x1]="xEcheance()" [attr.y1]="yCible()"
+              [attr.x2]="xEcheance()" [attr.y2]="basGraphe"></line>
+
+        <circle *ngFor="let m of marqueurs()" class="sbti-point"
+                [class.point-derive]="!m.conforme"
+                [attr.cx]="m.cx" [attr.cy]="m.cy" r="4.5">
+          <title>{{ m.annee }} — réel {{ m.reel | number:'1.0-0' }} tCO₂e,
+                 couloir {{ m.cible | number:'1.0-0' }} tCO₂e</title>
+        </circle>
+      </svg>
+
+      <div class="sbti-echelle">
+        <span *ngFor="let repere of grille()"
+              [style.top.%]="(repere.y / haut) * 100">{{ repere.libelle }}</span>
+      </div>
+
+      <div class="sbti-annees">
+        <span *ngFor="let g of graduations()" [class.annee-projetee]="g.projete"
+              [style.left.%]="(g.x / larg) * 100">{{ g.annee }}</span>
+      </div>
+    </div>
+
+    <ul class="sbti-legende">
+      <li><span class="puce puce-reel"></span> Émissions constatées</li>
+      <li><span class="puce puce-cible"></span> Couloir SBTi (linéaire)</li>
+      <li><span class="puce puce-aire"></span> Écart au couloir</li>
+    </ul>
+
+    <div class="sbti-tableau-cadre">
+      <table class="sbti-tableau">
+        <caption class="sr-only">
+          Réel et couloir SBTi année par année, de {{ t.anneeBase }} à {{ t.anneeCible }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Exercice</th>
+            <th scope="col" class="ta-right">Réel (tCO₂e)</th>
+            <th scope="col" class="ta-right">Couloir (tCO₂e)</th>
+            <th scope="col" class="ta-right">Écart</th>
+            <th scope="col">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of lignesTableau()" [class.ligne-projetee]="p.projete">
+            <td>{{ p.annee }}</td>
+            <td class="ta-right">
+              <ng-container *ngIf="p.reel !== null; else nonCollecte">
+                {{ p.reel | number:'1.0-0' }}
+              </ng-container>
+            </td>
+            <td class="ta-right">{{ p.cible | number:'1.0-0' }}</td>
+            <td class="ta-right"
+                [class.ecart-defavorable]="p.conforme === false"
+                [class.ecart-favorable]="p.conforme === true">
+              <ng-container *ngIf="p.ecart !== null; else nonCollecte">
+                {{ p.ecart > 0 ? '+' : '' }}{{ p.ecart | number:'1.0-0' }}
+              </ng-container>
+            </td>
+            <td>
+              <span *ngIf="p.conforme === true" class="badge-statut badge-ok">Tenu</span>
+              <span *ngIf="p.conforme === false" class="badge-statut badge-ko">Dérive</span>
+              <span *ngIf="p.conforme === null" class="badge-statut badge-vide">Non collecté</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="sbti-note">
+      Le tracé du réel s'arrête au dernier exercice collecté
+      ({{ exercicesCollectes() }} exercice(s) chiffré(s)). Les années suivantes
+      ne portent que le couloir : une valeur projetée n'est pas une mesure.
+    </p>
+  </ng-container>
+
+  <ng-template #nonCollecte><span class="non-collecte">—</span></ng-template>
+
+  <ng-template #sansTrajectoire>
+    <p class="sbti-vide">
+      Aucun exercice n'est chiffré sur {{ libelleDuPerimetre() }}. La trajectoire
+      apparaîtra dès qu'une collecte aura alimenté une année de base.
+    </p>
+  </ng-template>
+
+</section>

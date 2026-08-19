@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -60,7 +61,7 @@ const LIBELLE_CATEGORIE = 'Biens d\'équipement';
 @Component({
   selector: 'app-biens-equipement',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './biens-equipement.html',
   styleUrl: './biens-equipement.css'
@@ -389,10 +390,40 @@ export class BiensEquipementComponent implements OnInit {
 
   // ---------- Tableau ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'quantite', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+  }
+
   get emissionsFiltrees(): EmissionBienEquipement[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.listeEmissions.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.categorieCarbone !== this.filtreMetier) return false;
       if (this.filtreEtablissement !== 'Tous' && item.etablissement !== this.filtreEtablissement) {
         return false;
       }
@@ -677,6 +708,10 @@ export class BiensEquipementComponent implements OnInit {
     const exemple: Record<string, string | number> = {
       'Usine': this.usinesDisponibles[0]?.nom ?? 'MISFAT 1',
       'Modele / Marque': 'Presse hydraulique SCHULER PH-250',
+      // Colonnes lues par l'importeur : la référence désigne le facteur, le
+      // code article identifie la pièce dans l'ERP.
+      'Référence Carbone': 'MS3C2ACW',
+      'Code Article ERP': 'EQ-00312',
       'Catégorie Carbone': this.categoriesCarbone[0] ?? 'Industrial Machinery Manufacturing',
       'Quantité': 1,
       'Valeur d\'acquisition en TND': 185000,

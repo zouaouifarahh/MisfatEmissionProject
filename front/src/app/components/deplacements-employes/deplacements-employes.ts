@@ -1,4 +1,6 @@
 import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { colonnesIdentite } from '../../core/colonnes-identite';
+import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -72,7 +74,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-deplacements-employes',
   standalone: true,
-  imports: [KpisCategorieComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './deplacements-employes.html',
   styleUrl: './deplacements-employes.css'
@@ -255,10 +257,40 @@ export class DeplacementsEmployesComponent implements OnInit {
 
   // ---------- Tableau et pagination ----------
 
+  /**
+   * Filtre métier, aligné sur la liste déroulante de la saisie manuelle.
+   *
+   * <p>Chaque écran filtre selon ce qu'il documente : imposer une dimension
+   * commune reviendrait à proposer un critère étranger à la moitié d'entre
+   * eux.</p>
+   */
+  filtreMetier = 'Tous';
+
+  /** Champs que la reprise en masse écrit sur chaque ligne de cet écran. */
+  readonly champsMasse = {
+    grandeur: 'distanceAllerKm', facteur: 'facteur',
+    emission: 'emissionCalculee', base: 'baseAppliquee'
+  };
+
+  /**
+   * Prend acte d'une reprise en masse.
+   *
+   * <p>Seules les lignes saisies sont réécrites : les lignes ventilées
+   * appartiennent au magasin de répartition, qui les recalcule à chaque
+   * import.</p>
+   */
+  reprendreEnMasse(evenement: { avant: any[]; apres: any[] }): void {
+    const reprises = new Map(evenement.avant.map((l, rang) => [l, evenement.apres[rang]]));
+    this.listeEmissions = this.listeEmissions.map(l => reprises.get(l) ?? l) as any;
+    this.sauvegarder();
+  }
+
   get emissionsFiltrees(): EmissionDeplacement[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
     const liste = this.listeEmissions.filter(item => {
+      // Filtre métier : le critère que cet écran documente.
+      if (this.filtreMetier !== 'Tous' && item.mode !== this.filtreMetier) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
       if (this.filtreEtablissement !== 'Tous' && item.etablissement !== this.filtreEtablissement) {
         return false;
@@ -567,6 +599,8 @@ export class DeplacementsEmployesComponent implements OnInit {
 
   telechargerGabarit(): void {
     const exemple: Record<string, string | number> = {
+      // Colonnes d'identité, aux intitulés que les parseurs reconnaissent.
+      ...colonnesIdentite('MS3C7EC', 'DEP-0102'),
       'Matricule': 'M001',
       'Nom & Prénom': 'AHMED BEN ALI',
       'Établissement': this.usinesDisponibles[0]?.nom ?? ETABLISSEMENT_DEFAUT,
@@ -752,7 +786,10 @@ export class DeplacementsEmployesComponent implements OnInit {
         libelle: 'Couverture MS SQL', icone: '🎯', accent: 'couverture',
         valeur: couverture.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %',
         unite: 'sinon repli ADEME',
-        alerte: couverture < 80
+        alerte: couverture < 80,
+        // Cliquer la carte n'affiche que les lignes qu'elle signale : celles
+        // qu'aucun facteur du référentiel n'adosse.
+        filtreStatut: 'Fallback' as const
       }
     ];
   }
