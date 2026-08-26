@@ -65,14 +65,36 @@ describe('Tableau de bord — intensités et productivité carbone', () => {
       .enregistrer(null, { ...releveVide(EXERCICE), ...champs, annee: EXERCICE });
   };
 
+  /**
+   * Monte la console et sert ses appels jusqu'à stabilisation.
+   *
+   * <p>Plusieurs passes : le filtre global n'émet qu'une fois les exercices
+   * revenus, et l'agrégat n'est demandé qu'à ce moment. Servir en une seule
+   * vague laisserait la console sans agrégat, donc tous les ratios à zéro.</p>
+   */
   const monter = () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     fixture.detectChanges();
 
-    for (const requete of TestBed.inject(HttpTestingController).match(() => true)) {
-      if (requete.request.url.includes('/emissions/stats/aggregate')) requete.flush(reponseServeur);
-      else if (requete.request.url.includes('/filiales')) requete.flush(FILIALES);
-      else requete.flush([]);
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    for (let passe = 0; passe < 6; passe++) {
+      const attente = httpMock.match(() => true);
+      if (!attente.length) break;
+
+      for (const requete of attente) {
+        if (requete.request.url.includes('/emissions/stats/aggregate')) {
+          requete.flush(reponseServeur);
+        } else if (requete.request.url.includes('/filiales')) {
+          requete.flush(FILIALES);
+        } else if (requete.request.url.includes('/annees')) {
+          requete.flush([{ id: 1, valeur: EXERCICE, statut: 'EN_COURS' }]);
+        } else {
+          requete.flush([]);
+        }
+      }
+
+      fixture.detectChanges();
     }
 
     fixture.componentInstance.selectedAnnee = EXERCICE;

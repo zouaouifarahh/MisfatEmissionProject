@@ -61,18 +61,36 @@ describe('DashboardComponent — refonte du bilan unifié', () => {
     }).compileComponents();
   });
 
+  /**
+   * Monte la console et sert ses appels jusqu'à stabilisation.
+   *
+   * <p>Plusieurs passes : le filtre global n'émet qu'une fois les exercices
+   * revenus, et l'agrégat n'est demandé qu'à ce moment — donc dans une vague
+   * postérieure à celle du premier rendu.</p>
+   */
   function monter() {
     const fixture = TestBed.createComponent(DashboardComponent);
     fixture.detectChanges();
 
-    for (const requete of TestBed.inject(HttpTestingController).match(() => true)) {
-      if (requete.request.url.includes('/emissions/stats/aggregate')) {
-        requete.flush(reponseServeur);
-      } else if (requete.request.url.includes('/filiales')) {
-        requete.flush(FILIALES);
-      } else {
-        requete.flush([]);
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    for (let passe = 0; passe < 6; passe++) {
+      const attente = httpMock.match(() => true);
+      if (!attente.length) break;
+
+      for (const requete of attente) {
+        if (requete.request.url.includes('/emissions/stats/aggregate')) {
+          requete.flush(reponseServeur);
+        } else if (requete.request.url.includes('/filiales')) {
+          requete.flush(FILIALES);
+        } else if (requete.request.url.includes('/annees')) {
+          requete.flush([{ id: 1, valeur: 2024, statut: 'EN_COURS' }]);
+        } else {
+          requete.flush([]);
+        }
       }
+
+      fixture.detectChanges();
     }
 
     fixture.detectChanges();
@@ -82,10 +100,18 @@ describe('DashboardComponent — refonte du bilan unifié', () => {
   describe('unification des émissions', () => {
 
     it('ne demande au serveur que la restitution physique, en tCO₂e', () => {
-      TestBed.createComponent(DashboardComponent).detectChanges();
+      const fixture = TestBed.createComponent(DashboardComponent);
+      fixture.detectChanges();
 
-      const appels = TestBed.inject(HttpTestingController)
-        .match(r => r.url.includes('/emissions/stats/aggregate'));
+      const httpMock = TestBed.inject(HttpTestingController);
+
+      // Les exercices d'abord : aucun agrégat n'est demandé tant que
+      // l'exercice consulté n'est pas arrêté.
+      httpMock.match(r => r.url.includes('/annees'))
+        .forEach(r => r.flush([{ id: 1, valeur: 2024, statut: 'EN_COURS' }]));
+      fixture.detectChanges();
+
+      const appels = httpMock.match(r => r.url.includes('/emissions/stats/aggregate'));
 
       expect(appels.length).toBeGreaterThan(0);
       for (const appel of appels) {

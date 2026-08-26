@@ -2222,11 +2222,15 @@ export class DashboardComponent implements OnInit {
     this.chargerFiliales();
     this.chargerAnnees();
 
-    // Recalcul complet dès l'initialisation : les agrégats ne sont jamais
-    // mémorisés, mais un premier passage garantit que les replis — mesures des
-    // écrans et ventilation — sont pris en compte sans attendre une action.
-    this.chargerStats();
-
+    // Aucun chargement en propre ici : le filtre global n'émet qu'une fois
+    // l'exercice par défaut arrêté, et l'abonnement ci-dessous s'en charge dès
+    // cet instant. Un appel direct lisait le filtre de façon synchrone, donc
+    // avant que la liste des exercices soit revenue : la requête partait sans
+    // année, le serveur la lisait comme « tous les exercices », et le tableau
+    // de bord affichait la somme de toutes les années sous le millésime en
+    // cours avant de se corriger. Au rendu serveur, où il n'y a pas de seconde
+    // réponse, ce total faux était le seul que la page portait.
+    //
     // Le header pilote le périmètre : le dashboard s'y aligne au lieu de
     // maintenir ses propres sélections en parallèle.
     this.entityService.filter$.subscribe(filtre => {

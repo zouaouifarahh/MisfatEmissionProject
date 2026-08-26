@@ -818,6 +818,13 @@ export class ReportingComponent implements OnInit, OnDestroy {
     // que l'en-tête, avec le périmètre élargi aux sociétés de ce pays.
     effect(() => {
       const pays = this.filtres.paysActif();
+
+      // Le filtre est lu de façon synchrone : tant que l'exercice par défaut
+      // n'est pas arrêté, il vaudrait `null` et le bilan serait chargé sur
+      // tous les exercices confondus. L'abonnement à `filter$` charge dès que
+      // l'exercice est connu ; ce premier passage n'a rien à devancer.
+      if (!this.entityService.amorce) return;
+
       this.chargerPerimetre(pays, this.entityService.filter);
     });
   }

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, combineLatest, map, shareReplay } from 'rxjs';
+import { BehaviorSubject, Observable, combineLatest, filter, map, shareReplay } from 'rxjs';
 
 import { OrganizationService } from '../services/organization.service';
 import { Filiale, Usine, AnneeReference } from '../models/organization.model';
@@ -49,12 +49,39 @@ export class EntityContextService {
   readonly usineId$ = this.usineSubject.asObservable();
   readonly year$ = this.yearSubject.asObservable();
 
-  /** Combinaison des trois filtres : source de rechargement des vues. */
+  /**
+   * L'exercice par défaut a-t-il été arrêté ?
+   *
+   * <p>Tant qu'il ne l'est pas, {@link year} vaut `null` faute d'être connu —
+   * et non parce que l'utilisateur aurait demandé tous les exercices. Les deux
+   * s'écrivent pareil et ne veulent pas dire la même chose : c'est ce que ce
+   * drapeau distingue.</p>
+   */
+  private readonly amorceSubject = new BehaviorSubject<boolean>(false);
+
+  /**
+   * Combinaison des trois filtres : source de rechargement des vues.
+   *
+   * <p>Rien n'est émis avant que l'exercice par défaut soit arrêté. Les
+   * {@link BehaviorSubject} qui composent ce flux émettent tous dès leur
+   * création : sans cette retenue, un premier filtre partait avec
+   * `year: null` avant même que la liste des exercices soit revenue, et les
+   * vingt-quatre écrans abonnés lançaient leurs requêtes avec.</p>
+   *
+   * <p>Le serveur lit alors un exercice non renseigné comme « tous les
+   * exercices » — ce qu'il désigne légitimement quand l'utilisateur le demande.
+   * Le tableau de bord affichait donc la somme de toutes les années sous le
+   * millésime en cours, avant de se corriger à la réponse suivante. Sur le
+   * rendu serveur, où il n'y a pas de seconde réponse, le total faux était le
+   * seul que la page portait.</p>
+   */
   readonly filter$: Observable<EntityFilter> = combineLatest([
     this.entitySubject,
     this.usineSubject,
-    this.yearSubject
+    this.yearSubject,
+    this.amorceSubject
   ]).pipe(
+    filter(([, , , amorce]) => amorce),
     map(([entity, usineId, year]) => ({ entityId: entity.id, usineId, year })),
     shareReplay({ bufferSize: 1, refCount: false })
   );
@@ -62,6 +89,16 @@ export class EntityContextService {
   constructor() {
     this.loadEntities();
     this.loadYears();
+  }
+
+  /**
+   * L'exercice par défaut est-il arrêté ?
+   *
+   * <p>Pour les rares écrans qui lisent {@link filter} de façon synchrone,
+   * hors de tout abonnement à {@link filter$}.</p>
+   */
+  get amorce(): boolean {
+    return this.amorceSubject.value;
   }
 
   get entity(): EntityOption {
@@ -162,14 +199,32 @@ export class EntityContextService {
         // l'année en cours d'analyse : la remplacer d'office lui ferait perdre
         // son périmètre de travail.
         const courante = this.yearSubject.value;
-        if (conserverSelection && courante !== null && annees.some(a => a.valeur === courante)) {
-          return;
+        const conserve =
+          conserverSelection && courante !== null && annees.some(a => a.valeur === courante);
+
+        if (!conserve) {
+          const enCours = annees.find(a => a.statut === 'EN_COURS');
+          this.yearSubject.next(enCours ? enCours.valeur : annees[annees.length - 1]?.valeur ?? null);
         }
 
-        const enCours = annees.find(a => a.statut === 'EN_COURS');
-        this.yearSubject.next(enCours ? enCours.valeur : annees[annees.length - 1]?.valeur ?? null);
+        // L'exercice est arrêté : les vues peuvent partir. Levé après la
+        // sélection, jamais avant, sans quoi un filtre sortirait tout de même
+        // sans année.
+        this.ouvrirLesVues();
       },
-      error: err => console.error('Chargement des années impossible', err)
+      error: err => {
+        console.error('Chargement des années impossible', err);
+
+        // Les vues partent quand même, sur un exercice non renseigné : sans
+        // cela, un serveur d'organisation muet figerait toute l'application
+        // sur un écran vide, là où elle sait n'afficher qu'un bilan consolidé.
+        this.ouvrirLesVues();
+      }
     });
+  }
+
+  /** Laisse {@link filter$} émettre, une fois pour toutes. */
+  private ouvrirLesVues(): void {
+    if (!this.amorceSubject.value) this.amorceSubject.next(true);
   }
 }

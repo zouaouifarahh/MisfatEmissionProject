@@ -66,18 +66,34 @@ describe('DashboardComponent — unités à la fusion des sources', () => {
    * Monte la console et répond à ses appels réseau.
    *
    * <p>Seul l'agrégat porte une charge utile : les autres requêtes n'ont pas de
-   * part dans ce que ces bancs vérifient.</p>
+   * part dans ce que ces bancs vérifient — hors les exercices, sans lesquels le
+   * filtre global n'émet pas et l'agrégat n'est jamais demandé.</p>
+   *
+   * <p>Les requêtes sont servies en plusieurs passes : la console n'appelle
+   * l'agrégat qu'une fois l'exercice connu, donc dans une vague postérieure à
+   * celle du premier rendu.</p>
    */
   function monter() {
     const fixture = TestBed.createComponent(DashboardComponent);
     fixture.detectChanges();
 
-    for (const requete of TestBed.inject(HttpTestingController).match(() => true)) {
-      if (requete.request.url.includes('/emissions/stats/aggregate')) {
-        requete.flush(reponseServeur);
-      } else {
-        requete.flush([]);
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    for (let passe = 0; passe < 6; passe++) {
+      const attente = httpMock.match(() => true);
+      if (!attente.length) break;
+
+      for (const requete of attente) {
+        if (requete.request.url.includes('/emissions/stats/aggregate')) {
+          requete.flush(reponseServeur);
+        } else if (requete.request.url.includes('/annees')) {
+          requete.flush([{ id: 1, valeur: 2024, statut: 'EN_COURS' }]);
+        } else {
+          requete.flush([]);
+        }
       }
+
+      fixture.detectChanges();
     }
 
     fixture.detectChanges();
@@ -85,8 +101,14 @@ describe('DashboardComponent — unités à la fusion des sources', () => {
   }
 
   it('convertit une saisie d\'écran de 1 000 kg en 1 t', () => {
+    // La ligne porte sa période : une saisie qu'aucune date ne rattache à un
+    // exercice est écartée dès qu'un exercice est consulté, pour ne pas prêter
+    // au millésime affiché des mesures qui documentent un autre.
     localStorage.setItem(CLE_ECRAN_ELECTRICITE, JSON.stringify([
-      { id: 1, etablissement: 'MISFAT 1', emissionCalculee: 1_000 }
+      {
+        id: 1, etablissement: 'MISFAT 1', emissionCalculee: 1_000,
+        dateDebut: '2024-01-01', dateFin: '2024-01-31'
+      }
     ]));
 
     const composant = monter().componentInstance;
