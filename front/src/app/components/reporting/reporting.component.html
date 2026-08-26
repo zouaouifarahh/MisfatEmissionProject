@@ -1222,6 +1222,19 @@
             <span class="som-num">{{ chapitre.numero }}</span>
             <span class="som-titre">{{ chapitre.titre }}</span>
           </button>
+
+          <!-- Chaque solution paraît au sommaire sous son propre titre : un
+               lecteur qui cherche une mesure précise la trouve ici, sans avoir
+               à parcourir le chapitre. -->
+          <ol class="som-sous-liste" *ngIf="chapitre.gabarit === 'solutions' && solutions.length">
+            <li *ngFor="let solution of solutions; let i = index">
+              <button type="button" class="som-sous-entree"
+                      (click)="allerALaSolution(solution)">
+                <span class="som-num">{{ numeroSolution(i) }}</span>
+                <span class="som-titre">{{ solution.titre }}</span>
+              </button>
+            </li>
+          </ol>
         </li>
       </ol>
       <div class="som-actions">
@@ -1345,14 +1358,10 @@
 
           <!-- ---------- 4. ANNÉE DE RÉFÉRENCE ---------- -->
           <ng-container *ngIf="chapitre.gabarit === 'historique'">
-            <div class="norme-saisie">
-              <label>
-                <span>Année de référence</span>
-                <input type="number" name="anneeRef" [(ngModel)]="parametres.anneeReference"
-                       (change)="anneeReferenceModifiee()" placeholder="ex : 2023">
-              </label>
-            </div>
-
+            <!-- L'année de référence se saisit dans le panneau Configuration,
+                 avec l'objectif et l'année cible. Elle était éditable ici
+                 également : deux formulaires pour un même paramètre, dont l'un
+                 ne se rafraîchissait pas quand l'autre changeait. -->
             <table class="doc-total" *ngIf="ecartReference as ecart">
               <tbody>
                 <tr>
@@ -1393,19 +1402,9 @@
 
           <!-- ---------- 8. OBJECTIFS ---------- -->
           <ng-container *ngIf="chapitre.gabarit === 'objectifs'">
-            <div class="norme-saisie">
-              <label>
-                <span>Objectif de réduction (%)</span>
-                <input type="number" name="objPct" [(ngModel)]="parametres.objectifPct"
-                       (change)="parametresModifies()" placeholder="ex : 30">
-              </label>
-              <label>
-                <span>Année cible</span>
-                <input type="number" name="objAnnee" [(ngModel)]="parametres.anneeCible"
-                       (change)="parametresModifies()" placeholder="ex : 2030">
-              </label>
-            </div>
-
+            <!-- Objectif et année cible se saisissent dans le panneau
+                 Configuration : ils y voisinent l'année de référence, dont ils
+                 ne se lisent pas séparément. -->
             <table class="doc-total" *ngIf="objectif as cible">
               <tbody>
                 <tr>
@@ -1447,6 +1446,76 @@
                 <span class="kpi-unite">{{ formaterUniteRatio(ratio) }}</span>
                 <span class="kpi-note" *ngIf="ratio.valeur === null">{{ ratio.manque }}</span>
               </div>
+            </div>
+          </ng-container>
+
+          <!-- ---------- 11. SOLUTIONS ET RECOMMANDATIONS ---------- -->
+          <!-- Seul contenu du rapport qui ne dérive d'aucun calcul : les
+               chiffres disent où l'entreprise en est, ces solutions disent ce
+               qu'elle compte faire. Les boutons d'édition portent la classe
+               « ecran-seul » : ils disparaissent à l'impression, le texte
+               reste. -->
+          <ng-container *ngIf="chapitre.gabarit === 'solutions'">
+
+            <p class="norme-avis" *ngIf="!solutions.length">
+              Aucune solution n'est encore consignée. Ce chapitre porte le plan d'action que
+              l'inventaire appelle : les mesures décidées, leur portée et leur échéance.
+            </p>
+
+            <article class="solution" *ngFor="let solution of solutions; let i = index"
+                     [id]="'solution-' + solution.id">
+
+              <div class="solution-entete" *ngIf="solutionEnEdition !== solution.id">
+                <h4>
+                  <span class="solution-num">{{ numeroSolution(i) }}</span>
+                  {{ solution.titre }}
+                </h4>
+
+                <span class="solution-actions ecran-seul">
+                  <button type="button" (click)="deplacerSolution(i, -1)" [disabled]="i === 0"
+                          title="Remonter cette solution" aria-label="Remonter">▲</button>
+                  <button type="button" (click)="deplacerSolution(i, 1)"
+                          [disabled]="i === solutions.length - 1"
+                          title="Descendre cette solution" aria-label="Descendre">▼</button>
+                  <button type="button" (click)="modifierSolution(solution)"
+                          [attr.aria-label]="'Modifier — ' + solution.titre"
+                          title="Modifier cette solution">✏️</button>
+                  <button type="button" class="solution-retirer"
+                          (click)="supprimerSolution(solution)"
+                          [attr.aria-label]="'Supprimer — ' + solution.titre"
+                          title="Supprimer cette solution">🗑</button>
+                </span>
+              </div>
+
+              <p class="solution-texte" *ngIf="solutionEnEdition !== solution.id">
+                {{ solution.texte }}
+              </p>
+
+              <div class="solution-edition ecran-seul" *ngIf="solutionEnEdition === solution.id">
+                <label>
+                  <span>Intitulé de la solution</span>
+                  <input type="text" name="solTitre" [(ngModel)]="brouillonSolution.titre"
+                         placeholder="ex : Relamping LED des ateliers">
+                </label>
+                <label>
+                  <span>Description, portée et échéance</span>
+                  <textarea name="solTexte" rows="6" [(ngModel)]="brouillonSolution.texte"
+                            placeholder="Mesure envisagée, périmètre concerné, gain attendu…"></textarea>
+                </label>
+                <div class="bloc-actions">
+                  <button type="button" class="bloc-annuler"
+                          (click)="annulerSolution()">Annuler</button>
+                  <button type="button" class="bloc-valider"
+                          (click)="enregistrerSolution()">Enregistrer</button>
+                </div>
+              </div>
+            </article>
+
+            <div class="solution-ajout ecran-seul">
+              <button type="button" class="bloc-valider" (click)="ajouterSolution()"
+                      [disabled]="solutionEnEdition !== null">
+                + Ajouter une solution
+              </button>
             </div>
           </ng-container>
 

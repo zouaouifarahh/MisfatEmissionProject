@@ -15,6 +15,7 @@ import {
   CHAPITRES_NORME,
   ChapitreNorme,
   ParametresNorme,
+  SolutionRSE,
   STATUTS_VERIFICATION,
   parametresVides,
   textesParDefaut
@@ -1565,6 +1566,144 @@ export class ReportingComponent implements OnInit, OnDestroy {
     this.persisterParametres();
     this.blocEnEdition = null;
     this.cdr.markForCheck();
+  }
+
+  // ---------- SOLUTIONS ET RECOMMANDATIONS RSE ----------
+
+  /**
+   * Solutions du périmètre, dans l'ordre où le rapport les présente.
+   *
+   * <p>Un tableau est rendu même quand les paramètres n'en portent pas : des
+   * paramètres relus d'un stockage écrit avant ce chapitre n'ont pas le champ,
+   * et le gabarit itérerait sur {@code undefined}.</p>
+   */
+  get solutions(): SolutionRSE[] {
+    return this.parametres.solutions ?? [];
+  }
+
+  /** Solution en cours de saisie ; `null` quand aucune ne l'est. */
+  solutionEnEdition: string | null = null;
+
+  /** Brouillon de la solution éditée, abandonné si la saisie est annulée. */
+  brouillonSolution: { titre: string; texte: string } = { titre: '', texte: '' };
+
+  /**
+   * Numérote une solution pour le sommaire et le document — « 11.2 ».
+   *
+   * <p>Le numéro se déduit du rang, jamais de l'identifiant : retirer la
+   * première solution doit renuméroter les suivantes, sans quoi le sommaire
+   * afficherait un trou.</p>
+   */
+  numeroSolution(index: number): string {
+    const chapitre = this.chapitres.find(c => c.gabarit === 'solutions');
+    return `${chapitre?.numero ?? ''}.${index + 1}`;
+  }
+
+  /**
+   * Identifiant libre pour une nouvelle solution.
+   *
+   * <p>Dérivé du plus grand rang déjà pris, et non du nombre de solutions : en
+   * supprimer une du milieu puis en ajouter une autre redonnerait sinon un
+   * identifiant encore porté par une solution vivante, et les deux se
+   * confondraient à l'édition.</p>
+   */
+  private identifiantLibre(): string {
+    const rangs = this.solutions
+      .map(solution => Number(/^sol-(\d+)$/.exec(solution.id)?.[1]))
+      .filter(rang => Number.isFinite(rang));
+
+    return `sol-${(rangs.length ? Math.max(...rangs) : 0) + 1}`;
+  }
+
+  /** Ajoute une solution vide et l'ouvre aussitôt en saisie. */
+  ajouterSolution(): void {
+    const solution: SolutionRSE = { id: this.identifiantLibre(), titre: '', texte: '' };
+
+    this.parametres.solutions = [...this.solutions, solution];
+    this.solutionEnEdition = solution.id;
+    this.brouillonSolution = { titre: '', texte: '' };
+    this.cdr.markForCheck();
+  }
+
+  modifierSolution(solution: SolutionRSE): void {
+    this.solutionEnEdition = solution.id;
+    this.brouillonSolution = { titre: solution.titre, texte: solution.texte };
+  }
+
+  /**
+   * Valide la saisie en cours.
+   *
+   * <p>Une solution sans titre est retirée plutôt qu'enregistrée : elle
+   * paraîtrait au sommaire sous une ligne vide, impossible à retrouver dans le
+   * document. C'est aussi ce qui annule proprement un ajout auquel on
+   * renonce.</p>
+   */
+  enregistrerSolution(): void {
+    if (!this.solutionEnEdition) return;
+
+    const titre = this.brouillonSolution.titre.trim();
+    const texte = this.brouillonSolution.texte.trim();
+
+    this.parametres.solutions = titre
+      ? this.solutions.map(solution =>
+          solution.id === this.solutionEnEdition ? { ...solution, titre, texte } : solution)
+      : this.solutions.filter(solution => solution.id !== this.solutionEnEdition);
+
+    this.persisterParametres();
+    this.annulerSolution();
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Abandonne la saisie en cours.
+   *
+   * <p>Une solution jamais titrée disparaît avec elle : c'est un ajout auquel
+   * on a renoncé, et le laisser en place encombrerait le chapitre d'une entrée
+   * vide.</p>
+   */
+  annulerSolution(): void {
+    this.parametres.solutions = this.solutions.filter(
+      solution => solution.titre.trim() !== '' || solution.id !== this.solutionEnEdition);
+
+    this.solutionEnEdition = null;
+    this.brouillonSolution = { titre: '', texte: '' };
+    this.cdr.markForCheck();
+  }
+
+  supprimerSolution(solution: SolutionRSE): void {
+    this.parametres.solutions = this.solutions.filter(autre => autre.id !== solution.id);
+    this.persisterParametres();
+
+    if (this.solutionEnEdition === solution.id) this.solutionEnEdition = null;
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Déplace une solution d'un rang.
+   *
+   * <p>L'ordre est celui de lecture du plan d'action : une mesure prioritaire
+   * doit pouvoir remonter sans être ressaisie.</p>
+   */
+  deplacerSolution(index: number, sens: -1 | 1): void {
+    const cible = index + sens;
+    const solutions = [...this.solutions];
+    if (cible < 0 || cible >= solutions.length) return;
+
+    [solutions[index], solutions[cible]] = [solutions[cible], solutions[index]];
+
+    this.parametres.solutions = solutions;
+    this.persisterParametres();
+    this.cdr.markForCheck();
+  }
+
+  /** Ouvre le chapitre des solutions et amène l'une d'elles sous les yeux. */
+  allerALaSolution(solution: SolutionRSE): void {
+    this.deplies.add('solutions');
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    this.cdr.detectChanges();
+    document.getElementById(`solution-${solution.id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /** Textes dérivés du bilan, recalculés à chaque rendu du chapitre. */

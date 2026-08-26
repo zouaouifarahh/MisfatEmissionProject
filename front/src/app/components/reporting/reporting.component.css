@@ -1504,6 +1504,113 @@
 .bloc-annuler { background: #ffffff; border: 1px solid var(--bordure); color: var(--gris); }
 .bloc-annuler:hover { border-color: var(--misfat-encre); color: var(--misfat-encre); }
 
+/* ---------- Solutions et recommandations RSE ---------- */
+
+/* Sous-entrées du sommaire : une par solution, en retrait sous le chapitre. */
+.som-sous-liste {
+  list-style: none;
+  margin: 2px 0 4px;
+  padding: 0 0 0 18px;
+}
+
+.som-sous-entree {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  text-align: left;
+  font-size: .76rem;
+  color: var(--gris);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.som-sous-entree:hover { background: var(--gris-tres-clair, #F4F6F8); color: var(--misfat-encre); }
+
+.solution {
+  border: 1px solid var(--bordure);
+  border-left: 3px solid var(--misfat-orange);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.solution-entete {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.solution-entete h4 {
+  flex: 1;
+  margin: 0;
+  font-size: .95rem;
+  color: var(--misfat-encre);
+}
+
+.solution-num {
+  display: inline-block;
+  min-width: 34px;
+  font-weight: 800;
+  color: var(--misfat-orange);
+}
+
+.solution-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.solution-actions button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: .78rem;
+  cursor: pointer;
+  opacity: .55;
+}
+
+.solution:hover .solution-actions button { opacity: 1; }
+.solution-actions button:hover { border-color: var(--bordure); background: #ffffff; }
+.solution-actions button:disabled { opacity: .18; cursor: default; }
+.solution-actions button:disabled:hover { border-color: transparent; background: none; }
+.solution-retirer:hover { border-color: #E5A9A2 !important; background: #FBEAE8 !important; }
+
+.solution-texte {
+  margin: 0;
+  padding-left: 34px;
+  font-size: .85rem;
+  line-height: 1.6;
+  color: var(--gris);
+  white-space: pre-line;
+}
+
+.solution-edition { display: flex; flex-direction: column; gap: 10px; }
+
+.solution-edition label { display: flex; flex-direction: column; gap: 4px; }
+
+.solution-edition label span {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--gris);
+}
+
+.solution-edition input,
+.solution-edition textarea {
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: .85rem;
+  resize: vertical;
+}
+
+.solution-ajout { margin-top: 4px; }
+
 /* ---------- Bloc de signature ---------- */
 
 .norme-signature {
@@ -1586,7 +1693,13 @@
   .norme-saisie,
   .bloc-crayon,
   .bloc-actions,
+  .ecran-seul,
   .som-actions { display: none !important; }
+
+  /* Le texte des solutions s'imprime, ses commandes non : le retrait qui
+     l'alignait sous le titre à l'écran n'a plus lieu d'être sur la page. */
+  .solution { border-left-width: 2px; }
+  .solution-texte { padding-left: 0; }
 
   /* Le rapport normé s'imprime en entier : aucun chapitre replié ne doit
      échapper au document remis, quel que soit l'état de l'écran. */

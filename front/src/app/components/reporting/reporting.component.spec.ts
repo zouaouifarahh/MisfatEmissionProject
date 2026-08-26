@@ -390,18 +390,25 @@ describe('ReportingComponent', () => {
       httpMock.verify();
     });
 
-    it('couvre les onze chapitres réglementaires', () => {
+    it('couvre les douze chapitres réglementaires', () => {
       const fixture = monter();
       fixture.componentInstance.changerMode('norme');
       fixture.detectChanges();
 
       const chapitres = fixture.componentInstance.chapitres;
-      expect(chapitres).toHaveLength(11);
-      expect(chapitres.map(c => c.numero)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+      expect(chapitres).toHaveLength(12);
+      expect(chapitres.map(c => c.numero)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 
+      // Les solutions RSE précèdent la validation : le signataire s'engage sur
+      // un document dont le plan d'action fait déjà partie.
+      expect(chapitres[10].id).toBe('solutions');
+      expect(chapitres[11].id).toBe('signature');
+
+      // Le sommaire n'a pas encore de sous-entrée : aucune solution n'est
+      // consignée, et la liste imbriquée n'est alors pas rendue.
       const sommaire = (fixture.nativeElement as HTMLElement)
-        .querySelectorAll('.norme-sommaire ol li');
-      expect(sommaire).toHaveLength(11);
+        .querySelectorAll('.norme-sommaire > ol > li');
+      expect(sommaire).toHaveLength(12);
     });
 
     it('reprend les tableaux du bilan sans les restreindre à la sélection', () => {

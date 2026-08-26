@@ -17,7 +17,25 @@ export interface BlocNorme {
 /** Contenu chiffré propre à certains chapitres, rendu par le composant. */
 export type GabaritNorme =
   | 'couverture' | 'donnees' | 'historique' | 'methodologie'
-  | 'ratios' | 'objectifs' | 'signature';
+  | 'ratios' | 'objectifs' | 'solutions' | 'signature';
+
+/**
+ * Solution ou recommandation RSE saisie par le responsable.
+ *
+ * <p>Seul contenu du rapport qui ne dérive d'aucun calcul : le reste part de
+ * l'inventaire, celle-ci part d'un arbitrage humain. Les chiffres du bilan
+ * disent où l'entreprise en est ; ces solutions disent ce qu'elle compte
+ * faire, et rien dans les mesures ne permet de les déduire.</p>
+ *
+ * <p>Chacune porte son identifiant, stable tant qu'elle existe : c'est l'ancre
+ * du sommaire, et le repère qui permet de la modifier ou de la retirer sans
+ * confondre deux solutions au titre identique.</p>
+ */
+export interface SolutionRSE {
+  id: string;
+  titre: string;
+  texte: string;
+}
 
 export interface ChapitreNorme {
   id: string;
@@ -113,7 +131,14 @@ export const CHAPITRES_NORME: ChapitreNorme[] = [
     ]
   },
   {
-    id: 'signature', numero: 11, icone: '✍️',
+    id: 'solutions', numero: 11, icone: '💡',
+    titre: 'Solutions et recommandations',
+    titreNorme: 'Mitigation Measures & Recommendations',
+    gabarit: 'solutions',
+    blocs: [{ id: 'solutions.cadre', intitule: "Cadre général du plan d'action" }]
+  },
+  {
+    id: 'signature', numero: 12, icone: '✍️',
     titre: 'Validation et contacts',
     titreNorme: 'Sign-off & Contact',
     gabarit: 'signature',
@@ -133,6 +158,15 @@ export const CHAPITRES_NORME: ChapitreNorme[] = [
 export interface ParametresNorme {
   /** Commentaires du responsable RSE, par identifiant de bloc. */
   textes: Record<string, string>;
+
+  /**
+   * Solutions et recommandations, dans l'ordre où le rapport les présente.
+   *
+   * <p>Une liste et non un texte unique : chaque solution paraît au sommaire
+   * sous son titre, et un lecteur qui cherche une mesure précise doit pouvoir
+   * l'y trouver sans parcourir un pavé.</p>
+   */
+  solutions: SolutionRSE[];
 
   anneeReference: number | null;
   objectifPct: number | null;
@@ -156,6 +190,7 @@ export const STATUTS_VERIFICATION = [
 export function parametresVides(): ParametresNorme {
   return {
     textes: {},
+    solutions: [],
     anneeReference: null,
     objectifPct: null,
     anneeCible: null,
@@ -288,6 +323,12 @@ export function textesParDefaut(contexte: ContexteNorme): Record<string, string>
       `Décrivez ici les actions engagées sur l'exercice — efficacité énergétique, électricité `
       + `renouvelable, optimisation du fret, économie circulaire sur les médias filtrants — ainsi `
       + `que leur effet estimé sur l'empreinte.`,
+
+    'solutions.cadre':
+      `Les solutions ci-dessous constituent le plan d'action retenu pour ${societe} au titre de `
+      + `l'exercice ${exercice}. Elles sont arbitrées par la direction et ne se déduisent d'aucun `
+      + `calcul : l'inventaire dit où l'entreprise en est, ce chapitre dit ce qu'elle engage. `
+      + `Chacune précise sa portée et son échéance.`,
 
     'signature.declaration':
       `Le soussigné atteste que le présent inventaire a été établi conformément à la méthodologie `
