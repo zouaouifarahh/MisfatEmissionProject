@@ -316,38 +316,16 @@
 
       <div class="doc-graphes">
 
-        <!-- Répartition par scope -->
-        <figure class="graphe graphe-donut">
-          <figcaption>{{ t('syn.repartition') }}</figcaption>
-
-          <div class="donut-bloc" *ngIf="donutRenseigne; else donutVide">
-            <svg class="donut" viewBox="0 0 140 140" role="img"
-                 aria-label="Répartition des émissions par scope">
-              <circle class="donut-fond" cx="70" cy="70" [attr.r]="rayonDonut"></circle>
-              <circle *ngFor="let segment of segmentsDonut"
-                      cx="70" cy="70" [attr.r]="rayonDonut"
-                      [attr.stroke]="segment.couleur"
-                      [attr.stroke-dasharray]="segment.longueur + ' ' + (circonference - segment.longueur)"
-                      [attr.stroke-dashoffset]="segment.decalage"
-                      class="donut-arc"></circle>
-              <text x="70" y="66" class="donut-total">{{ tonnes(totalRetenuKg) }}</text>
-              <text x="70" y="80" class="donut-unite">{{ t('syn.tco2eRetenues') }}</text>
-            </svg>
-
-            <ul class="donut-legende">
-              <li *ngFor="let segment of segmentsDonut">
-                <span class="pastille" [style.background]="segment.couleur"></span>
-                <span class="legende-nom">{{ segment.libelle }}</span>
-                <span class="legende-valeur">{{ tonnes(segment.valeurKg) }} tCO₂e</span>
-                <span class="legende-pct">{{ formater(segment.pct, 1) }} %</span>
-              </li>
-            </ul>
-          </div>
-
-          <ng-template #donutVide>
-            <p class="graphe-vide">{{ t('vide.graphique') }}</p>
-          </ng-template>
-        </figure>
+        <!-- Répartition par scope. Les trois teintes de scope se séparent de
+             6,9 ΔE en deutéranopie : le composant les seconde d'un écart entre
+             arcs et d'une légende nommée, sans quoi la couleur seule ne
+             suffirait pas. -->
+        <app-donut-repartition
+          [parts]="partsParScope"
+          [titre]="t('syn.repartition')"
+          [unite]="t('syn.tco2eRetenues')"
+          alternative="Répartition des émissions par scope"
+          [messageVide]="t('vide.graphique')"></app-donut-repartition>
 
         <!-- Principaux contributeurs -->
         <figure class="graphe graphe-batons">
@@ -395,12 +373,24 @@
         être retirées du bilan.
       </p>
 
-      <div class="doc-tableau" *ngFor="let scope of scopesRetenus" [style.--scope-couleur]="scope.couleur">
+      <div class="doc-tableau doc-bloc-scope" *ngFor="let scope of scopesRetenus"
+           [style.--scope-couleur]="scope.couleur">
         <h3 class="tableau-titre">
           <span class="tableau-puce"></span>
           {{ l(scope.nom) }} — {{ l(scope.soustitre) }}
           <span class="tableau-total">{{ tonnes(scope.emissionKg) }} tCO₂e</span>
         </h3>
+
+        <!-- L'anneau précède le tableau : il donne la forme de la répartition
+             avant que le lecteur n'entre dans les lignes. Les deux disent la
+             même chose — c'est voulu, le tableau est la lecture exacte du
+             graphique et sa version accessible. -->
+        <app-donut-repartition
+          [parts]="partsDuScope(scope.code, scope.postes)"
+          [titre]="'Répartition ' + l(scope.nom)"
+          [alternative]="'Répartition des postes du ' + l(scope.nom)"
+          [compact]="true"
+          messageVide="Aucun poste chiffré sur ce scope."></app-donut-repartition>
 
         <table>
           <thead>
@@ -849,25 +839,53 @@
 
       <p class="doc-para">{{ t('p.s4.intro') }}</p>
 
+      <!-- Chaque scope ouvre sur son anneau : le lecteur voit la forme de la
+           répartition avant d'entrer dans le commentaire, au lieu de traverser
+           trois pages de texte pour la deviner. -->
+
       <!-- SCOPE 1 -->
       <h3 class="tableau-titre">{{ t('sec4.scope1') }}</h3>
-      <p class="doc-para">{{ t('p.s4.s1a') }}</p>
-      <p class="doc-para">{{ t('p.s4.s1b') }}</p>
+      <div class="doc-duo">
+        <app-donut-repartition class="doc-duo-graphe"
+          [parts]="partsDuScopeRetenu('SCOPE_1')"
+          [alternative]="'Répartition des postes du Scope 1'"
+          messageVide="Aucun poste du Scope 1 n'est chiffré sur ce périmètre."></app-donut-repartition>
+        <div class="doc-duo-texte">
+          <p class="doc-para">{{ t('p.s4.s1a') }}</p>
+          <p class="doc-para">{{ t('p.s4.s1b') }}</p>
+        </div>
+      </div>
       <div class="doc-encadre">
         <p *ngFor="let ligne of analyseScope('SCOPE_1')">{{ ligne }}</p>
       </div>
 
       <!-- SCOPE 2 -->
       <h3 class="tableau-titre">{{ t('sec4.scope2') }}</h3>
-      <p class="doc-para">{{ t('p.s4.s2a') }}</p>
-      <p class="doc-para">{{ t('p.s4.s2b') }}</p>
+      <div class="doc-duo">
+        <app-donut-repartition class="doc-duo-graphe"
+          [parts]="partsDuScopeRetenu('SCOPE_2')"
+          [alternative]="'Répartition des postes du Scope 2'"
+          messageVide="Aucun poste du Scope 2 n'est chiffré sur ce périmètre."></app-donut-repartition>
+        <div class="doc-duo-texte">
+          <p class="doc-para">{{ t('p.s4.s2a') }}</p>
+          <p class="doc-para">{{ t('p.s4.s2b') }}</p>
+        </div>
+      </div>
       <div class="doc-encadre">
         <p *ngFor="let ligne of analyseScope('SCOPE_2')">{{ ligne }}</p>
       </div>
 
       <!-- SCOPE 3 -->
       <h3 class="tableau-titre">{{ t('sec4.scope3') }}</h3>
-      <p class="doc-para">{{ t('p.s4.s3a') }}</p>
+      <div class="doc-duo">
+        <app-donut-repartition class="doc-duo-graphe"
+          [parts]="partsDuScopeRetenu('SCOPE_3')"
+          [alternative]="'Répartition des catégories du Scope 3'"
+          messageVide="Aucune catégorie du Scope 3 n'est chiffrée sur ce périmètre."></app-donut-repartition>
+        <div class="doc-duo-texte">
+          <p class="doc-para">{{ t('p.s4.s3a') }}</p>
+        </div>
+      </div>
       <table class="doc-tableau">
         <thead><tr><th>{{ t('th.categorie') }}</th><th>Ce qu'elle recouvre</th><th>Difficulté propre</th></tr></thead>
         <tbody>
@@ -1160,22 +1178,32 @@
       <ng-container *ngIf="solutions.length; else aucuneSolution">
         <p class="doc-para">{{ t('p.s6.solutionsIntro') }}</p>
 
-        <table class="doc-tableau">
-          <thead>
-            <tr>
-              <th class="ta-right">{{ t('th.refChapitre11') }}</th>
-              <th>{{ t('th.solution') }}</th>
-              <th>{{ t('th.porteeEcheance') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let solution of solutions; let i = index">
-              <td class="ta-right cell-strong">{{ numeroSolution(i) }}</td>
-              <td class="cell-strong">{{ solution.titre }}</td>
-              <td class="cell-note">{{ solution.texte || '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Des cartes et non un tableau : chaque mesure est un engagement qui
+             se lit seul, avec son échéance en évidence. Un tableau les alignait
+             comme des lignes de données interchangeables. -->
+        <div class="plan-cartes">
+          <article class="plan-carte" *ngFor="let solution of solutions">
+            <header class="plan-carte-tete">
+              <h4>{{ solution.titre }}</h4>
+              <span class="plan-badge" *ngIf="solution.horizon">{{ solution.horizon }}</span>
+            </header>
+
+            <dl class="plan-carte-champs">
+              <div *ngIf="solution.portee">
+                <dt>{{ t('th.porteeMesure') }}</dt>
+                <dd>{{ solution.portee }}</dd>
+              </div>
+              <div *ngIf="solution.impact">
+                <dt>{{ t('th.impactAttendu') }}</dt>
+                <dd>{{ solution.impact }}</dd>
+              </div>
+            </dl>
+
+            <p class="plan-carte-vide" *ngIf="!solution.portee && !solution.impact">
+              {{ t('p.s6.solutionSansDetail') }}
+            </p>
+          </article>
+        </div>
       </ng-container>
 
       <ng-template #aucuneSolution>
@@ -1503,6 +1531,8 @@
                   {{ solution.titre }}
                 </h4>
 
+                <span class="solution-horizon" *ngIf="solution.horizon">{{ solution.horizon }}</span>
+
                 <span class="solution-actions ecran-seul">
                   <button type="button" (click)="deplacerSolution(i, -1)" [disabled]="i === 0"
                           title="Remonter cette solution" aria-label="Remonter">▲</button>
@@ -1519,20 +1549,39 @@
                 </span>
               </div>
 
-              <p class="solution-texte" *ngIf="solutionEnEdition !== solution.id">
-                {{ solution.texte }}
-              </p>
+              <dl class="solution-champs" *ngIf="solutionEnEdition !== solution.id">
+                <div *ngIf="solution.portee">
+                  <dt>Portée</dt>
+                  <dd>{{ solution.portee }}</dd>
+                </div>
+                <div *ngIf="solution.impact">
+                  <dt>Impact attendu</dt>
+                  <dd>{{ solution.impact }}</dd>
+                </div>
+              </dl>
 
               <div class="solution-edition ecran-seul" *ngIf="solutionEnEdition === solution.id">
+                <div class="solution-edition-duo">
+                  <label>
+                    <span>Intitulé de la solution</span>
+                    <input type="text" name="solTitre" [(ngModel)]="brouillonSolution.titre"
+                           placeholder="ex : Relamping LED des ateliers">
+                  </label>
+                  <label class="solution-edition-court">
+                    <span>Horizon</span>
+                    <input type="text" name="solHorizon" [(ngModel)]="brouillonSolution.horizon"
+                           placeholder="ex : 2028">
+                  </label>
+                </div>
                 <label>
-                  <span>Intitulé de la solution</span>
-                  <input type="text" name="solTitre" [(ngModel)]="brouillonSolution.titre"
-                         placeholder="ex : Relamping LED des ateliers">
+                  <span>Portée</span>
+                  <textarea name="solPortee" rows="3" [(ngModel)]="brouillonSolution.portee"
+                            placeholder="Sites, flux ou familles d'achat concernés…"></textarea>
                 </label>
                 <label>
-                  <span>Description, portée et échéance</span>
-                  <textarea name="solTexte" rows="6" [(ngModel)]="brouillonSolution.texte"
-                            placeholder="Mesure envisagée, périmètre concerné, gain attendu…"></textarea>
+                  <span>Impact attendu</span>
+                  <textarea name="solImpact" rows="3" [(ngModel)]="brouillonSolution.impact"
+                            placeholder="Effet estimé sur l'empreinte — ex : −12 % du Scope 2."></textarea>
                 </label>
                 <div class="bloc-actions">
                   <button type="button" class="bloc-annuler"

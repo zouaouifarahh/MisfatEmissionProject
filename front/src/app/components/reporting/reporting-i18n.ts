@@ -163,12 +163,15 @@ export const LIBELLES: Record<string, Traduction> = {
     en: 'No measure has been recorded yet. Chapter 11 of the standard-form report — the '
       + '“Standard report” tab — is where they are entered; they will then appear here.'
   },
-  // La numérotation est celle du chapitre 11 du rapport normé, et non celle de
-  // la section 6 qui l'accueille : l'en-tête le dit, faute de quoi « 11.2 »
-  // sous un titre « 6.5 » se lirait comme une coquille.
-  'th.refChapitre11': { fr: 'Réf. ch. 11', en: 'Ch. 11 ref.' },
-  'th.solution': { fr: 'Solution retenue', en: 'Committed measure' },
-  'th.porteeEcheance': { fr: 'Portée et échéance', en: 'Scope and timeline' },
+  // « th.portee » désigne déjà la portée d'une règle d'exclusion : la portée
+  // d'une mesure du plan d'action prend sa propre clé plutôt que d'en détourner
+  // une dont l'anglais dit autre chose.
+  'th.porteeMesure': { fr: 'Portée', en: 'Scope' },
+  'th.impactAttendu': { fr: 'Impact attendu', en: 'Expected impact' },
+  'p.s6.solutionSansDetail': {
+    fr: 'Portée et impact restent à préciser au chapitre 11.',
+    en: 'Scope and impact are yet to be set out in chapter 11.'
+  },
 
   'annexeA.titre': { fr: 'Annexe A — Méthodologie de collecte', en: 'Appendix A — Data collection methodology' },
   'annexeA.fiches': { fr: 'A.1 Fiches de collecte par poste', en: 'A.1 Collection sheets by source' },

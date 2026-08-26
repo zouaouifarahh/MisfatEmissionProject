@@ -11,12 +11,14 @@ import { ActivityDataService } from '../../core/activity-data.service';
 import { BilanCarbone, BilanCarboneService, PosteBilan } from '../../core/bilan-carbone.service';
 import { NOMENCLATURE_SCOPES } from '../../core/nomenclature-scopes';
 import { FactorRow, ReferentialService } from '../../services/referential.service';
+import { DonutRepartitionComponent, PartRepartition } from './donut-repartition';
 import {
   CHAPITRES_NORME,
   ChapitreNorme,
   ParametresNorme,
   SolutionRSE,
   STATUTS_VERIFICATION,
+  migrerSolution,
   parametresVides,
   textesParDefaut
 } from './chapitres-norme';
@@ -144,7 +146,7 @@ export interface Comparaison {
 @Component({
   selector: 'app-reporting',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DonutRepartitionComponent],
   templateUrl: './reporting.component.html',
   styleUrl: './reporting.component.css'
 })
@@ -1106,6 +1108,95 @@ export class ReportingComponent implements OnInit, OnDestroy {
       .filter(scope => scope.postes.length > 0);
   }
 
+  // ---------- RÉPARTITIONS EN ANNEAU ----------
+
+  /**
+   * Rampes ordinales, une par scope, dans la teinte du scope.
+   *
+   * <p>Les postes d'un même scope n'ont pas d'identité de couleur à défendre :
+   * ce qui les distingue est leur poids. Une rampe de la teinte du scope encode
+   * donc la magnitude — la part la plus lourde est la plus foncée — là où huit
+   * teintes catégorielles dépenseraient le canal identité à répéter ce que
+   * l'angle du secteur dit déjà. Le scope, lui, garde sa couleur : on reconnaît
+   * un anneau Scope 2 à son orange sans lire le titre.</p>
+   *
+   * <p>Ces quatre pas par teinte sont validés sur la surface blanche du
+   * document : lightness monotone, écart d'au moins 0,06 entre pas voisins, et
+   * le pas le plus clair au-dessus de 2:1 de contraste. Un cinquième pas les
+   * rapprochait sous le seuil — c'est ce qui fixe la répartition à quatre
+   * parts.</p>
+   */
+  private readonly RAMPES_SCOPE: Record<string, string[]> = {
+    SCOPE_1: ['#22c55e', '#16a34a', '#15803d', '#14532d'],
+    SCOPE_2: ['#ea580c', '#c2410c', '#9a3412', '#7c2d12'],
+    SCOPE_3: ['#0ea5e9', '#0284c7', '#0369a1', '#0c4a6e']
+  };
+
+  /**
+   * Répartition d'un scope entre ses postes, prête à tracer.
+   *
+   * <p>Les trois premiers contributeurs sont nommés, le reste réuni sous
+   * « Autres postes ». Au-delà, les secteurs deviennent des filets qu'aucune
+   * légende ne rattrape — et un anneau de quinze parts ne se lit pas.</p>
+   *
+   * <p>Le poste le plus lourd reçoit le pas le plus foncé : l'anneau se lit du
+   * plus sombre au plus clair, dans le sens de la décroissance.</p>
+   */
+  partsDuScope(code: string, postes: PosteBilan[]): PartRepartition[] {
+    const rampe = this.RAMPES_SCOPE[code] ?? this.RAMPES_SCOPE['SCOPE_3'];
+
+    const chiffres = postes
+      .filter(poste => poste.emissionKg > 0)
+      .sort((a, b) => b.emissionKg - a.emissionKg);
+
+    if (!chiffres.length) return [];
+
+    const nommes = chiffres.slice(0, rampe.length - 1);
+    const reste = chiffres.slice(rampe.length - 1);
+    const resteKg = reste.reduce((somme, poste) => somme + poste.emissionKg, 0);
+
+    const parts: PartRepartition[] = nommes.map((poste, rang) => ({
+      libelle: this.l(poste.libelle),
+      valeurKg: poste.emissionKg,
+      // Le pct est recalculé par le composant : il rapporte au total tracé.
+      pct: 0,
+      couleur: rampe[rampe.length - 1 - rang]
+    }));
+
+    if (resteKg > 0) {
+      parts.push({
+        libelle: `Autres postes (${reste.length})`,
+        valeurKg: resteKg,
+        pct: 0,
+        couleur: rampe[0]
+      });
+    }
+
+    return parts;
+  }
+
+  /** Répartition d'un scope désigné par son code, sur les postes retenus. */
+  partsDuScopeRetenu(code: string): PartRepartition[] {
+    return this.partsDuScope(code, this.postesDuScope(code));
+  }
+
+  /**
+   * Répartition par scope, sur les seuls scopes retenus.
+   *
+   * <p>Ici les couleurs sont catégorielles et non ordinales : trois scopes sont
+   * trois identités, que le lecteur retrouve d'un tableau à l'autre.</p>
+   */
+  get partsParScope(): PartRepartition[] {
+    return this.scopesRetenus
+      .filter(scope => scope.emissionKg > 0)
+      .map(scope => ({
+        libelle: this.l(scope.nom),
+        valeurKg: scope.emissionKg,
+        pct: 0,
+        couleur: scope.couleur
+      }));
+  }
+
   /**
    * Total des postes retenus.
    *
@@ -1585,14 +1676,16 @@ export class ReportingComponent implements OnInit, OnDestroy {
    * et le gabarit itérerait sur {@code undefined}.</p>
    */
   get solutions(): SolutionRSE[] {
-    return this.parametres.solutions ?? [];
+    return (this.parametres.solutions ?? []).map(migrerSolution);
   }
 
   /** Solution en cours de saisie ; `null` quand aucune ne l'est. */
   solutionEnEdition: string | null = null;
 
   /** Brouillon de la solution éditée, abandonné si la saisie est annulée. */
-  brouillonSolution: { titre: string; texte: string } = { titre: '', texte: '' };
+  brouillonSolution: Omit<SolutionRSE, 'id'> = {
+    titre: '', horizon: '', portee: '', impact: ''
+  };
 
   /**
    * Numérote une solution pour le sommaire et le document — « 11.2 ».
@@ -1624,17 +1717,24 @@ export class ReportingComponent implements OnInit, OnDestroy {
 
   /** Ajoute une solution vide et l'ouvre aussitôt en saisie. */
   ajouterSolution(): void {
-    const solution: SolutionRSE = { id: this.identifiantLibre(), titre: '', texte: '' };
+    const solution: SolutionRSE = {
+      id: this.identifiantLibre(), titre: '', horizon: '', portee: '', impact: ''
+    };
 
     this.parametres.solutions = [...this.solutions, solution];
     this.solutionEnEdition = solution.id;
-    this.brouillonSolution = { titre: '', texte: '' };
+    this.brouillonSolution = { titre: '', horizon: '', portee: '', impact: '' };
     this.cdr.markForCheck();
   }
 
   modifierSolution(solution: SolutionRSE): void {
     this.solutionEnEdition = solution.id;
-    this.brouillonSolution = { titre: solution.titre, texte: solution.texte };
+    this.brouillonSolution = {
+      titre: solution.titre,
+      horizon: solution.horizon,
+      portee: solution.portee,
+      impact: solution.impact
+    };
   }
 
   /**
@@ -1648,12 +1748,16 @@ export class ReportingComponent implements OnInit, OnDestroy {
   enregistrerSolution(): void {
     if (!this.solutionEnEdition) return;
 
-    const titre = this.brouillonSolution.titre.trim();
-    const texte = this.brouillonSolution.texte.trim();
+    const saisie = {
+      titre: this.brouillonSolution.titre.trim(),
+      horizon: this.brouillonSolution.horizon.trim(),
+      portee: this.brouillonSolution.portee.trim(),
+      impact: this.brouillonSolution.impact.trim()
+    };
 
-    this.parametres.solutions = titre
+    this.parametres.solutions = saisie.titre
       ? this.solutions.map(solution =>
-          solution.id === this.solutionEnEdition ? { ...solution, titre, texte } : solution)
+          solution.id === this.solutionEnEdition ? { ...solution, ...saisie } : solution)
       : this.solutions.filter(solution => solution.id !== this.solutionEnEdition);
 
     this.persisterParametres();
@@ -1673,7 +1777,7 @@ export class ReportingComponent implements OnInit, OnDestroy {
       solution => solution.titre.trim() !== '' || solution.id !== this.solutionEnEdition);
 
     this.solutionEnEdition = null;
-    this.brouillonSolution = { titre: '', texte: '' };
+    this.brouillonSolution = { titre: '', horizon: '', portee: '', impact: '' };
     this.cdr.markForCheck();
   }
 

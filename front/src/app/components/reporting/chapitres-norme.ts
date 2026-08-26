@@ -34,7 +34,51 @@ export type GabaritNorme =
 export interface SolutionRSE {
   id: string;
   titre: string;
-  texte: string;
+
+  /**
+   * Échéance, telle qu'elle paraît sur le badge — « 2028 », « T3 2027 ».
+   *
+   * <p>Texte libre et non une date : un plan d'action s'engage sur un horizon,
+   * parfois un trimestre, parfois « en continu ». Imposer un calendrier ferait
+   * inventer un jour et un mois que personne n'a arrêtés.</p>
+   */
+  horizon: string;
+
+  /** Périmètre concerné — sites, flux, familles d'achat. */
+  portee: string;
+
+  /** Effet attendu sur l'empreinte, tel que la direction l'estime. */
+  impact: string;
+
+  /**
+   * Ancien champ libre, antérieur à la séparation portée / impact.
+   *
+   * <p>Conservé en lecture seule le temps que les répartitions déjà saisies
+   * soient reprises : {@link migrerSolution} le verse dans la portée, où il
+   * documente au moins ce qu'il documentait. L'effacer aurait fait disparaître
+   * du texte que quelqu'un avait écrit.</p>
+   */
+  texte?: string;
+}
+
+/**
+ * Ramène une solution relue à la forme courante.
+ *
+ * <p>Une solution écrite avant la séparation des champs ne porte qu'un texte
+ * libre : il devient la portée, et l'horizon comme l'impact restent vides
+ * plutôt que d'être devinés. Le rendu sait taire un champ vide ; il ne saurait
+ * pas rattraper une échéance inventée.</p>
+ */
+export function migrerSolution(solution: SolutionRSE): SolutionRSE {
+  const portee = solution.portee ?? '';
+
+  return {
+    id: solution.id,
+    titre: solution.titre ?? '',
+    horizon: solution.horizon ?? '',
+    portee: portee || (solution.texte ?? ''),
+    impact: solution.impact ?? ''
+  };
 }
 
 export interface ChapitreNorme {

@@ -4,6 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { ReportingComponent, CLE_RAPPORT_NORME } from './reporting.component';
+import { SolutionRSE, migrerSolution } from './chapitres-norme';
 import { EntityContextService } from '../../core/entity-context.service';
 
 /**
@@ -72,9 +73,12 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
   };
 
   /** Saisit une solution de bout en bout, comme l'écran le fait. */
-  const saisir = (composant: ReportingComponent, titre: string, texte: string) => {
+  const saisir = (
+    composant: ReportingComponent, titre: string, portee: string,
+    horizon = '2028', impact = ''
+  ) => {
     composant.ajouterSolution();
-    composant.brouillonSolution = { titre, texte };
+    composant.brouillonSolution = { titre, horizon, portee, impact };
     composant.enregistrerSolution();
   };
 
@@ -86,7 +90,8 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
 
       expect(composant.solutions).toHaveLength(1);
       expect(composant.solutions[0].titre).toBe('Relamping LED des ateliers');
-      expect(composant.solutions[0].texte).toBe('Remplacement de 1 200 points lumineux.');
+      expect(composant.solutions[0].portee).toBe('Remplacement de 1 200 points lumineux.');
+      expect(composant.solutions[0].horizon).toBe('2028');
     });
 
     it('numérote les solutions par leur rang dans le chapitre', () => {
@@ -104,7 +109,8 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
       // document : c'est un ajout auquel on a renoncé.
       const composant = monter().componentInstance;
       composant.ajouterSolution();
-      composant.brouillonSolution = { titre: '   ', texte: 'un texte sans intitulé' };
+      composant.brouillonSolution =
+        { titre: '   ', horizon: '2030', portee: 'un texte sans intitulé', impact: '' };
       composant.enregistrerSolution();
 
       expect(composant.solutions).toHaveLength(0);
@@ -125,12 +131,13 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
       saisir(composant, 'Fret maritime', 'b');
 
       composant.modifierSolution(composant.solutions[0]);
-      composant.brouillonSolution = { titre: 'Relamping LED — phase 2', texte: 'a bis' };
+      composant.brouillonSolution =
+        { titre: 'Relamping LED — phase 2', horizon: '2029', portee: 'a bis', impact: '' };
       composant.enregistrerSolution();
 
       expect(composant.solutions.map(s => s.titre))
         .toEqual(['Relamping LED — phase 2', 'Fret maritime']);
-      expect(composant.solutions[1].texte).toBe('b');
+      expect(composant.solutions[1].portee).toBe('b');
     });
 
     it('supprime une solution et renumérote les suivantes', () => {
@@ -230,7 +237,9 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
         .querySelector('#chapitre-solutions .solution')!;
 
       expect(solution.querySelector('.solution-actions')?.className).toContain('ecran-seul');
-      expect(solution.querySelector('.solution-texte')?.className).not.toContain('ecran-seul');
+      expect(solution.querySelector('.solution-champs')?.className ?? '')
+        .not.toContain('ecran-seul');
+      expect(solution.querySelector('.solution-edition')).toBeNull();
     });
   });
 
@@ -250,23 +259,46 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
       return fixture;
     };
 
-    it('reprend les solutions en 6.5, avec leur portée', () => {
+    it('reprend chaque solution en carte, avec sa portée et son impact', () => {
       const fixture = monterSynthese();
-      saisir(fixture.componentInstance, 'Relamping LED des ateliers', 'Sur trois sites, d\'ici 2028.');
-      saisir(fixture.componentInstance, 'Fret maritime plutôt qu\'aérien', 'Bascule de 40 % des flux.');
+      saisir(fixture.componentInstance, 'Relamping LED des ateliers',
+        'Trois sites de production.', '2028', '−12 % du Scope 2.');
+      saisir(fixture.componentInstance, 'Fret maritime plutôt qu\'aérien',
+        'Flux longue distance.', '2027', '−18 % de la catégorie 9.');
       fixture.detectChanges();
 
       const hote: HTMLElement = fixture.nativeElement;
       expect(hote.textContent).toContain('Plan d\'action & Recommandations RSE');
 
-      const lignes = [...hote.querySelectorAll('table.doc-tableau tbody tr')]
-        .filter(tr => tr.textContent?.includes('Relamping LED des ateliers')
-          || tr.textContent?.includes('Fret maritime'));
+      const cartes = hote.querySelectorAll('.plan-cartes .plan-carte');
+      expect(cartes).toHaveLength(2);
 
-      expect(lignes).toHaveLength(2);
-      expect(lignes[0].textContent).toContain('11.1');
-      expect(lignes[0].textContent).toContain('Sur trois sites, d\'ici 2028.');
-      expect(lignes[1].textContent).toContain('11.2');
+      expect(cartes[0].querySelector('h4')?.textContent).toContain('Relamping LED des ateliers');
+      expect(cartes[0].querySelector('.plan-badge')?.textContent?.trim()).toBe('2028');
+      expect(cartes[0].textContent).toContain('Trois sites de production.');
+      expect(cartes[0].textContent).toContain('−12 % du Scope 2.');
+      expect(cartes[1].querySelector('.plan-badge')?.textContent?.trim()).toBe('2027');
+    });
+
+    it('ne porte plus la colonne de référence au chapitre 11', () => {
+      const fixture = monterSynthese();
+      saisir(fixture.componentInstance, 'Relamping LED', 'Trois sites.');
+      fixture.detectChanges();
+
+      // Elle alourdissait la lecture sans rien apprendre : la mesure se
+      // reconnaît à son intitulé, pas à son rang dans un autre document.
+      const hote: HTMLElement = fixture.nativeElement;
+      expect(hote.textContent).not.toContain('Réf. ch. 11');
+    });
+
+    it('signale une mesure dont la portée reste à préciser', () => {
+      const fixture = monterSynthese();
+      saisir(fixture.componentInstance, 'Piste à instruire', '', '', '');
+      fixture.detectChanges();
+
+      const carte = (fixture.nativeElement as HTMLElement).querySelector('.plan-carte')!;
+      expect(carte.querySelector('.plan-badge')).toBeNull();
+      expect(carte.textContent).toContain('restent à préciser');
     });
 
     it('renvoie au chapitre 11 tant qu\'aucune solution n\'est saisie', () => {
@@ -305,6 +337,31 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
 
       expect(parametres.solutions).toHaveLength(1);
       expect(parametres.solutions[0].titre).toBe('Relamping LED');
+    });
+
+    it('verse l\'ancien texte libre dans la portée', () => {
+      // Les solutions saisies avant la séparation portée / impact ne portaient
+      // qu'un texte. L'effacer aurait fait disparaître ce que quelqu'un avait
+      // écrit ; l'horizon, lui, reste vide plutôt que d'être inventé.
+      const migree = migrerSolution({
+        id: 'sol-1', titre: 'Relamping LED', texte: 'Trois sites, d\'ici 2028.'
+      } as SolutionRSE);
+
+      expect(migree.portee).toBe('Trois sites, d\'ici 2028.');
+      expect(migree.horizon).toBe('');
+      expect(migree.impact).toBe('');
+    });
+
+    it('laisse intacte une solution déjà séparée', () => {
+      const migree = migrerSolution({
+        id: 'sol-2', titre: 'Fret maritime', horizon: '2027',
+        portee: 'Flux longs', impact: '−18 %', texte: 'ancien libellé'
+      });
+
+      // La portée renseignée prime : l'ancien texte ne la remplace pas.
+      expect(migree.portee).toBe('Flux longs');
+      expect(migree.horizon).toBe('2027');
+      expect(migree.impact).toBe('−18 %');
     });
 
     it('relit sans broncher des paramètres écrits avant ce chapitre', () => {

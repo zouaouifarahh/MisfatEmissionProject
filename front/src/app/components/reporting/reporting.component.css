@@ -1578,13 +1578,102 @@
 .solution-actions button:disabled:hover { border-color: transparent; background: none; }
 .solution-retirer:hover { border-color: #E5A9A2 !important; background: #FBEAE8 !important; }
 
-.solution-texte {
+/* Badge d'horizon : l'échéance est ce qu'on cherche en premier sur un plan
+   d'action, elle ne doit pas se chercher dans une phrase. */
+.solution-horizon,
+.plan-badge {
+  flex-shrink: 0;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: #FFF1E6;
+  border: 1px solid #F6CFAE;
+  color: var(--misfat-orange-fonce);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.solution-champs,
+.plan-carte-champs {
   margin: 0;
-  padding-left: 34px;
-  font-size: .85rem;
-  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.solution-champs { padding-left: 34px; }
+
+.solution-champs dt,
+.plan-carte-champs dt {
+  font-size: .67rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .07em;
   color: var(--gris);
+  margin-bottom: 2px;
+}
+
+.solution-champs dd,
+.plan-carte-champs dd {
+  margin: 0;
+  font-size: .84rem;
+  line-height: 1.6;
+  color: var(--misfat-encre);
   white-space: pre-line;
+}
+
+.solution-edition-duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 10px;
+}
+
+@media (max-width: 620px) {
+  .solution-edition-duo { grid-template-columns: 1fr; }
+}
+
+/* ---------- Cartes du plan d'action (synthèse exécutive) ---------- */
+
+.plan-cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.plan-carte {
+  border: 1px solid var(--bordure);
+  border-top: 3px solid var(--misfat-orange);
+  border-radius: 10px;
+  padding: 16px 18px 18px;
+  background: #ffffff;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.plan-carte-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.plan-carte-tete h4 {
+  margin: 0;
+  font-size: .92rem;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--misfat-encre);
+}
+
+.plan-carte-vide {
+  margin: 0;
+  font-size: .8rem;
+  font-style: italic;
+  color: var(--gris);
 }
 
 .solution-edition { display: flex; flex-direction: column; gap: 10px; }
@@ -1610,6 +1699,63 @@
 }
 
 .solution-ajout { margin-top: 4px; }
+
+/* ---------- Respiration du document ----------
+
+   Le rapport empilait ses tableaux sans marge franche : quatorze blocs à la
+   suite se lisent comme un seul. L'écart entre deux blocs est désormais plus
+   grand que l'écart interne d'un bloc — c'est ce rapport, et non la valeur
+   absolue, qui fait qu'un lecteur voit où une idée s'arrête. */
+
+.report-page .doc-para { margin: 0 0 14px; }
+
+.report-page .tableau-titre {
+  margin-top: 34px;
+  margin-bottom: 14px;
+}
+
+/* Le premier titre d'une section suit son intertitre : pas de double espace. */
+.report-page .doc-section-page + .doc-para,
+.report-page .doc-section-page + .doc-chapeau { margin-top: 0; }
+.report-page .doc-section-page + .tableau-titre { margin-top: 18px; }
+
+.report-page table.doc-tableau { margin-bottom: 28px; }
+.report-page .doc-encadre { margin: 18px 0 30px; }
+.report-page .doc-fiche { margin-bottom: 18px; }
+
+/* Duo graphique + texte : l'anneau donne la forme, le texte la commente.
+   Les deux se lisent ensemble plutôt que l'un après l'autre. */
+.doc-duo {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.85fr) minmax(0, 1.15fr);
+  gap: 28px;
+  align-items: start;
+  margin: 18px 0 26px;
+}
+
+.doc-duo-texte > .doc-para:last-child { margin-bottom: 0; }
+
+/* Sous 620 px — et sur les gabarits étroits — la colonne unique reprend. */
+@media (max-width: 620px) {
+  .doc-duo { grid-template-columns: 1fr; gap: 18px; }
+}
+
+/* Bloc d'un scope : l'anneau s'installe au-dessus de son tableau, séparé du
+   bloc suivant par une marge franche et un filet. */
+.doc-bloc-scope {
+  padding-bottom: 26px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid var(--gris-clair);
+}
+
+.doc-bloc-scope:last-of-type { border-bottom: none; }
+
+.doc-bloc-scope app-donut-repartition {
+  display: block;
+  margin: 16px 0 22px;
+}
+
+.doc-duo-graphe { display: block; }
 
 /* ---------- Bloc de signature ---------- */
 
