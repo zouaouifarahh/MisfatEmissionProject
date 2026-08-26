@@ -125,6 +125,17 @@ export class ImportDataComponent implements OnInit {
   avertissementPersistance = '';
 
   /**
+   * Compte rendu des facteurs écartés à la relecture de la répartition.
+   *
+   * <p>Distinct de {@link avertissementPersistance}, qui signale une limite de
+   * stockage atteinte : ici la répartition a bien été mémorisée, mais des
+   * facteurs qu'elle portait ont été jugés hors d'échelle et retirés. Sans ce
+   * mot, les lignes concernées apparaîtraient au tableau des anomalies sans
+   * que rien n'explique pourquoi elles y sont revenues.</p>
+   */
+  messageAssainissement = '';
+
+  /**
    * Historique local des ventilations.
    *
    * <p>Le serveur ne journalise que les dépôts de référentiel : un classeur
@@ -166,7 +177,26 @@ export class ImportDataComponent implements OnInit {
     this.relireMasques();
     this.relireHistoriqueLocal();
     this.avertissementPersistance = this.dispatchStore.avertissementPersistance;
+    this.relireAssainissement();
     this.chargerHistorique();
+  }
+
+  /**
+   * Reprend du magasin le compte des facteurs écartés à sa relecture.
+   *
+   * <p>Le magasin assainit à sa construction, donc avant que cet écran existe :
+   * le compte est déjà arrêté quand on vient le lire, et il ne bougera plus
+   * jusqu'au prochain démarrage.</p>
+   */
+  private relireAssainissement(): void {
+    const ecartees = this.dispatchStore.lignesAssainies;
+
+    this.messageAssainissement = ecartees
+      ? `${ecartees} ligne(s) de la répartition mémorisée portaient un facteur supérieur à `
+        + `${this.facteurMonetaireMax} kgCO₂e par unité de devise. Leur facteur a été écarté : `
+        + 'le bilan ne les compte plus, et elles attendent une correction dans le détail de '
+        + 'leur import.'
+      : '';
   }
 
   // ---------- Bloc 1 : gabarit ----------
@@ -1171,6 +1201,9 @@ export class ImportDataComponent implements OnInit {
     this.ventilation = null;
     this.resumeVentilation = '';
     this.detailVentilation = '';
+    // Les lignes assainies sont parties avec la répartition : le mot qui les
+    // annonçait n'a plus d'objet et renverrait vers un détail devenu vide.
+    this.messageAssainissement = '';
     this.cdr.markForCheck();
   }
 

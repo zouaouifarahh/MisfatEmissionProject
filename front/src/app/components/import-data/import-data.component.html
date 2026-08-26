@@ -140,6 +140,10 @@
         <strong>Mémorisation :</strong> {{ avertissementPersistance }}
       </div>
 
+      <div class="alert alert-warning" *ngIf="messageAssainissement">
+        <strong>Facteurs écartés :</strong> {{ messageAssainissement }}
+      </div>
+
       <div class="result-detail" *ngIf="dernierLog?.errorDetail">
         <p class="result-detail-title">Lignes écartées</p>
         <p class="result-detail-body">{{ dernierLog!.errorDetail }}</p>
