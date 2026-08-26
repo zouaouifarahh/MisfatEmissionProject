@@ -99,8 +99,17 @@ export interface ConsolidationGroupe {
   filialesIncompletes: string[];
 }
 
-/** Division qui refuse de rendre un nombre quand le dénominateur n'en est pas un. */
-function rapport(numerateur: number, denominateur: number | null | undefined): number | null {
+/**
+ * Division qui refuse de rendre un nombre quand le dénominateur n'en est pas un.
+ *
+ * <p>Exportée pour que le tableau de bord calcule ses intensités par la même
+ * règle que la consolidation Groupe. Les deux écrans annoncent les mêmes
+ * ratios : les voir diverger de quelques pour cent parce que l'un rend zéro là
+ * où l'autre rend « non renseigné » suffirait à faire douter des deux.</p>
+ */
+export function rapport(
+  numerateur: number, denominateur: number | null | undefined
+): number | null {
   if (typeof denominateur !== 'number') return null;
   if (!Number.isFinite(denominateur) || denominateur <= 0) return null;
 

@@ -61,6 +61,7 @@ import { PerimetreOrganisation } from '../../../core/perimetre';
 import { BilanCarboneService } from '../../../core/bilan-carbone.service';
 import { ActivityDataService, ChampActivite } from '../../../core/activity-data.service';
 import { kgVersTonnes, tonnesVersKg } from '../../../core/unites-carbone';
+import { rapport } from '../../../core/consolidation-groupe';
 import { ReportFiltersService } from '../../../core/report-filters.service';
 import { TCo2ePipe } from '../../../shared/tco2e.pipe';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -854,32 +855,41 @@ export class DashboardComponent implements OnInit {
    */
   get jaugeIntensite(): {
     valeur: number; seuil: number; pctEchelle: number; angle: number;
-    arc: string; statut: 'BON' | 'VIGILANCE' | 'CRITIQUE'; libelle: string;
-    renseignee: boolean;
+    arc: string; statut: 'BON' | 'VIGILANCE' | 'CRITIQUE' | 'NON RENSEIGNÉ';
+    libelle: string; renseignee: boolean;
   } {
-    const valeur = this.intensiteCarbone;
+    const intensite = this.intensiteCarbone;
     const seuil = this.seuilIntensiteSectoriel;
     const echelle = seuil * 2;
 
-    const pctEchelle = echelle > 0 ? Math.min((valeur / echelle) * 100, 100) : 0;
+    // Intensité non calculable : l'aiguille reste au repos à gauche, mais le
+    // statut le dit. Un cadran vert « BON » sur une production non renseignée
+    // annonçait une performance parfaite là où il n'y avait rien à diviser.
+    const valeur = intensite ?? 0;
+    const pctEchelle = intensite !== null && echelle > 0
+      ? Math.min((intensite / echelle) * 100, 100)
+      : 0;
 
     // Demi-cadran : 180° de gauche à droite.
     const angle = -90 + (pctEchelle / 100) * 180;
 
-    const statut: 'BON' | 'VIGILANCE' | 'CRITIQUE' =
-      valeur <= seuil * 0.6 ? 'BON' : valeur <= seuil ? 'VIGILANCE' : 'CRITIQUE';
+    const statut: 'BON' | 'VIGILANCE' | 'CRITIQUE' | 'NON RENSEIGNÉ' =
+      intensite === null ? 'NON RENSEIGNÉ'
+        : intensite <= seuil * 0.6 ? 'BON'
+          : intensite <= seuil ? 'VIGILANCE'
+            : 'CRITIQUE';
 
-    const libelle = valeur <= 0
+    const libelle = intensite === null
       ? 'Production non renseignée : intensité non calculable'
-      : valeur > echelle
+      : intensite > echelle
         ? `Hors échelle — plus de ${this.formatCompact(echelle)} kgCO₂e / unité`
-        : `${valeur.toFixed(2)} kgCO₂e / unité pour un repère de ${seuil}`;
+        : `${intensite.toFixed(2)} kgCO₂e / unité pour un repère de ${seuil}`;
 
     return {
       valeur, seuil, pctEchelle, angle,
       arc: this.arcJauge(pctEchelle),
       statut, libelle,
-      renseignee: valeur > 0
+      renseignee: intensite !== null
     };
   }
 
@@ -2655,51 +2665,74 @@ export class DashboardComponent implements OnInit {
   }
 
   /**
-   * Intensité carbone : kg CO₂e par unité produite.
+   * Dénominateur extra-financier de l'exercice consulté.
    *
-   * <p>La production est lue sur l'exercice consulté, et non sur le dernier
-   * exercice renseigné : rapporter l'empreinte de 2024 à la production de 2026
-   * donnerait une intensité qui ne documente aucune année.</p>
+   * <p>Lu sur l'exercice affiché, et non sur le dernier exercice renseigné :
+   * rapporter l'empreinte de 2024 à la production de 2026 donnerait un ratio
+   * qui ne documente aucune année.</p>
    */
-  get intensiteCarbone(): number {
-    const totalEmissionsKg = (this.stats.scope1 + this.stats.scope2 + this.stats.scope3) * 1000;
-    const production = this.activiteService.valeur(this.entiteActive, this.selectedAnnee, 'production');
-    return production && production > 0 ? totalEmissionsKg / production : 0;
+  private denominateur(champ: ChampActivite): number | null {
+    return this.activiteService.valeur(this.entiteActive, this.selectedAnnee, champ);
   }
 
   /**
-   * Productivité : chiffre d'affaires par salarié, et son évolution.
+   * Intensité carbone : kgCO₂e par unité produite.
    *
-   * <p>Le chiffre d'affaires est tenu en millions ; il est ramené à l'unité
-   * pour que la productivité s'exprime dans la devise du périmètre, comme le
-   * lecteur l'attend.</p>
+   * <p>L'empreinte est tenue en tonnes ; elle passe au kilogramme parce qu'une
+   * pièce de filtration pèse quelques centaines de grammes de CO₂ et que
+   * l'exprimer en tonnes ne donnerait que des zéros. Même unité que la colonne
+   * correspondante de la consolidation Groupe.</p>
+   *
+   * <p>{@code null} — et non zéro — quand la production n'est pas renseignée :
+   * un zéro se lirait comme une intensité nulle, c'est-à-dire comme une
+   * performance parfaite, là où il n'y a simplement rien à diviser.</p>
    */
-  get productiviteEmploye(): { valeur: number; evolution: number; annee: number } {
-    const releves = this.activiteService.liste(this.entiteActive)
-      .filter(r => typeof r.chiffreAffairesM === 'number' && typeof r.effectif === 'number'
-        && r.effectif > 0);
+  get intensiteCarbone(): number | null {
+    return rapport(tonnesVersKg(this.totalEmissions), this.denominateur('production'));
+  }
 
-    const parSalarie = (index: number) =>
-      (releves[index].chiffreAffairesM! * 1_000_000) / releves[index].effectif!;
+  /**
+   * Intensité par salarié, en tCO₂e.
+   *
+   * <p>En tonnes, comme la consolidation Groupe : l'empreinte d'un salarié se
+   * compte en tonnes, et le kilogramme donnerait des nombres à six chiffres
+   * sans rien gagner en lisibilité.</p>
+   */
+  get intensiteEffectif(): number | null {
+    return rapport(this.totalEmissions, this.denominateur('effectif'));
+  }
 
-    if (!releves.length) {
-      return { valeur: 0, evolution: 0, annee: this.selectedAnnee ?? new Date().getFullYear() };
-    }
+  /**
+   * Intensité par million de chiffre d'affaires, en tCO₂e.
+   *
+   * <p>Le chiffre d'affaires est déjà tenu en millions par l'écran « Données
+   * d'Activité » : il sert de dénominateur tel quel, et le ratio se lit « tant
+   * de tonnes par million ».</p>
+   */
+  get intensiteChiffreAffaires(): number | null {
+    return rapport(this.totalEmissions, this.denominateur('chiffreAffairesM'));
+  }
 
-    const dernier = parSalarie(releves.length - 1);
+  /**
+   * Productivité carbone : valeur économique produite par tonne émise.
+   *
+   * <p>L'inverse de l'intensité au chiffre d'affaires, et le sens dans lequel
+   * un comité de direction lit la performance : combien l'entreprise crée de
+   * richesse pour chaque tonne qu'elle émet. Plus le ratio monte, mieux
+   * c'est — là où toutes les intensités se lisent à la baisse.</p>
+   *
+   * <p>La carte portait auparavant un chiffre d'affaires par salarié : une
+   * productivité économique, sans aucun CO₂ au numérateur ni au dénominateur,
+   * qui n'avait pas sa place parmi les indicateurs carbone.</p>
+   *
+   * <p>Le chiffre d'affaires est ramené des millions à l'unité pour que le
+   * ratio s'exprime dans la devise du périmètre.</p>
+   */
+  get productiviteCarbone(): number | null {
+    const chiffreAffairesM = this.denominateur('chiffreAffairesM');
+    if (typeof chiffreAffairesM !== 'number' || chiffreAffairesM <= 0) return null;
 
-    // Un seul exercice renseigné : la productivité se lit, l'évolution non.
-    if (releves.length < 2) {
-      return { valeur: dernier, evolution: 0, annee: releves[releves.length - 1].annee };
-    }
-
-    const precedent = parSalarie(releves.length - 2);
-
-    return {
-      valeur: dernier,
-      evolution: precedent > 0 ? ((dernier - precedent) / precedent) * 100 : 0,
-      annee: releves[releves.length - 1].annee
-    };
+    return rapport(chiffreAffairesM * 1_000_000, this.totalEmissions);
   }
 
   // ---------- CARTES DE SYNTHÈSE : SÉRIES ET TENDANCES ----------
@@ -2714,30 +2747,47 @@ export class DashboardComponent implements OnInit {
    * ratio n'aurait pas de dénominateur.</p>
    */
   private get serieIntensite(): { annee: number; valeur: number }[] {
-    const serie: { annee: number; valeur: number }[] = [];
-    for (const point of this.historique) {
-      const production = this.activiteService.valeur(this.entiteActive, point.annee, 'production');
-      if (production && production > 0) {
-        serie.push({ annee: point.annee, valeur: tonnesVersKg(point.total) / production });
-      }
-    }
-    return serie;
+    return this.serieRatio(point => rapport(
+      tonnesVersKg(point.total),
+      this.activiteService.valeur(this.entiteActive, point.annee, 'production')));
   }
 
   /**
-   * Productivité par exercice : chiffre d'affaires ramené à l'effectif.
+   * Productivité carbone par exercice.
    *
-   * <p>Même filtre et même formule que {@link productiviteEmploye}, étendus à
-   * toute la série pour que la variation se calcule sur l'exercice consulté.</p>
+   * <p>Même formule que {@link productiviteCarbone}, étendue à toute la série
+   * pour que la variation se calcule sur l'exercice consulté.</p>
    */
-  private get serieProductivite(): { annee: number; valeur: number }[] {
-    return this.activiteService.liste(this.entiteActive)
-      .filter(releve => typeof releve.chiffreAffairesM === 'number'
-        && typeof releve.effectif === 'number' && releve.effectif > 0)
-      .map(releve => ({
-        annee: releve.annee,
-        valeur: (releve.chiffreAffairesM! * 1_000_000) / releve.effectif!
-      }));
+  private get serieProductiviteCarbone(): { annee: number; valeur: number }[] {
+    return this.serieRatio(point => {
+      const chiffreAffairesM =
+        this.activiteService.valeur(this.entiteActive, point.annee, 'chiffreAffairesM');
+      if (typeof chiffreAffairesM !== 'number' || chiffreAffairesM <= 0) return null;
+
+      return rapport(chiffreAffairesM * 1_000_000, point.total);
+    });
+  }
+
+  /**
+   * Série d'un ratio sur l'historique déjà chargé pour le graphique d'évolution.
+   *
+   * <p>Un exercice dont le ratio n'est pas calculable est écarté plutôt que
+   * porté à zéro : une année sans dénominateur creuserait un puits dans la
+   * courbe, et la variation d'un exercice à l'autre s'y lirait comme un
+   * effondrement de l'empreinte.</p>
+   */
+  private serieRatio(
+    calcul: (point: PointHistorique) => number | null
+  ): { annee: number; valeur: number }[] {
+
+    const serie: { annee: number; valeur: number }[] = [];
+
+    for (const point of this.historique) {
+      const valeur = calcul(point);
+      if (valeur !== null) serie.push({ annee: point.annee, valeur });
+    }
+
+    return serie;
   }
 
   /**
@@ -2772,17 +2822,26 @@ export class DashboardComponent implements OnInit {
   }
 
   get tendanceProductivite(): { pct: number } | null {
-    return this.tendanceSerie(this.serieProductivite);
+    return this.tendanceSerie(this.serieProductiviteCarbone);
   }
 
   /**
-   * Commentaire de la carte de productivité.
+   * Commentaire de la carte de productivité carbone.
    *
    * <p>L'exercice cité est celui sélectionné dans le tableau de bord, et non le
    * dernier relevé de la série : les deux divergent dès qu'on consulte une
    * année antérieure.</p>
+   *
+   * <p>Le sens de lecture est inverse de celui des intensités : une
+   * productivité qui monte est une bonne nouvelle, puisqu'elle dit que la même
+   * tonne émise porte davantage de valeur.</p>
    */
   get noteProductivite(): string {
+    if (this.productiviteCarbone === null) {
+      return "Renseignez le chiffre d'affaires dans « Données d'Activité & KPI » pour que la "
+        + 'productivité carbone devienne calculable.';
+    }
+
     const tendance = this.tendanceProductivite;
     if (tendance === null) {
       return 'Première année de suivi disponible.';
@@ -2790,8 +2849,8 @@ export class DashboardComponent implements OnInit {
 
     const annee = this.selectedAnnee ?? new Date().getFullYear();
     return tendance.pct >= 0
-      ? `Évolution positive en ${annee}.`
-      : `Recul en ${annee} par rapport à l'exercice précédent.`;
+      ? `Davantage de valeur par tonne émise en ${annee}.`
+      : `Recul en ${annee} : chaque tonne émise porte moins de valeur.`;
   }
 
   // ---------- COURBES LISSÉES (AREA CHARTS) ----------

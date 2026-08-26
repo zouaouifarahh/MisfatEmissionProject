@@ -937,7 +937,11 @@
           <span class="entreprise-note">Données consolidées</span>
         </div>
 
-        <!-- 3 cartes de synthèse -->
+        <!-- Cartes de synthèse. Les intensités reprennent les unités de l'écran
+             Consolidation Groupe : tCO₂e par salarié et par million de chiffre
+             d'affaires, kgCO₂e par unité produite. Un dénominateur non
+             renseigné rend « — » et non zéro : un ratio nul se lirait comme une
+             empreinte nulle, c'est-à-dire comme une performance parfaite. -->
         <div class="synthese-grid">
 
           <div class="synthese-card" data-teinte="intensite">
@@ -947,7 +951,9 @@
             </div>
 
             <div class="synthese-value-row">
-              <span class="synthese-value">{{ intensiteCarbone | number:'1.1-2' }}</span>
+              <span class="synthese-value">
+                {{ intensiteCarbone !== null ? (intensiteCarbone | number:'1.1-2') : '—' }}
+              </span>
               <span class="synthese-unite">kg CO₂e / unité</span>
             </div>
 
@@ -957,7 +963,55 @@
               {{ t.pct | number:'1.1-1' }}%
             </span>
 
-            <p class="synthese-note">Indice calculé sur le volume de production et l'empreinte totale.</p>
+            <p class="synthese-note" *ngIf="intensiteCarbone !== null">
+              Indice calculé sur le volume de production et l'empreinte totale.
+            </p>
+            <p class="synthese-note" *ngIf="intensiteCarbone === null">
+              Volume de production non renseigné dans « Données d'Activité &amp; KPI ».
+            </p>
+          </div>
+
+          <div class="synthese-card" data-teinte="effectif">
+            <div class="synthese-top">
+              <span class="synthese-icone" aria-hidden="true">👥</span>
+              <span class="synthese-label">Empreinte par salarié</span>
+            </div>
+
+            <div class="synthese-value-row">
+              <span class="synthese-value">
+                {{ intensiteEffectif !== null ? (intensiteEffectif | number:'1.2-2') : '—' }}
+              </span>
+              <span class="synthese-unite">tCO₂e / salarié</span>
+            </div>
+
+            <p class="synthese-note" *ngIf="intensiteEffectif !== null">
+              Empreinte totale rapportée à l'effectif de l'exercice consulté.
+            </p>
+            <p class="synthese-note" *ngIf="intensiteEffectif === null">
+              Effectif non renseigné dans « Données d'Activité &amp; KPI ».
+            </p>
+          </div>
+
+          <div class="synthese-card" data-teinte="chiffre-affaires">
+            <div class="synthese-top">
+              <span class="synthese-icone" aria-hidden="true">💶</span>
+              <span class="synthese-label">Empreinte par million de CA</span>
+            </div>
+
+            <div class="synthese-value-row">
+              <span class="synthese-value">
+                {{ intensiteChiffreAffaires !== null
+                    ? (intensiteChiffreAffaires | number:'1.0-1') : '—' }}
+              </span>
+              <span class="synthese-unite">tCO₂e / M {{ devise }}</span>
+            </div>
+
+            <p class="synthese-note" *ngIf="intensiteChiffreAffaires !== null">
+              Intensité du chiffre d'affaires, exprimée dans la devise du périmètre.
+            </p>
+            <p class="synthese-note" *ngIf="intensiteChiffreAffaires === null">
+              Chiffre d'affaires non renseigné dans « Données d'Activité &amp; KPI ».
+            </p>
           </div>
 
           <div class="synthese-card" data-teinte="production">
@@ -980,15 +1034,20 @@
             <p class="synthese-note">Volume de production, piste d'amélioration prioritaire.</p>
           </div>
 
+          <!-- Productivité carbone : valeur créée par tonne émise. Seule carte
+               dont la hausse est une bonne nouvelle — la flèche montante n'y est
+               donc pas colorée en négatif, contrairement aux intensités. -->
           <div class="synthese-card" data-teinte="productivite">
             <div class="synthese-top">
-              <span class="synthese-icone" aria-hidden="true">👥</span>
-              <span class="synthese-label">Productivité</span>
+              <span class="synthese-icone" aria-hidden="true">⚡</span>
+              <span class="synthese-label">Productivité carbone</span>
             </div>
 
             <div class="synthese-value-row">
-              <span class="synthese-value">{{ productiviteEmploye.valeur | number:'1.0-0' }}</span>
-              <span class="synthese-unite">{{ devise }} / employé</span>
+              <span class="synthese-value">
+                {{ productiviteCarbone !== null ? (productiviteCarbone | number:'1.0-0') : '—' }}
+              </span>
+              <span class="synthese-unite">{{ devise }} / tCO₂e</span>
             </div>
 
             <span class="synthese-tendance" *ngIf="tendanceProductivite as t"

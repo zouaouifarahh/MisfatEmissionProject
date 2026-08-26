@@ -991,6 +991,16 @@
     --syn-icone: #2FA97A; --syn-ink: #0A3B28; --syn-ink-doux: #0F5A3E;
 }
 
+.synthese-card[data-teinte="effectif"] {
+    --syn-fond-a: #F5F1FF; --syn-fond-b: #EBE4FF; --syn-bordure: #D8CBF7;
+    --syn-icone: #7C5CD6; --syn-ink: #2C1B5C; --syn-ink-doux: #4A2F8F;
+}
+
+.synthese-card[data-teinte="chiffre-affaires"] {
+    --syn-fond-a: #EFF9FB; --syn-fond-b: #E1F2F7; --syn-bordure: #C4E2EC;
+    --syn-icone: #3D93AE; --syn-ink: #0D3844; --syn-ink-doux: #145A6E;
+}
+
 .synthese-card {
     background: linear-gradient(135deg, var(--syn-fond-a), var(--syn-fond-b));
     border: 1px solid var(--syn-bordure);
@@ -1992,6 +2002,9 @@
 .jauge-badge[data-statut="BON"] { background: #E1F5EE; color: #0F6E56; }
 .jauge-badge[data-statut="VIGILANCE"] { background: #FDF3E3; color: #8A5A15; }
 .jauge-badge[data-statut="CRITIQUE"] { background: #FBEAE8; color: #A32B21; }
+/* Gris neutre : un dénominateur manquant n'est ni une bonne ni une mauvaise
+   performance, et le vert du statut « BON » le faisait lire comme un succès. */
+.jauge-badge[data-statut="NON RENSEIGNÉ"] { background: #EEF0F3; color: #5A6472; }
 
 /* ---------- Comparatif des implantations ---------- */
 
