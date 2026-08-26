@@ -4,7 +4,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
-  DispatchStore, LigneValorisee, FACTEUR_MONETAIRE_MAX, facteurPlausible
+  DispatchStore, LigneValorisee, FACTEUR_MONETAIRE_MAX, facteurPlausible, CLE_STOCKAGE
 } from './dispatch-store';
 
 /**
@@ -109,6 +109,93 @@ describe('Facteur monétaire — garde-fou de vraisemblance', () => {
 
       expect(tonnes).toBeCloseTo(154_824, 0);
       expect(tonnes).toBeLessThan(1_000_000);
+    });
+  });
+
+  /**
+   * <p>Le garde-fou posé sur la saisie ne vaut que pour les corrections à
+   * venir. Une répartition écrite avant lui garde son facteur aberrant dans le
+   * stockage du navigateur, et chaque rechargement le rétablit : le total
+   * fautif survit à la correction du code qui l'avait rendu possible.</p>
+   */
+  describe('assainissement à la relecture', () => {
+
+    const ABERRANTE = { facteur: 9999, emissionKg: 1_548_240 * 9999 };
+
+    /** Sème une répartition dans le stockage, puis construit un magasin neuf. */
+    const relireAvec = (lignes: LigneValorisee[]): DispatchStore => {
+      localStorage.setItem(CLE_STOCKAGE, JSON.stringify({
+        lignes, fichier: 'BG MISFAT 2025.xlsx', importeLe: '2026-01-01',
+        exclues: 0, nonVentilees: 0, exercice: 2025, entityId: 1
+      }));
+
+      // Le magasin relit à sa construction : il en faut un neuf, postérieur à
+      // ce que le stockage vient de recevoir.
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()]
+      });
+      return TestBed.inject(DispatchStore);
+    };
+
+    it('écarte le facteur de 9 999 déjà persisté', () => {
+      const magasinNeuf = relireAvec([ligneDe(ABERRANTE)]);
+
+      const ligne = magasinNeuf.instantane.lignes[0];
+      expect(ligne.facteur).toBe(0);
+      expect(ligne.emissionKg).toBe(0);
+      expect(magasinNeuf.lignesAssainies).toBe(1);
+    });
+
+    it('conserve la ligne et ce qu\'elle documente', () => {
+      // Le facteur seul est faux. La quantité et le compte restent la donnée de
+      // l'utilisateur, et c'est par eux qu'il retrouvera la ligne à corriger.
+      const magasinNeuf = relireAvec([ligneDe(ABERRANTE)]);
+
+      expect(magasinNeuf.instantane.lignes).toHaveLength(1);
+      expect(magasinNeuf.instantane.lignes[0].quantite).toBe(1_548_240);
+      expect(magasinNeuf.instantane.lignes[0].mainAccount).toBe('601000');
+    });
+
+    it('fait entrer la ligne assainie au tableau des anomalies', () => {
+      const magasinNeuf = relireAvec([ligneDe(ABERRANTE)]);
+
+      expect(magasinNeuf.nombreAnomalies).toBe(1);
+      expect(magasinNeuf.estValide(magasinNeuf.instantane.lignes[0])).toBe(false);
+    });
+
+    it('rend la ligne à écrire, l\'émission enregistrée ne valant plus', () => {
+      const magasinNeuf = relireAvec([ligneDe({ ...ABERRANTE, persisteeEnBase: true })]);
+
+      expect(magasinNeuf.instantane.lignes[0].persisteeEnBase).toBe(false);
+    });
+
+    it('laisse intactes les répartitions plausibles', () => {
+      const magasinNeuf = relireAvec([
+        ligneDe({ cle: 'BG#1', facteur: 0.3, emissionKg: 464_472 }),
+        ligneDe({ cle: 'BG#2', facteur: FACTEUR_MONETAIRE_MAX, emissionKg: 1_000 })
+      ]);
+
+      expect(magasinNeuf.lignesAssainies).toBe(0);
+      expect(magasinNeuf.instantane.lignes.map(l => l.facteur))
+        .toEqual([0.3, FACTEUR_MONETAIRE_MAX]);
+    });
+
+    it('ne compte pas une ligne déjà sans facteur', () => {
+      // Elle est déjà une anomalie connue : l'assainissement n'a rien à lui
+      // retirer, et la compter gonflerait le rapport fait à l'utilisateur.
+      const magasinNeuf = relireAvec([ligneDe({ facteur: 0, emissionKg: 0 })]);
+
+      expect(magasinNeuf.lignesAssainies).toBe(0);
+      expect(magasinNeuf.nombreAnomalies).toBe(1);
+    });
+
+    it('réécrit le stockage, pour ne pas assainir à chaque ouverture', () => {
+      relireAvec([ligneDe(ABERRANTE)]);
+
+      const relu = JSON.parse(localStorage.getItem(CLE_STOCKAGE) ?? '{}');
+      expect(relu.lignes[0].facteur).toBe(0);
+      expect(relu.lignes[0].emissionKg).toBe(0);
     });
   });
 });

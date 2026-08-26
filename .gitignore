@@ -1,0 +1,6 @@
+# Fichiers temporaires Excel — verrous créés à l'ouverture d'un classeur et
+# supprimés à sa fermeture. Ils portent le nom du classeur préfixé de « ~$ »
+# et n'ont aucune raison d'être versionnés.
+~$*.xlsx
+~$*.xls
+~$*.xlsm

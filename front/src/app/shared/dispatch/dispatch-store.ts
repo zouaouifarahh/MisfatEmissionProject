@@ -224,6 +224,16 @@ export class DispatchStore {
   /** Limite de stockage atteinte : restitué à l'écran d'import. */
   avertissementPersistance = '';
 
+  /**
+   * Lignes dont la relecture a écarté le facteur, faute de plausibilité.
+   *
+   * <p>Renseigné une fois, à la construction, puis remis à zéro par
+   * {@link vider}. Le tableau des anomalies montre déjà ces lignes ; le compte
+   * n'existe que pour qu'un écran puisse dire pourquoi elles y sont
+   * apparues.</p>
+   */
+  lignesAssainies = 0;
+
   constructor(
     private referentialService: ReferentialService,
     @Inject(PLATFORM_ID) private platformId: Object
@@ -735,6 +745,7 @@ export class DispatchStore {
   vider(): void {
     this.etat.next(ETAT_VIDE);
     this.avertissementPersistance = '';
+    this.lignesAssainies = 0;
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem(CLE_STOCKAGE);
       localStorage.removeItem(CLE_HERITEE);
@@ -788,10 +799,63 @@ export class DispatchStore {
   }
 
   /**
+   * Écarte le facteur des lignes relues qu'aucun ordre de grandeur ne justifie.
+   *
+   * <p>Le garde-fou de {@link reprendreFacteur} ne protège que les saisies à
+   * venir. Une répartition écrite avant lui garde son facteur aberrant, et
+   * chaque rechargement le rétablit : c'est ainsi qu'un 9 999 saisi à la main a
+   * continué de porter un poste à 15 millions de tonnes bien après que la
+   * saisie eut été fermée. La borne s'applique donc aussi à la relecture.</p>
+   *
+   * <p>La ligne n'est pas retirée. Sa quantité, son compte et son libellé
+   * restent exacts — le facteur seul est faux. Elle repart sans facteur, ce qui
+   * la fait entrer au tableau des anomalies : l'utilisateur la corrige au lieu
+   * de la voir disparaître du bilan sans explication.</p>
+   *
+   * <p>Toutes les lignes de ce magasin portent un montant en devise et un ratio
+   * monétaire — {@link valoriser} ne ventile que des montants. Le plafond de
+   * {@link FACTEUR_MONETAIRE_MAX} les concerne donc toutes, sans exception à
+   * ménager.</p>
+   */
+  private assainir(lignes: readonly LigneValorisee[]): LigneValorisee[] {
+    this.lignesAssainies = 0;
+
+    const assainies = lignes.map(ligne => {
+      // Une ligne déjà sans facteur est une anomalie connue, pas une
+      // aberration : la toucher la ferait compter deux fois.
+      if (!Number.isFinite(ligne.facteur) || ligne.facteur <= 0) return ligne;
+      if (facteurPlausible(ligne.facteur)) return ligne;
+
+      this.lignesAssainies++;
+
+      return {
+        ...ligne,
+        facteur: 0,
+        emissionKg: 0,
+        // L'émission qui a pu être écrite ne vaut plus : la ligne redevient à
+        // écrire, une fois qu'un facteur défendable lui aura été donné.
+        persisteeEnBase: false
+      };
+    });
+
+    if (this.lignesAssainies) {
+      console.warn(`[dispatch] ${this.lignesAssainies} ligne(s) relue(s) portaient un facteur `
+        + `supérieur à ${FACTEUR_MONETAIRE_MAX} kgCO₂e par unité de devise : leur facteur a été `
+        + 'écarté et elles rejoignent le tableau des anomalies.');
+    }
+
+    return assainies;
+  }
+
+  /**
    * Relit la répartition au démarrage et après un rafraîchissement.
    *
    * <p>L'ancienne clé est encore lue une fois : une répartition posée avant ce
    * changement ne doit pas disparaître sous les pieds de l'utilisateur.</p>
+   *
+   * <p>Ce qui est relu est assaini avant d'être diffusé, puis réécrit : sans
+   * cette réécriture, la répartition aberrante resterait sur le disque et il
+   * faudrait l'assainir de nouveau à chaque ouverture.</p>
    */
   private relire(): void {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -803,8 +867,12 @@ export class DispatchStore {
       const relu = JSON.parse(brut) as EtatDispatch;
       if (!relu || !Array.isArray(relu.lignes)) return;
 
+      // Relevé avant toute écriture : persister() poserait la nouvelle clé et
+      // effacerait la trace de la migration à faire.
+      const migration = !localStorage.getItem(CLE_STOCKAGE);
+
       this.etat.next({
-        lignes: relu.lignes,
+        lignes: this.assainir(relu.lignes),
         fichier: relu.fichier ?? '',
         importeLe: relu.importeLe ?? '',
         exclues: relu.exclues ?? 0,
@@ -814,10 +882,8 @@ export class DispatchStore {
       });
 
       // Migration silencieuse : la reprise se fait sous la nouvelle clé.
-      if (!localStorage.getItem(CLE_STOCKAGE)) {
-        this.persister();
-        localStorage.removeItem(CLE_HERITEE);
-      }
+      if (this.lignesAssainies || migration) this.persister();
+      if (migration) localStorage.removeItem(CLE_HERITEE);
     } catch {
       this.etat.next(ETAT_VIDE);
     }
