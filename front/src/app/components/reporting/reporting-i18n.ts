@@ -144,6 +144,31 @@ export const LIBELLES: Record<string, Traduction> = {
   'sec6.jalons': { fr: '6.2 Jalons Net-Zero', en: '6.2 Net-Zero milestones' },
   'sec6.leviers': { fr: '6.3 Leviers de décarbonation', en: '6.3 Decarbonisation levers' },
   'sec6.fiches': { fr: '6.4 Fiches détaillées des quatre leviers', en: '6.4 Detailed lever sheets' },
+  'sec6.solutions': {
+    fr: '6.5 Plan d\'action & Recommandations RSE',
+    en: '6.5 CSR action plan & recommendations'
+  },
+  'p.s6.solutionsIntro': {
+    fr: 'Les mesures ci-dessous sont celles que la direction a arrêtées pour ce périmètre. '
+      + 'À la différence des leviers qui précèdent — communs au secteur et proposés à titre '
+      + 'indicatif —, elles engagent l\'entreprise. Elles sont reprises du chapitre 11 du '
+      + 'rapport normé, dont elles constituent le détail.',
+    en: 'The measures below are those management has committed to for this scope. Unlike the '
+      + 'preceding levers — industry-wide and indicative only — these are binding. They are '
+      + 'taken from chapter 11 of the standard-form report, where they are set out in full.'
+  },
+  'p.s6.solutionsVides': {
+    fr: 'Aucune solution n\'est encore consignée. Le chapitre 11 du rapport normé — onglet '
+      + '« Rapport normé » — permet de les saisir ; elles paraîtront alors ici.',
+    en: 'No measure has been recorded yet. Chapter 11 of the standard-form report — the '
+      + '“Standard report” tab — is where they are entered; they will then appear here.'
+  },
+  // La numérotation est celle du chapitre 11 du rapport normé, et non celle de
+  // la section 6 qui l'accueille : l'en-tête le dit, faute de quoi « 11.2 »
+  // sous un titre « 6.5 » se lirait comme une coquille.
+  'th.refChapitre11': { fr: 'Réf. ch. 11', en: 'Ch. 11 ref.' },
+  'th.solution': { fr: 'Solution retenue', en: 'Committed measure' },
+  'th.porteeEcheance': { fr: 'Portée et échéance', en: 'Scope and timeline' },
 
   'annexeA.titre': { fr: 'Annexe A — Méthodologie de collecte', en: 'Appendix A — Data collection methodology' },
   'annexeA.fiches': { fr: 'A.1 Fiches de collecte par poste', en: 'A.1 Collection sheets by source' },

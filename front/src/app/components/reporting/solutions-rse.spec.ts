@@ -234,6 +234,66 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
     });
   });
 
+  /**
+   * <p>La synthèse exécutive est le document que lit la direction. Les mesures
+   * qu'elle a arrêtées doivent s'y trouver : les chercher dans un autre onglet
+   * reviendrait à les tenir hors du document de pilotage.</p>
+   */
+  describe('reprise dans la synthèse exécutive', () => {
+
+    /** Monte en mode synthèse — le mode par défaut du rapport. */
+    const monterSynthese = () => {
+      const fixture = TestBed.createComponent(ReportingComponent);
+      fixture.detectChanges();
+      servirTout();
+      fixture.detectChanges();
+      return fixture;
+    };
+
+    it('reprend les solutions en 6.5, avec leur portée', () => {
+      const fixture = monterSynthese();
+      saisir(fixture.componentInstance, 'Relamping LED des ateliers', 'Sur trois sites, d\'ici 2028.');
+      saisir(fixture.componentInstance, 'Fret maritime plutôt qu\'aérien', 'Bascule de 40 % des flux.');
+      fixture.detectChanges();
+
+      const hote: HTMLElement = fixture.nativeElement;
+      expect(hote.textContent).toContain('Plan d\'action & Recommandations RSE');
+
+      const lignes = [...hote.querySelectorAll('table.doc-tableau tbody tr')]
+        .filter(tr => tr.textContent?.includes('Relamping LED des ateliers')
+          || tr.textContent?.includes('Fret maritime'));
+
+      expect(lignes).toHaveLength(2);
+      expect(lignes[0].textContent).toContain('11.1');
+      expect(lignes[0].textContent).toContain('Sur trois sites, d\'ici 2028.');
+      expect(lignes[1].textContent).toContain('11.2');
+    });
+
+    it('renvoie au chapitre 11 tant qu\'aucune solution n\'est saisie', () => {
+      const hote: HTMLElement = monterSynthese().nativeElement;
+
+      // Un tableau vide ne dirait pas où saisir ; l'invite le dit.
+      expect(hote.textContent).toContain('Plan d\'action & Recommandations RSE');
+      expect(hote.textContent).toContain('Aucune solution n\'est encore consignée');
+    });
+
+    it('présente les solutions dans les deux modes du rapport', () => {
+      const fixture = monterSynthese();
+      saisir(fixture.componentInstance, 'Relamping LED', 'Mesure engagée.');
+      fixture.detectChanges();
+
+      const hote: HTMLElement = fixture.nativeElement;
+      expect(hote.textContent).toContain('Relamping LED');
+
+      fixture.componentInstance.changerMode('norme');
+      fixture.componentInstance.toutDeplier();
+      fixture.detectChanges();
+
+      expect(hote.querySelector('#chapitre-solutions .solution')?.textContent)
+        .toContain('Relamping LED');
+    });
+  });
+
   describe('persistance', () => {
 
     it('range les solutions avec les paramètres du périmètre', () => {

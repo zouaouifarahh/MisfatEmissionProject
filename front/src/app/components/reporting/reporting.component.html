@@ -1150,6 +1150,38 @@
         <p class="doc-note">{{ t('p.s6.l4.note') }}</p>
       </div>
 
+      <!-- 6.5 — Le plan d'action propre à l'entreprise, saisi au chapitre 11 du
+           rapport normé. Il vient après les leviers sectoriels, et non à leur
+           place : ceux-ci sont indicatifs, celles-là engagent. La synthèse
+           exécutive est le document que lit la direction — elle n'a pas à
+           changer d'onglet pour retrouver ce qu'elle a décidé. -->
+      <h3 class="tableau-titre">{{ t('sec6.solutions') }}</h3>
+
+      <ng-container *ngIf="solutions.length; else aucuneSolution">
+        <p class="doc-para">{{ t('p.s6.solutionsIntro') }}</p>
+
+        <table class="doc-tableau">
+          <thead>
+            <tr>
+              <th class="ta-right">{{ t('th.refChapitre11') }}</th>
+              <th>{{ t('th.solution') }}</th>
+              <th>{{ t('th.porteeEcheance') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let solution of solutions; let i = index">
+              <td class="ta-right cell-strong">{{ numeroSolution(i) }}</td>
+              <td class="cell-strong">{{ solution.titre }}</td>
+              <td class="cell-note">{{ solution.texte || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </ng-container>
+
+      <ng-template #aucuneSolution>
+        <p class="doc-vide">{{ t('p.s6.solutionsVides') }}</p>
+      </ng-template>
+
       <footer class="doc-pied">
         <span>{{ t('pied.sec6') }}</span>
         <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
