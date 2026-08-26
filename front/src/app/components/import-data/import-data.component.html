@@ -334,6 +334,8 @@
         [categories]="categoriesProposees"
         [corrigeCategorie]="corrigeLaCategorie"
         [champs]="champsCorrectionImport"
+        [validite]="validiteLigneImport"
+        [facteurMax]="facteurMonetaireMax"
         (fermer)="fermerSelection()"
         (appliquer)="appliquerCorrectionsImport($event)"></app-correction-anomalies>
 
@@ -341,6 +343,10 @@
         ✓ {{ correctionMessage }}
         <button type="button" class="btn-icon" (click)="correctionMessage = ''"
                 aria-label="Masquer">×</button>
+      </p>
+
+      <p class="detail-enregistrement" *ngIf="enregistrementEnCours">
+        <span aria-hidden="true">💾</span> Enregistrement des lignes corrigées en base…
       </p>
 
       <div class="detail-errors" *ngIf="logDetaille.errorDetail">
@@ -356,5 +362,21 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Confirmation d'enregistrement.
+     Hors de la modale de détail : celle-ci se referme après une validation,
+     et le compte rendu disparaîtrait avec elle. -->
+<div class="toast-pile" *ngIf="toastMessage">
+  <div class="toast" role="status">
+    <span aria-hidden="true">✅</span>
+    <span>{{ toastMessage }}</span>
+    <button class="toast-fermer" (click)="fermerToast()" aria-label="Fermer">×</button>
+  </div>
+
+  <div class="toast toast-repli" *ngIf="toastSecondaire" role="status">
+    <span aria-hidden="true">⚠️</span>
+    <span>{{ toastSecondaire }}</span>
   </div>
 </div>

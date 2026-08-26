@@ -48,6 +48,7 @@
 /* ------------------------------ MESSAGES ------------------------------- */
 
 .act-message,
+.act-conversion,
 .act-erreur {
   display: flex;
   align-items: flex-start;
@@ -59,6 +60,8 @@
 }
 
 .act-message { background: #ECFDF5; border: 1px solid #6EE7B7; color: #065F46; }
+/* Ni succès ni erreur : une correction dont l'utilisateur doit prendre acte. */
+.act-conversion { background: #EFF6FF; border: 1px solid #93C5FD; color: #1E40AF; }
 .act-erreur { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
 
 .msg-fermer {

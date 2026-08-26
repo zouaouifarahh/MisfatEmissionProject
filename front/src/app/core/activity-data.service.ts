@@ -47,6 +47,43 @@ export const CHAMPS_ACTIVITE = [
 
 export type ChampActivite = typeof CHAMPS_ACTIVITE[number]['cle'];
 
+/**
+ * Seuil au-delà duquel un chiffre d'affaires est tenu pour saisi en unités.
+ *
+ * <p>Le champ est libellé « M TND » et attend donc 450 pour 450 millions. Rien
+ * n'empêchait d'y taper 450 000 000, et le ratio par million devenait alors un
+ * millionième de sa valeur — sans que rien ne le signale, puisque le calcul
+ * reste parfaitement défini.</p>
+ *
+ * <p>Dix mille millions valent dix milliards : aucune société du Groupe n'en
+ * approche, et une valeur supérieure ne peut donc pas être des millions. Le
+ * seuil ne tranche pas un cas douteux, il écarte un cas impossible.</p>
+ */
+export const SEUIL_CA_UNITES = 10_000;
+
+/**
+ * Ramène un chiffre d'affaires à des millions, quelle que soit sa saisie.
+ *
+ * <p>La conversion est appliquée à l'écriture comme à la relecture : à
+ * l'écriture pour que la donnée soit canonique dès qu'elle entre, à la
+ * relecture pour que les relevés saisis avant ce correctif cessent de fausser
+ * les intensités.</p>
+ */
+export function chiffreAffairesEnMillions(valeur: number | null | undefined): number | null {
+  if (typeof valeur !== 'number' || !Number.isFinite(valeur)) return null;
+  return valeur > SEUIL_CA_UNITES ? valeur / 1_000_000 : valeur;
+}
+
+/** Le relevé porte-t-il un chiffre d'affaires manifestement saisi en unités ? */
+export function chiffreAffairesARequalifier(valeur: number | null | undefined): boolean {
+  return typeof valeur === 'number' && Number.isFinite(valeur) && valeur > SEUIL_CA_UNITES;
+}
+
+/** Relevé ramené aux unités attendues par les écrans qui le consomment. */
+export function normaliserReleve(releve: DonneesActivite): DonneesActivite {
+  return { ...releve, chiffreAffairesM: chiffreAffairesEnMillions(releve.chiffreAffairesM) };
+}
+
 /** Relevé vierge pour un exercice. */
 export function releveVide(annee: number): DonneesActivite {
   return {
@@ -137,7 +174,12 @@ export class ActivityDataService implements OnDestroy {
     const tous = { ...this.synchroniser() };
     const societe = [...(tous[clef] ?? [])];
 
-    const complet: DonneesActivite = { ...releve, majLe: new Date().toISOString() };
+    // Normalisation à l'entrée : la donnée est canonique dès qu'elle est
+    // enregistrée, et tous les écrans qui la relisent — tableau de bord,
+    // rapport, consolidation — partent de la même valeur.
+    const complet: DonneesActivite = {
+      ...normaliserReleve(releve), majLe: new Date().toISOString()
+    };
     const index = societe.findIndex(r => r.annee === releve.annee);
 
     if (index >= 0) societe[index] = complet;
@@ -183,7 +225,12 @@ export class ActivityDataService implements OnDestroy {
       const propre: Record<string, DonneesActivite[]> = {};
       for (const [clef, valeur] of Object.entries(relu)) {
         if (Array.isArray(valeur)) {
-          propre[clef] = valeur.filter(r => r && Number.isFinite(Number(r.annee)));
+          // Les relevés saisis avant l'introduction du seuil sont requalifiés
+          // ici : sans quoi un chiffre d'affaires déjà stocké en unités
+          // continuerait d'écraser l'intensité par million.
+          propre[clef] = valeur
+            .filter(r => r && Number.isFinite(Number(r.annee)))
+            .map(normaliserReleve);
         }
       }
       return propre;

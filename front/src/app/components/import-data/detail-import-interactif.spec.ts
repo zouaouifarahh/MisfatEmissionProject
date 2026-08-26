@@ -189,7 +189,13 @@ describe('Détail de l\'import — cartes et sous-tableau', () => {
 
       const restantes = magasin.instantane.lignes
         .filter(l => l.origineFacteur === 'ADEME Fallback').length;
-      expect(restantes).toBe(6);
+      expect(restantes).toBe(5);
+
+      // La ligne corrigée n'a pas disparu : elle a changé d'origine. C'est ce
+      // qui la fait sortir du tableau des erreurs sans la retirer du bilan.
+      const corrigee = magasin.instantane.lignes[0];
+      expect(corrigee.origineFacteur).toBe('Correction manuelle');
+      expect(corrigee.facteur).toBe(0.5);
     });
 
     it('recalcule le total du dépôt après suppression', () => {

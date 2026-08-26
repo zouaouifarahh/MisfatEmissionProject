@@ -7,7 +7,8 @@ import { Subscription } from 'rxjs';
 import * as XLSX from 'xlsx';
 
 import {
-  ActivityDataService, CHAMPS_ACTIVITE, DonneesActivite, releveVide
+  ActivityDataService, CHAMPS_ACTIVITE, DonneesActivite, releveVide,
+  chiffreAffairesARequalifier, chiffreAffairesEnMillions
 } from '../../core/activity-data.service';
 import { EntityContextService } from '../../core/entity-context.service';
 import { extraireActivite } from './extraction-activite';
@@ -154,11 +155,29 @@ export class ActivityDataComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Le champ attend des millions ; une valeur qui ne peut pas en être est
+    // requalifiée par l'annuaire. On le dit plutôt que de convertir en silence :
+    // l'utilisateur doit pouvoir vérifier que 450 000 000 est bien devenu 450,
+    // et non un ordre de grandeur qu'il n'a pas voulu.
+    const saisiEnUnites = chiffreAffairesARequalifier(this.formulaire.chiffreAffairesM);
+    const converti = chiffreAffairesEnMillions(this.formulaire.chiffreAffairesM);
+
     this.activite.enregistrer(this.entityId, { ...this.formulaire, annee: this.anneeEditee });
-    this.message = `Exercice ${this.anneeEditee} enregistré. Le tableau de bord et les rapports `
-      + 'se recalculent immédiatement.';
+
+    this.message = `Exercice ${this.anneeEditee} enregistré. Le tableau de bord, les rapports `
+      + 'et la Consolidation Groupe se recalculent immédiatement.';
+
+    this.avertissementConversion = saisiEnUnites
+      ? `Chiffre d'affaires converti : ${this.formulaire.chiffreAffairesM!.toLocaleString('fr-FR')} `
+        + `a été enregistré comme ${converti!.toLocaleString('fr-FR')} M ${this.devise}. `
+        + 'Ce champ attend des millions.'
+      : '';
+
     this.cdr.markForCheck();
   }
+
+  /** Conversion appliquée au chiffre d'affaires lors du dernier enregistrement. */
+  avertissementConversion = '';
 
   /** Charge une ligne du tableau dans le formulaire. */
   editer(releve: DonneesActivite): void {

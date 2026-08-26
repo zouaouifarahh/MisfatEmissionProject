@@ -1,6 +1,8 @@
 package com.misfat.emissionservice.controller;
 
 import com.misfat.emissionservice.dto.BulkImportResult;
+import com.misfat.emissionservice.dto.CorrectedLineDto;
+import com.misfat.emissionservice.dto.CorrectionResult;
 import com.misfat.emissionservice.dto.RawImportRowDto;
 import com.misfat.emissionservice.service.EmissionBulkImportService;
 import lombok.RequiredArgsConstructor;
@@ -57,5 +59,25 @@ public class EmissionBulkImportController {
                 .header("X-Skipped-Count", String.valueOf(resultat.skippedCount()))
                 .header("X-Skipped-Reasons", String.join(" | ", resultat.skippedReasons()))
                 .build();
+    }
+
+    /**
+     * Enregistre les lignes d'import corrigées puis validées à l'écran.
+     *
+     * <p>Le corps de réponse est ici pleinement exploité, contrairement à
+     * {@link #bulkImportEmissions} : l'écran appelant doit savoir quelles clés
+     * ont été retenues pour ne pas les représenter à la validation suivante.
+     * Des en-têtes ne suffiraient pas à porter cette liste.</p>
+     *
+     * <p>Le statut reste 200 même en cas de rejet partiel : l'écran lit le
+     * bilan et affiche lui-même ce qui n'a pas pu être enregistré. Un 4xx
+     * ferait basculer l'appelant dans sa branche d'erreur alors que des lignes
+     * ont bel et bien été persistées.</p>
+     */
+    @PostMapping("/corrections")
+    public ResponseEntity<CorrectionResult> enregistrerCorrections(
+            @RequestBody List<CorrectedLineDto> lignes) {
+
+        return ResponseEntity.ok(bulkImportService.enregistrerCorrections(lignes));
     }
 }

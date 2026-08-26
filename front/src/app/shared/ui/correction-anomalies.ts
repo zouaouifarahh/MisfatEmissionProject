@@ -73,6 +73,7 @@ export interface ResultatCorrections {
                 <th class="ta-right">Montant</th>
                 <th *ngIf="corrigeCategorie">Catégorie carbone</th>
                 <th class="ta-right">Facteur</th>
+                <th class="ta-center" *ngIf="validite">Statut</th>
                 <th class="ta-center">Actions</th>
               </tr>
             </thead>
@@ -103,6 +104,19 @@ export interface ResultatCorrections {
                          placeholder="0,250">
                 </td>
 
+                <!-- Le statut se réévalue à la frappe : l'utilisateur voit la
+                     ligne basculer sur ✓ avant même de valider, et sait donc
+                     ce que la validation va enregistrer. -->
+                <td class="ta-center" *ngIf="validite">
+                  <span class="corr-statut"
+                        [class.corr-statut-valide]="devientValide(ligne)"
+                        [title]="devientValide(ligne)
+                          ? 'Ligne valide : elle sera enregistrée et rejoindra sa catégorie'
+                          : 'Ligne encore en anomalie : complétez la catégorie ou le facteur'">
+                    {{ devientValide(ligne) ? '✓ Valide' : '⚠ Anomalie' }}
+                  </span>
+                </td>
+
                 <td class="ta-center">
                   <button type="button" class="corr-retirer"
                           [class.corr-retirer-actif]="suppressions.has(identifiant(ligne))"
@@ -126,6 +140,10 @@ export interface ResultatCorrections {
         <footer class="corr-pied">
           <p class="corr-resume">
             {{ nombreCorrigees }} correction(s) et {{ suppressions.size }} retrait(s) en attente.
+            <ng-container *ngIf="validite">
+              <strong>{{ nombreValides }} ligne(s) passeront au statut Valide</strong>,
+              seront enregistrées en base et rejoindront leur catégorie.
+            </ng-container>
             Rien n'est enregistré tant que vous n'avez pas validé.
           </p>
           <div class="corr-boutons">
@@ -201,6 +219,13 @@ export interface ResultatCorrections {
     .corr-saisie:disabled { background: #F1F5F9; color: #94A3B8; }
     .corr-saisie-courte { min-width: 88px; width: 88px; text-align: right; }
 
+    .corr-statut {
+      display: inline-block; padding: 3px 9px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 700; white-space: nowrap;
+      background: #FEF3C7; color: #92400E;
+    }
+    .corr-statut-valide { background: #DCFCE7; color: #166534; }
+
     .corr-retirer {
       background: none; border: 1px solid #E2E8F0; border-radius: 6px;
       width: 30px; height: 28px; cursor: pointer; font-size: 13px;
@@ -254,6 +279,30 @@ export class CorrectionAnomaliesComponent {
     libelle: 'designation', grandeur: 'montant', categorie: 'categorieCarbone',
     facteur: 'facteur'
   };
+
+  /**
+   * Prédicat de validité, fourni par l'écran qui détient les lignes.
+   *
+   * <p>Le panneau ne peut pas en juger seul : savoir qu'une ligne d'import est
+   * encore sous facteur de repli suppose de connaître le magasin de
+   * répartition, qui ne le regarde pas. L'écran reçoit donc la ligne et les
+   * saisies en cours, et tranche.</p>
+   *
+   * <p>Absent, la colonne « Statut » n'est pas rendue : les écrans qui n'ont
+   * pas de notion de validité ligne à ligne gardent le tableau qu'ils
+   * avaient.</p>
+   */
+  @Input() validite?: (ligne: any, categorie: string, facteur: number | null) => boolean;
+
+  /**
+   * Plafond de plausibilité du facteur, quand l'écran en connaît un.
+   *
+   * <p>Optionnel à dessein : un facteur physique se compte parfois en milliers
+   * de kgCO₂e par tonne de matière, là où un ratio monétaire dépasse rarement
+   * l'unité. Un plafond commun rejetterait des valeurs justes sur les écrans
+   * physiques. Seul l'écran sait ce que sa colonne mesure.</p>
+   */
+  @Input() facteurMax?: number;
 
   @Output() fermer = new EventEmitter<void>();
   @Output() appliquer = new EventEmitter<ResultatCorrections>();
@@ -310,6 +359,29 @@ export class CorrectionAnomaliesComponent {
     this.erreur = '';
   }
 
+  /**
+   * La ligne serait-elle valide, compte tenu de ce qui vient d'être saisi ?
+   *
+   * <p>Une ligne marquée pour retrait n'est jamais valide : elle ne rejoindra
+   * aucune catégorie, elle quittera le bilan.</p>
+   */
+  devientValide(ligne: any): boolean {
+    if (!this.validite) return false;
+
+    const id = this.identifiant(ligne);
+    if (this.suppressions.has(id)) return false;
+
+    const categorie = (this.categoriesSaisies.get(id) ?? '').trim();
+    const facteur = facteurSaisi(this.facteursSaisis.get(id) ?? '');
+
+    return this.validite(ligne, categorie, facteur);
+  }
+
+  /** Lignes que la validation ferait passer au statut valide. */
+  get nombreValides(): number {
+    return this.validite ? this.lignes.filter(l => this.devientValide(l)).length : 0;
+  }
+
   /** Lignes portant au moins une saisie exploitable. */
   get nombreCorrigees(): number {
     return this.lignes.filter(ligne => {
@@ -349,6 +421,15 @@ export class CorrectionAnomaliesComponent {
         if (lu === null) {
           this.erreur = `Facteur illisible sur « ${this.valeur(ligne, this.champs.libelle)} » : `
             + 'saisissez une valeur strictement positive.';
+          return;
+        }
+        // Une valeur hors d'échelle arrête la validation entière : appliquer
+        // les autres corrections et taire celle-là laisserait un poste absurde
+        // au milieu d'un lot que l'utilisateur croirait vérifié.
+        if (this.facteurMax !== undefined && lu > this.facteurMax) {
+          this.erreur = `Facteur hors d'échelle sur « ${this.valeur(ligne, this.champs.libelle)} » : `
+            + `${lu} dépasse le maximum admis de ${this.facteurMax} kgCO₂e par unité. `
+            + 'Vérifiez l\'unité du facteur avant de valider.';
           return;
         }
         facteur = lu;

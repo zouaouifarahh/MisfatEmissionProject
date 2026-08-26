@@ -109,6 +109,19 @@
 
 /* Un écran qui a quitté l'engagement validé doit le dire, sans quoi une
    simulation finit citée comme un engagement. */
+/* Repli d'année de base : une information de méthode, non un avertissement —
+   d'où le bleu, distinct de l'ambre des simulations. */
+.sbti-base-repli {
+    margin: 0 0 14px;
+    padding: 9px 12px;
+    border-left: 3px solid #3b82f6;
+    background: #eff6ff;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #1e40af;
+}
+
 .sbti-simulation {
     margin: 0 0 14px;
     padding: 9px 12px;

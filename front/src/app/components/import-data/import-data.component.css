@@ -1,3 +1,7 @@
+/* La pile de notifications est mutualisée : même forme et mêmes couleurs que
+   sur les écrans de catégorie, où l'utilisateur en a déjà l'habitude. */
+@import "../../shared/styles/mobilite-badges.css";
+
 /* ==========================================================================
    Écran d'import — charte Soft SaaS, bleu corporate & orange MISFAT
    ========================================================================== */
@@ -637,4 +641,12 @@
   display: flex; align-items: center; gap: 10px;
   margin: 10px 0; padding: 10px 14px; border-radius: 8px;
   background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; font-size: 13px;
+}
+
+/* Écriture en base en cours : distincte du compte rendu vert, qui annonce une
+   opération achevée. */
+.detail-enregistrement {
+  display: flex; align-items: center; gap: 10px;
+  margin: 10px 0; padding: 10px 14px; border-radius: 8px;
+  background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; font-size: 13px;
 }

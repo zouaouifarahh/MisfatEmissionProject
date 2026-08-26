@@ -17,6 +17,15 @@
     <button type="button" class="msg-fermer" (click)="message = ''" aria-label="Fermer">×</button>
   </div>
 
+  <!-- Une conversion d'ordre de grandeur ne se fait pas en silence : c'est le
+       genre de correction qui, tue, ferait douter de tous les ratios. -->
+  <div class="act-conversion" *ngIf="avertissementConversion">
+    <span aria-hidden="true">↔️</span>
+    <span>{{ avertissementConversion }}</span>
+    <button type="button" class="msg-fermer" (click)="avertissementConversion = ''"
+            aria-label="Fermer">×</button>
+  </div>
+
   <div class="act-erreur" *ngIf="erreur">
     <span aria-hidden="true">⚠️</span>
     <span>{{ erreur }}</span>

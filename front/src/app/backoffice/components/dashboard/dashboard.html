@@ -467,34 +467,13 @@
         </div>
       </div>
 
-      <!-- Mode de valorisation + provenance des chiffres -->
+      <!-- Provenance des chiffres.
+           La bascule Physique / Monétaire a été retirée : un bilan carbone se
+           tient en tCO₂e et en rien d'autre. Le mode monétaire ne montrait pas
+           d'autres émissions, il montrait des montants en devise — une vue de
+           dépenses logée dans les cartes du bilan, où elle se lisait comme une
+           empreinte concurrente. -->
       <div class="stats-bar">
-        <div class="mode-toggle" role="group" aria-label="Mode de valorisation">
-          <button type="button"
-                  [class.actif]="modeStats === 'PHYSIQUE'"
-                  [attr.aria-pressed]="modeStats === 'PHYSIQUE'"
-                  (click)="basculerMode('PHYSIQUE')">
-            <span aria-hidden="true">📊</span> Mode Physique (tCO₂e)
-          </button>
-          <button type="button"
-                  [class.actif]="modeStats === 'MONETAIRE'"
-                  [attr.aria-pressed]="modeStats === 'MONETAIRE'"
-                  (click)="basculerMode('MONETAIRE')">
-            <span aria-hidden="true">💰</span> Mode Monétaire ({{ deviseMonetaire }})
-          </button>
-        </div>
-
-        <!-- Devise de restitution : n'a de sens qu'en valorisation monétaire -->
-        <label class="devise-switch" *ngIf="modeStats === 'MONETAIRE'">
-          <span>Devise</span>
-          <select [value]="deviseMonetaire" (change)="changerDeviseMonetaire($any($event.target).value)">
-            <option value="TND">TND — Dinar tunisien</option>
-            <option value="EUR">EUR — Euro</option>
-            <option value="USD">USD — Dollar</option>
-            <option value="MAD">MAD — Dirham</option>
-          </select>
-        </label>
-
         <span class="stats-source" [class.stats-demo]="!statsSontReelles">
           {{ chargementStats ? 'Calcul en cours…' : (statsSontReelles ? statsReelles!.measureCount + ' mesure(s) en base' : 'Aucune mesure en base — valeurs de démonstration') }}
         </span>
@@ -502,6 +481,21 @@
         <span class="stats-warn" *ngIf="statsReelles?.unconvertedCurrencies?.length">
           ⚠ Devise(s) sans taux connu : {{ statsReelles!.unconvertedCurrencies.join(', ') }}
         </span>
+      </div>
+
+      <!-- Garde-fou : une empreinte de filiale hors de toute vraisemblance
+           trahit une donnée fausse, jamais une performance industrielle. -->
+      <div class="stats-alerte" *ngIf="filialesInvraisemblables.length">
+        <span aria-hidden="true">🚨</span>
+        <div>
+          <strong>Empreinte invraisemblable détectée.</strong>
+          <span *ngFor="let f of filialesInvraisemblables; let dernier = last">
+            {{ f.nom }} affiche {{ f.valeur | number:'1.0-0' }} tCO₂e sur l'exercice{{ dernier ? '' : ' ·' }}
+          </span>
+          — au-delà de {{ seuilInvraisemblance | number:'1.0-0' }} tCO₂e, l'origine est
+          presque toujours un facteur d'émission saisi dans la mauvaise unité.
+          Vérifiez les mesures de cet exercice avant d'exploiter ce bilan.
+        </div>
       </div>
 
       <!-- LIGNE 1 : 4 CARTES KPI -->
@@ -526,6 +520,9 @@
             <span><i class="dot dot-2"></i>Scope 2 <strong>{{ stats.scope2 | tco2e }}</strong></span>
             <span><i class="dot dot-3"></i>Scope 3 <strong>{{ stats.scope3 | tco2e }}</strong></span>
           </div>
+          <p class="kpi-note">
+            Total consolidé réunissant les approches physiques et monétaires.
+          </p>
         </div>
 
         <div class="kpi-card kpi-scope scope-1 pastel-s1">
@@ -857,16 +854,13 @@
                   <span class="legend-pct">{{ f.pct | number:'1.0-1' }}%</span>
                 </div>
 
+                <!-- Toutes les sociétés sont listées, y compris celles à 0 % :
+                     un périmètre de consolidation se lit en entier, et une
+                     filiale repliée derrière un bouton se lit comme absente du
+                     Groupe plutôt que comme non encore collectée. -->
                 <p class="legend-vide" *ngIf="filialesAffichees.length === 0">
                   Aucune société ne porte d'émission sur ce périmètre.
                 </p>
-
-                <button type="button" class="btn-voir-tout" *ngIf="filialesMasquees > 0"
-                        (click)="afficherFilialesZero = !afficherFilialesZero">
-                  {{ afficherFilialesZero
-                     ? '▴ Masquer les sociétés à 0 %'
-                     : '▾ Voir toutes les sociétés (' + filialesMasquees + ' à 0 %)' }}
-                </button>
               </div>
             </div>
           </div>

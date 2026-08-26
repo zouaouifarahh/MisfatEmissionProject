@@ -43,14 +43,25 @@ export class TrajectoireSbtiComponent {
   // --- Paramètres de l'engagement, modifiables pour tester un scénario ---
 
   /**
-   * Cible validée par la SBTi le 10 novembre 2025 : −42 % sur les scopes 1 et 3
-   * à l'horizon 2030, année de base 2023.
+   * Engagement Misfat Filtration : −42 % sur les scopes 1 et 3 à l'horizon
+   * 2030, année de base 2021.
    *
    * <p>Ces valeurs sont modifiables à l'écran, mais elles ne sont pas
    * arbitraires : les changer revient à simuler un autre engagement, ce que le
    * bandeau signale.</p>
+   *
+   * <p>L'année de base était fixée à 2023 ; elle est ramenée à 2021 sur
+   * indication du porteur du dossier. Elle commande tout le couloir — la valeur
+   * de départ, la pente, et donc chaque écart du tableau —, si bien qu'une
+   * erreur ici fausse la trajectoire entière sans rien casser de visible.</p>
+   *
+   * <p>La base n'est retenue que si l'exercice correspondant est chiffré :
+   * {@code construireTrajectoire} retombe sinon sur le premier exercice
+   * collecté, et l'encart « Année de base » affiche alors celle réellement
+   * employée. La collecte débutant en 2022, c'est le cas tant que 2021 n'est
+   * pas renseigné.</p>
    */
-  readonly ANNEE_BASE_ENGAGEMENT = 2023;
+  readonly ANNEE_BASE_ENGAGEMENT = 2021;
   readonly ANNEE_CIBLE_ENGAGEMENT = 2030;
   readonly REDUCTION_ENGAGEMENT = 42;
   readonly PERIMETRE_ENGAGEMENT: PerimetreCible = 'SCOPES_1_3';
@@ -101,6 +112,22 @@ export class TrajectoireSbtiComponent {
   /** Nombre d'exercices réellement collectés dans le couloir. */
   readonly exercicesCollectes = computed(() =>
     this.trajectoire()?.points.filter(p => p.reel !== null).length ?? 0);
+
+  /**
+   * Année de base réellement employée, quand ce n'est pas celle demandée.
+   *
+   * <p>Une base non collectée ne peut pas servir de référence : la trajectoire
+   * se rabat sur le premier exercice chiffré. Le repli est juste, mais il doit
+   * se voir — sans quoi l'écran annonce une trajectoire « base 2021 » calculée
+   * sur 2022, et l'écart affiché n'est pas celui que l'on croit lire.</p>
+   *
+   * @returns l'année substituée, ou `null` si la base demandée est bien celle
+   *          employée.
+   */
+  readonly baseSubstituee = computed(() => {
+    const t = this.trajectoire();
+    return t && t.anneeBase !== this.anneeBase() ? t.anneeBase : null;
+  });
 
   // --- Repère du tracé ---
 

@@ -413,16 +413,28 @@ export class DashboardComponent implements OnInit {
   refreshToken = 0;
 
   // ---------- AGRÉGATS RÉELS ----------
-  /** Mode de valorisation : tCO2e ou devise. */
-  modeStats: StatsMode = 'PHYSIQUE';
+  /**
+   * Restitution du tableau de bord : des tonnes de CO₂ équivalent, toujours.
+   *
+   * <p>Une bascule laissait auparavant choisir entre valorisation physique et
+   * valorisation monétaire. Elle induisait en erreur : le mode monétaire ne
+   * donnait pas une autre lecture des émissions, il remplaçait les tCO₂e par
+   * les montants d'achat des seules lignes adossées à un facteur monétaire.
+   * Deux grandeurs incomparables occupaient donc les mêmes cartes, et la carte
+   * « Total empreinte carbone » pouvait afficher des dinars.</p>
+   *
+   * <p>Le mode physique, lui, somme déjà les tCO₂e de <em>toutes</em> les
+   * mesures — celles calculées par un facteur physique comme celles calculées
+   * par un ratio monétaire. C'est le total consolidé, et c'est le seul que le
+   * tableau de bord présente désormais.</p>
+   */
+  private static readonly MODE_RESTITUTION: StatsMode = 'PHYSIQUE';
+
   statsReelles: EmissionStats | null = null;
 
   /** Compte rendu de la reprise des lignes sans facteur, affiché une fois. */
   messageRecalcul = '';
   chargementStats = false;
-
-  /** Devise de restitution en mode monétaire ; TND en consolidation groupe. */
-  deviseMonetaire: string = 'TND';
 
   /**
    * Écarte les entrées de stockage devenues sans objet.
@@ -1193,7 +1205,9 @@ export class DashboardComponent implements OnInit {
     // remonter sur 2026, ni la ventilation d'une société sur une autre.
     this.dispatchStore.suivrePerimetre(f.year ?? null, f.entityId ?? null);
 
-    this.statsService.aggregate(this.modeStats, f.entityId, f.usineId, f.year, this.deviseMonetaire).subscribe({
+    this.statsService.aggregate(
+      DashboardComponent.MODE_RESTITUTION, f.entityId, f.usineId, f.year
+    ).subscribe({
       next: stats => {
         this.statsReelles = this.fusionnerVentilation(stats);
         this.chargementStats = false;
@@ -1261,10 +1275,12 @@ export class DashboardComponent implements OnInit {
     // Les deux replis sont indépendants : la ventilation d'un classeur et les
     // saisies des écrans. Sortir ici quand la première est vide priverait le
     // tableau de bord de la seconde — c'est ce qui laissait le Scope 3 à zéro.
-    const lignes = this.modeStats === 'PHYSIQUE' ? this.dispatchStore.lignesActives : [];
+    // La ventilation est désormais toujours fusionnée : elle porte des tCO₂e,
+    // et c'est en tCO₂e que le tableau de bord restitue.
+    const lignes = this.dispatchStore.lignesActives;
 
     const base: EmissionStats = stats ?? {
-      mode: this.modeStats, unit: 'tCO2e', currency: null, measureCount: 0,
+      mode: DashboardComponent.MODE_RESTITUTION, unit: 'tCO2e', currency: null, measureCount: 0,
       total: 0, scope1: 0, scope2: 0, scope3: 0,
       byScope: {}, byCategory: {}, byScopeCategory: {}, byFiliale: [],
       byCurrency: {}, unconvertedCurrencies: []
@@ -1363,10 +1379,6 @@ export class DashboardComponent implements OnInit {
    * catégorie qu'il documente n'est jamais écrasée, ni doublée.</p>
    */
   private completerParMesuresLocales(stats: EmissionStats): EmissionStats {
-    // Un ratio en kgCO₂e ne se convertit pas en dinars : le repli ne vaut
-    // qu'en restitution physique.
-    if (this.modeStats !== 'PHYSIQUE') return stats;
-
     const exercice = this.entityService.filter.year ?? null;
     const locaux = totauxLocaux(exercice, this.organisationActive);
 
@@ -1567,18 +1579,6 @@ export class DashboardComponent implements OnInit {
     // Le mot le plus long porte l'enseigne : « SOLAUFIL » dans
     // « FR SOLAUFIL FRANCE », « MISFAT » dans « TN MISFAT TUNISIE ».
     return mots.reduce((plusLong, mot) => (mot.length > plusLong.length ? mot : plusLong));
-  }
-
-  basculerMode(mode: StatsMode): void {
-    if (this.modeStats === mode) return;
-    this.modeStats = mode;
-    this.chargerStats();
-  }
-
-  /** Change la devise de restitution du mode monétaire. */
-  changerDeviseMonetaire(devise: string): void {
-    this.deviseMonetaire = devise;
-    if (this.modeStats === 'MONETAIRE') this.chargerStats();
   }
 
   /** Ventilation par catégorie, triée par contribution décroissante. */
@@ -1948,10 +1948,16 @@ export class DashboardComponent implements OnInit {
     return general ? (this.syntheseTotal / general) * 100 : 0;
   }
 
+  /**
+   * Unité de restitution, invariable.
+   *
+   * <p>Conservée comme accesseur plutôt que remplacée par une chaîne dans les
+   * gabarits : les légendes, les donuts et le tableau de synthèse la lisent
+   * tous, et une unité nommée en un seul endroit ne peut pas diverger d'un
+   * widget à l'autre.</p>
+   */
   get uniteStats(): string {
-    return this.modeStats === 'MONETAIRE'
-      ? (this.statsReelles?.currency ?? this.devise)
-      : 'tCO₂eq';
+    return 'tCO₂eq';
   }
 
   // ---------- DISTRIBUTION PAR FILIALE / PAYS ----------
@@ -1970,7 +1976,6 @@ export class DashboardComponent implements OnInit {
    * clic.</p>
    */
   afficherScope3Zero = false;
-  afficherFilialesZero = false;
 
   /** Postes du Scope 3 réellement montrés, selon l'état du dépliant. */
   get scope3Affiches(): { nom: string; total: number; pct: number; couleur: string }[] {
@@ -1981,13 +1986,48 @@ export class DashboardComponent implements OnInit {
     return this.scope3Full.length - this.scope3Full.filter(p => p.total > 0).length;
   }
 
-  /** Sociétés réellement montrées dans la distribution. */
-  get filialesAffichees(): { nom: string; pays: string; drapeau: string; valeur: number; pct: number; couleur: string }[] {
-    return this.afficherFilialesZero ? this.filialesStats : this.filialesStats.filter(f => f.valeur > 0);
+  /**
+   * Seuil d'invraisemblance d'une empreinte annuelle de filiale, en tCO₂e.
+   *
+   * <p>Un million de tonnes est l'ordre de grandeur d'un cimentier ou d'une
+   * aciérie intégrée. Une filiale de filtration qui l'atteint ne décrit pas une
+   * performance industrielle : elle signale une donnée fausse — un facteur
+   * saisi dans la mauvaise unité, une quantité prise pour un montant.</p>
+   *
+   * <p>Le tableau de bord n'écarte pas la valeur pour autant. Masquer une
+   * donnée aberrante la rendrait introuvable ; l'afficher en la signalant
+   * conduit l'utilisateur à la ligne qu'il doit corriger.</p>
+   */
+  static readonly SEUIL_EMPREINTE_INVRAISEMBLABLE = 1_000_000;
+
+  /**
+   * Filiales dont l'empreinte de l'exercice dépasse toute vraisemblance.
+   *
+   * <p>Alimente le bandeau d'alerte : le nom de la société et son chiffre,
+   * parce qu'un avertissement qui ne dit pas où regarder ne fait que
+   * inquiéter.</p>
+   */
+  get filialesInvraisemblables(): { nom: string; valeur: number }[] {
+    return this.filialesStats
+      .filter(f => f.valeur > DashboardComponent.SEUIL_EMPREINTE_INVRAISEMBLABLE)
+      .map(f => ({ nom: f.nom, valeur: f.valeur }));
   }
 
-  get filialesMasquees(): number {
-    return this.filialesStats.length - this.filialesStats.filter(f => f.valeur > 0).length;
+  /** Seuil rappelé dans le bandeau, pour que l'alerte se justifie d'elle-même. */
+  readonly seuilInvraisemblance = DashboardComponent.SEUIL_EMPREINTE_INVRAISEMBLABLE;
+
+  /**
+   * Sociétés montrées dans la distribution : toutes, sans exception.
+   *
+   * <p>Les sociétés à 0 % étaient repliées derrière un bouton « Voir toutes
+   * les sociétés ». Le repli servait la lisibilité du donut, mais il coûtait
+   * plus qu'il ne rapportait sur un tableau de bord Groupe : une filiale
+   * masquée ne se distingue pas d'une filiale absente du périmètre, et un zéro
+   * affiché dit précisément ce qu'il faut savoir — la collecte reste à
+   * faire.</p>
+   */
+  get filialesAffichees(): { nom: string; pays: string; drapeau: string; valeur: number; pct: number; couleur: string }[] {
+    return this.filialesStats;
   }
 
   toggleFilialeSlice(nom: string): void {

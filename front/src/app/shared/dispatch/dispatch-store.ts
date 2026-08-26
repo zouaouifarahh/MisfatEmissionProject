@@ -107,7 +107,17 @@ const MOTIFS_CATEGORIE: Record<EcranDestination, RegExp> = {
   'investissements': /Category 15\b/i
 };
 
-export type OrigineFacteur = 'MS SQL BDD' | 'ADEME Fallback';
+/**
+ * Provenance du facteur appliqué à une ligne.
+ *
+ * <p>« Correction manuelle » n'est pas une nuance d'affichage : c'est ce qui
+ * fait sortir une ligne du décompte des anomalies. Une ligne tombée sur un
+ * repli ADEME puis corrigée à la main restait auparavant marquée « ADEME
+ * Fallback », si bien qu'elle continuait d'apparaître dans le tableau des
+ * erreurs après avoir été corrigée — l'utilisateur corrigeait sans jamais voir
+ * l'alerte décroître.</p>
+ */
+export type OrigineFacteur = 'MS SQL BDD' | 'ADEME Fallback' | 'Correction manuelle';
 
 /** Ligne ventilée, valorisée par son facteur d'émission. */
 export interface LigneValorisee extends LigneDispatchee {
@@ -125,6 +135,19 @@ export interface LigneValorisee extends LigneDispatchee {
    * trois cohabitaient sous un seul nom, et c'est le compte qui gagnait.</p>
    */
   referenceCarbone: string;
+
+  /**
+   * La ligne a-t-elle été enregistrée en base ?
+   *
+   * <p>Le magasin vit dans le navigateur ; la base, elle, ne connaît que ce
+   * qu'on lui a écrit. Sans cette marque, valider deux fois de suite le même
+   * écran de correction enregistrerait deux fois les mêmes mesures et
+   * doublerait le bilan.</p>
+   *
+   * <p>Elle est persistée avec la ligne : un rafraîchissement de la page ne
+   * doit pas faire oublier ce qui est déjà en base.</p>
+   */
+  persisteeEnBase?: boolean;
 }
 
 export interface EtatDispatch {
@@ -160,6 +183,24 @@ export function exerciceDepuisNom(nom: string): number | null {
   if (!trouve) return null;
   const annee = Number(trouve[1]);
   return annee >= 2000 && annee <= 2100 ? annee : null;
+}
+
+/**
+ * Plafond de plausibilité d'un facteur monétaire, en kgCO₂e par unité de devise.
+ *
+ * <p>Miroir de la borne appliquée par emission-service : le serveur reste
+ * l'autorité — un navigateur ne protège pas une base —, mais refuser ici évite
+ * à l'utilisateur d'apprendre son erreur par un rejet après coup.</p>
+ *
+ * <p>Les facteurs du référentiel MISFAT se tiennent entre 0,1 et 0,6 ; les
+ * bases entrées-sorties les plus intenses plafonnent vers 5. Cent n'arbitre
+ * donc aucun cas discutable.</p>
+ */
+export const FACTEUR_MONETAIRE_MAX = 100;
+
+/** Le facteur saisi est-il d'un ordre de grandeur possible ? */
+export function facteurPlausible(facteur: number): boolean {
+  return Number.isFinite(facteur) && facteur > 0 && facteur <= FACTEUR_MONETAIRE_MAX;
 }
 
 /** Clé de persistance de la répartition, relue à chaque démarrage. */
@@ -527,7 +568,10 @@ export class DispatchStore {
    */
   reprendreFacteur(cles: readonly string[], facteur: number, base?: string): number {
     if (!Array.isArray(cles) || !cles.length) return 0;
-    if (!Number.isFinite(facteur) || facteur <= 0) return 0;
+    // Un facteur hors d'échelle est refusé plutôt qu'appliqué : c'est par ce
+    // chemin qu'un 9 999 saisi à la main a porté un seul poste à 15 millions
+    // de tonnes, soit 96 % de l'empreinte affichée pour l'exercice.
+    if (!facteurPlausible(facteur)) return 0;
 
     const cibles = new Set(cles);
     let reprises = 0;
@@ -544,7 +588,12 @@ export class DispatchStore {
         facteur,
         emissionKg: Number.isFinite(emission) ? emission : ligne.emissionKg,
         baseAppliquee: base ?? 'Saisie manuelle (reprise en masse)',
-        origineFacteur: 'ADEME Fallback' as OrigineFacteur
+        // Un facteur arbitré à la main n'est plus un repli : la ligne quitte le
+        // décompte des anomalies, ce qui est tout l'objet de la correction.
+        origineFacteur: 'Correction manuelle' as OrigineFacteur,
+        // Le facteur ayant changé, l'émission n'est plus celle qui a pu être
+        // enregistrée : la ligne redevient à écrire.
+        persisteeEnBase: false
       };
     });
 
@@ -588,6 +637,72 @@ export class DispatchStore {
     this.etat.next({ ...etat, lignes });
     this.persister();
     return true;
+  }
+
+  /**
+   * La ligne est-elle exploitable telle quelle par le bilan ?
+   *
+   * <p>Trois conditions, et elles disent exactement ce que le tableau des
+   * erreurs reproche à une ligne : une destination, une catégorie carbone, et
+   * un facteur qui ne soit pas un ratio de repli. Une ligne qui les remplit
+   * n'a plus rien à corriger — elle peut rejoindre sa catégorie et la base.</p>
+   *
+   * <p>La quantité et le facteur sont vérifiés en plus : une ligne à zéro
+   * pèserait zéro et encombrerait la grille sans rien apporter au bilan.</p>
+   */
+  estValide(ligne: LigneValorisee): boolean {
+    if (!ligne.ecran) return false;
+    if (ligne.categorieAbsente) return false;
+    if (ligne.origineFacteur === 'ADEME Fallback') return false;
+
+    return Number.isFinite(ligne.quantite) && ligne.quantite > 0
+      && Number.isFinite(ligne.facteur) && ligne.facteur > 0;
+  }
+
+  /**
+   * Lignes désormais valides qui ne sont pas encore en base.
+   *
+   * <p>C'est ce que la validation des corrections a vocation à enregistrer :
+   * ni les lignes encore en anomalie, ni celles qu'un enregistrement précédent
+   * a déjà écrites.</p>
+   */
+  lignesAPersister(): LigneValorisee[] {
+    return this.etat.value.lignes.filter(
+      ligne => this.estValide(ligne) && !ligne.persisteeEnBase
+    );
+  }
+
+  /** Nombre de lignes encore en anomalie dans la répartition. */
+  get nombreAnomalies(): number {
+    return this.etat.value.lignes.filter(l => l.ecran && !this.estValide(l)).length;
+  }
+
+  /**
+   * Prend acte de l'enregistrement en base de lignes désignées par leur clé.
+   *
+   * <p>Appelé avec les seules clés que le serveur confirme avoir persistées :
+   * une ligne qu'il a écartée doit rester à écrire, faute de quoi elle
+   * disparaîtrait silencieusement du bilan.</p>
+   *
+   * @returns le nombre de lignes effectivement marquées.
+   */
+  marquerPersistees(cles: readonly string[]): number {
+    if (!Array.isArray(cles) || !cles.length) return 0;
+
+    const cibles = new Set(cles);
+    let marquees = 0;
+
+    const lignes = this.etat.value.lignes.map(ligne => {
+      if (!cibles.has(ligne.cle) || ligne.persisteeEnBase) return ligne;
+      marquees++;
+      return { ...ligne, persisteeEnBase: true };
+    });
+
+    if (!marquees) return 0;
+
+    this.etat.next({ ...this.etat.value, lignes });
+    this.persister();
+    return marquees;
   }
 
   /**

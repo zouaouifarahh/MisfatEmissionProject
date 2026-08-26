@@ -11,12 +11,18 @@ import {
   ReferentialImportLog
 } from '../../services/referential-import.service';
 
-import { DispatchStore, exerciceDepuisNom, LigneValorisee } from '../../shared/dispatch/dispatch-store';
+import {
+  DispatchStore, exerciceDepuisNom, LigneValorisee,
+  FACTEUR_MONETAIRE_MAX, facteurPlausible
+} from '../../shared/dispatch/dispatch-store';
 import { facteurSaisi } from '../../core/modification-masse';
 import {
   CorrectionAnomaliesComponent, ResultatCorrections
 } from '../../shared/ui/correction-anomalies';
 import { ConfirmationService } from '../../shared/ui/confirmation.service';
+import {
+  EmissionMeasureService, LigneCorrigeePayload
+} from '../../services/emission-measure';
 import { lireClasseurDispatch, RapportDispatch } from '../../shared/dispatch/dispatch-excel';
 import { REGLES, EcranDestination, CodeScope } from '../../shared/dispatch/regles-dispatch';
 
@@ -83,6 +89,7 @@ export class ImportDataComponent implements OnInit {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly dispatchStore = inject(DispatchStore);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly mesureService = inject(EmissionMeasureService);
   readonly entityService = inject(EntityContextService);
 
   /** Le parser serveur s'appuie sur Apache POI, qui ne lit pas le CSV. */
@@ -558,6 +565,9 @@ export class ImportDataComponent implements OnInit {
     for (const correction of resultat.corrections) {
       const cle = String(correction.id);
 
+      // La catégorie d'abord : elle fait rejouer la valorisation, donc écrase
+      // le facteur. L'appliquer après une reprise de facteur annulerait
+      // silencieusement la valeur que l'utilisateur vient de saisir.
       if (correction.categorie) {
         if (this.dispatchStore.corrigerCategorie(cle, correction.categorie)) corrigees++;
       }
@@ -575,8 +585,142 @@ export class ImportDataComponent implements OnInit {
     this.correctionMessage =
       `${corrigees} correction(s) appliquée(s) et ${retirees} ligne(s) retirée(s) du bilan.`;
     this.fermerSelection();
+
+    // Réévaluation puis enregistrement : le magasin vient d'être republié, les
+    // lignes redevenues valides s'y lisent immédiatement.
+    this.enregistrerLignesValides();
     this.cdr.markForCheck();
   }
+
+  /** Enregistrement en base des lignes corrigées, en cours. */
+  enregistrementEnCours = false;
+
+  /**
+   * Écrit en base les lignes que la correction vient de rendre valides.
+   *
+   * <p>Sans cette écriture, une correction ne vivait que dans le navigateur :
+   * elle alimentait les écrans de catégorie et le bilan, mais un poste
+   * réinstallé ou un autre utilisateur n'en voyait rien. C'est cette étape, et
+   * elle seule, qui fait d'une ligne corrigée une donnée du système.</p>
+   *
+   * <p>Seules les lignes que le serveur confirme avoir écrites sont marquées :
+   * celles qu'il écarte, faute de facteur à rattacher, restent à corriger et
+   * seront represéntées à la prochaine validation.</p>
+   */
+  private enregistrerLignesValides(): void {
+    const aEcrire = this.dispatchStore.lignesAPersister();
+    if (!aEcrire.length) return;
+
+    const charge = aEcrire.map(ligne => this.chargeUtilePour(ligne));
+
+    this.enregistrementEnCours = true;
+    this.mesureService.enregistrerCorrections(charge).subscribe({
+      next: bilan => {
+        this.enregistrementEnCours = false;
+        const marquees = this.dispatchStore.marquerPersistees(bilan.clesEnregistrees ?? []);
+
+        this.toastMessage = `${marquees} ligne(s) corrigée(s), enregistrée(s) et `
+          + 'intégrée(s) aux catégories correspondantes avec succès.';
+
+        this.toastSecondaire = bilan.ecartees
+          ? `${bilan.ecartees} ligne(s) n'ont pas pu être enregistrées faute de facteur `
+            + `d'émission à rattacher : ${(bilan.motifs ?? []).slice(0, 2).join(' · ')}`
+          : '';
+
+        this.cdr.markForCheck();
+      },
+      error: err => {
+        this.enregistrementEnCours = false;
+
+        // Les corrections restent appliquées dans le magasin : les écrans de
+        // catégorie les affichent déjà. Seule l'écriture en base a échoué, et
+        // c'est ce qu'il faut dire — annoncer un échec global ferait croire à
+        // une perte des corrections.
+        this.toastMessage = `${aEcrire.length} ligne(s) corrigée(s) et intégrée(s) aux `
+          + 'catégories, mais non enregistrées en base.';
+        this.toastSecondaire = this.messageErreur(err)
+          + ' Les corrections restent affichées ; relancez la validation une fois '
+          + 'le service des émissions joignable.';
+
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  /**
+   * Traduit une ligne du magasin en charge utile pour le serveur.
+   *
+   * <p>La date retenue est le 31 décembre de l'exercice ventilé : une balance
+   * solde un exercice, elle ne documente pas un jour. À défaut d'exercice
+   * connu, celui du périmètre consulté, puis l'année courante.</p>
+   *
+   * <p>L'exercice se lit d'abord dans le magasin, non dans
+   * {@link exerciceVentile} : ce dernier n'est renseigné que si la ventilation
+   * a eu lieu dans cette session. Après un rafraîchissement, il est nul alors
+   * que le magasin a bien restitué l'exercice de la répartition — et les
+   * mesures seraient datées de l'année courante, donc portées au bilan d'un
+   * exercice qu'elles ne documentent pas.</p>
+   */
+  private chargeUtilePour(ligne: LigneValorisee): LigneCorrigeePayload {
+    const exercice = this.dispatchStore.instantane.exercice
+      ?? this.exerciceVentile ?? this.exerciceActif ?? new Date().getFullYear();
+
+    return {
+      cle: ligne.cle,
+      measureDate: `${exercice}-12-31`,
+      label: ligne.nom ?? '',
+      quantity: ligne.quantite,
+      factor: ligne.facteur,
+      // Les lignes ventilées portent des montants : l'unité du facteur est une
+      // devise, et c'est elle qui dit au serveur de chercher un facteur
+      // monétaire.
+      rawCurrency: ligne.uniteFacteur || 'TND',
+      unit: ligne.uniteFacteur || 'TND',
+      categoryCode: ligne.categorieCarboneTexte || null,
+      sourceCode: ligne.referenceCarbone || null,
+      usineId: this.entiteActive,
+      importLogId: null
+    };
+  }
+
+  /**
+   * Validité d'une ligne d'import, saisies en cours comprises.
+   *
+   * <p>Confiée au panneau de correction pour qu'il affiche le statut de chaque
+   * ligne à la frappe. Elle reprend la règle du magasin, en tenant compte de ce
+   * qui n'est pas encore appliqué : une catégorie saisie lève l'anomalie de
+   * catégorie, un facteur saisi lève celle du repli.</p>
+   */
+  readonly validiteLigneImport = (
+    ligne: LigneValorisee, categorie: string, facteur: number | null
+  ): boolean => {
+    if (!ligne?.ecran) return false;
+
+    const aUneCategorie = Boolean(categorie) || !ligne.categorieAbsente;
+    if (!aUneCategorie) return false;
+
+    // Un facteur saisi remplace le repli ; sinon la ligne ne vaut que si son
+    // facteur est déjà documenté par le référentiel.
+    const facteurRetenu = facteur ?? ligne.facteur;
+    const sousRepli = facteur === null && ligne.origineFacteur === 'ADEME Fallback';
+    if (sousRepli) return false;
+
+    return Number.isFinite(ligne.quantite) && ligne.quantite > 0
+      && Number.isFinite(facteurRetenu) && facteurRetenu > 0;
+  };
+
+  // ---------- Notification ----------
+
+  toastMessage = '';
+  toastSecondaire = '';
+
+  fermerToast(): void {
+    this.toastMessage = '';
+    this.toastSecondaire = '';
+  }
+
+  /** Plafond de plausibilité transmis au panneau de correction. */
+  readonly facteurMonetaireMax = FACTEUR_MONETAIRE_MAX;
 
   /** Ligne en cours d'édition dans le sous-tableau, et son facteur saisi. */
   ligneEditee: string | null = null;
@@ -703,6 +847,12 @@ export class ImportDataComponent implements OnInit {
       this.erreurEdition = 'Saisissez un facteur strictement positif.';
       return;
     }
+    if (!facteurPlausible(facteur)) {
+      this.erreurEdition = `Facteur hors d'échelle : ${facteur} kgCO₂e par dinar dépensé. `
+        + `Les ratios monétaires du référentiel se tiennent sous ${FACTEUR_MONETAIRE_MAX}. `
+        + 'Vérifiez l\'unité avant d\'enregistrer.';
+      return;
+    }
 
     this.dispatchStore.reprendreFacteur([ligne.cle], facteur, 'Correction manuelle (détail import)');
     this.annulerEdition();
@@ -777,6 +927,11 @@ export class ImportDataComponent implements OnInit {
       const retenues = lignes.filter(l => l.ecran === regle.ecran);
       return {
         scope: regle.scope,
+        // La destination doit voyager avec le poste : c'est elle, et non le
+        // libellé, qui retrouve les lignes quand on clique la ligne de
+        // répartition. Sans elle, le sous-tableau s'ouvrait vide dès que le
+        // magasin détenait le dépôt — c'est-à-dire dans le cas courant.
+        ecran: regle.ecran,
         categorie: regle.libelle,
         icone: regle.icone,
         lignes: retenues.length,

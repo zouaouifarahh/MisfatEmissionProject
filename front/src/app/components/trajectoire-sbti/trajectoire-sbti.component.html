@@ -56,10 +56,18 @@
   </div>
 
   <p class="sbti-simulation" *ngIf="!engagementIntact()">
-    Simulation — ces paramètres ne sont plus ceux de la cible validée le
-    10 novembre 2025 ({{ libellePerimetreEngagement }}, base
+    Simulation — ces paramètres ne sont plus ceux de l'engagement
+    ({{ libellePerimetreEngagement }}, base
     {{ ANNEE_BASE_ENGAGEMENT }}, −{{ REDUCTION_ENGAGEMENT }} % en
     {{ ANNEE_CIBLE_ENGAGEMENT }}).
+  </p>
+
+  <!-- Une base non collectée ne peut pas servir de référence : le repli est
+       juste, mais il doit se voir. -->
+  <p class="sbti-base-repli" *ngIf="baseSubstituee() as reelle">
+    L'exercice {{ anneeBase() }} n'est pas chiffré : le couloir est calculé sur
+    {{ reelle }}, premier exercice collecté. Renseignez {{ anneeBase() }} pour
+    que la trajectoire parte de l'année de base de l'engagement.
   </p>
 
   <ng-container *ngIf="trajectoire() as t; else sansTrajectoire">

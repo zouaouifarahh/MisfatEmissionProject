@@ -1,12 +1,15 @@
 package com.misfat.emissionservice.service;
 
 import com.misfat.emissionservice.dto.BulkImportResult;
+import com.misfat.emissionservice.dto.CorrectedLineDto;
+import com.misfat.emissionservice.dto.CorrectionResult;
 import com.misfat.emissionservice.dto.RawImportRowDto;
 import com.misfat.emissionservice.entity.EmissionFactor;
 import com.misfat.emissionservice.entity.EmissionMeasure;
 import com.misfat.emissionservice.entity.MeasureOrigin;
 import com.misfat.emissionservice.repository.EmissionFactorRepository;
 import com.misfat.emissionservice.repository.EmissionMeasureRepository;
+import com.misfat.emissionservice.repository.UsineLookupRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -34,9 +38,26 @@ public class EmissionBulkImportService {
     /** Nombre de motifs de rejet remontés à l'appelant. */
     private static final int MAX_MOTIFS = 50;
 
+    /**
+     * Plafond de plausibilité d'un facteur monétaire, en kgCO₂e par unité de devise.
+     *
+     * <p>Les bases entrées-sorties les plus intenses plafonnent autour de 2 à 5
+     * kgCO₂e par unité monétaire dépensée ; les facteurs du référentiel MISFAT
+     * se tiennent entre 0,1 et 0,6. Cent est donc vingt fois le pire cas connu :
+     * ce seuil n'arbitre aucun cas discutable, il arrête une saisie impossible.</p>
+     *
+     * <p>Il existe parce que la correction manuelle donne à l'utilisateur le
+     * dernier mot sur le facteur — c'est son objet — et qu'un champ libre finit
+     * toujours par recevoir une valeur de test. Un facteur de 9 999 saisi sur
+     * 1,5 million de dinars a produit 15 millions de tonnes sur un seul poste,
+     * soit davantage que l'empreinte annuelle d'une ville moyenne.</p>
+     */
+    private static final BigDecimal FACTEUR_MONETAIRE_MAX = BigDecimal.valueOf(100);
+
     private final EmissionMeasureRepository measureRepository;
     private final EmissionFactorRepository factorRepository;
     private final CurrencyConverter currencyConverter;
+    private final UsineLookupRepository usineLookupRepository;
 
     @Transactional
     public BulkImportResult bulkImport(List<RawImportRowDto> lignes, Long importLogId) {
@@ -66,6 +87,131 @@ public class EmissionBulkImportService {
                 importLogId, aPersister.size(), lignes.size() - aPersister.size());
 
         return new BulkImportResult(aPersister.size(), lignes.size() - aPersister.size(), motifs);
+    }
+
+    /**
+     * Enregistre les lignes d'import corrigées puis validées à l'écran.
+     *
+     * <p>Deux différences avec {@link #bulkImport}, et elles tiennent toutes
+     * deux au fait que l'utilisateur a tranché. D'abord le facteur : celui qu'il
+     * a saisi prime sur celui du référentiel, sans quoi la validation
+     * n'écrirait pas ce qu'il a corrigé mais ce que la machine avait déjà
+     * proposé. Ensuite le rattachement : la ligne porte une usine, dont la
+     * filiale se déduit, là où l'import automatique reçoit la filiale toute
+     * faite.</p>
+     *
+     * <p>Le facteur d'émission reste résolu et rattaché : {@code
+     * emission_factor_id} est NOT NULL, et une mesure qui ne pointerait sur
+     * aucune référence serait invérifiable. Une ligne qu'aucun facteur ne
+     * rattache est écartée avec son motif plutôt qu'enregistrée à moitié.</p>
+     */
+    @Transactional
+    public CorrectionResult enregistrerCorrections(List<CorrectedLineDto> lignes) {
+        if (lignes == null || lignes.isEmpty()) {
+            return new CorrectionResult(List.of(), 0, List.of());
+        }
+
+        List<EmissionMeasure> aPersister = new ArrayList<>();
+        List<String> clesRetenues = new ArrayList<>();
+        List<String> motifs = new ArrayList<>();
+
+        for (CorrectedLineDto ligne : lignes) {
+            try {
+                aPersister.add(construireMesureCorrigee(ligne));
+                clesRetenues.add(ligne.getCle());
+            } catch (LigneNonExploitableException e) {
+                if (motifs.size() < MAX_MOTIFS) {
+                    motifs.add(tronquer(ligne.getLabel(), 40) + " : " + e.getMessage());
+                }
+            }
+        }
+
+        if (!aPersister.isEmpty()) {
+            measureRepository.saveAll(aPersister);
+        }
+
+        log.info("Corrections d'import : {} mesures enregistrées, {} lignes écartées",
+                aPersister.size(), lignes.size() - aPersister.size());
+
+        return new CorrectionResult(clesRetenues, lignes.size() - aPersister.size(), motifs);
+    }
+
+    private EmissionMeasure construireMesureCorrigee(CorrectedLineDto ligne) {
+        if (ligne.getQuantity() == null) {
+            throw new LigneNonExploitableException("montant ou quantité absent");
+        }
+        if (ligne.getFactor() == null || ligne.getFactor().signum() <= 0) {
+            throw new LigneNonExploitableException("facteur corrigé absent ou non positif");
+        }
+
+        boolean monetaire = ligne.getRawCurrency() != null && !ligne.getRawCurrency().isBlank();
+        String dataType = monetaire ? "MONETAIRE" : "PHYSIQUE";
+
+        // La ligne est écartée plutôt que tronquée : ramener 9 999 à 100
+        // enregistrerait un chiffre que personne n'a validé, et le rejet dit à
+        // l'utilisateur ce qu'il doit corriger.
+        if (monetaire && ligne.getFactor().compareTo(FACTEUR_MONETAIRE_MAX) > 0) {
+            throw new LigneNonExploitableException(
+                    "facteur monétaire implausible (" + ligne.getFactor().toPlainString()
+                            + " kgCO2e/" + ligne.getRawCurrency() + ", maximum admis "
+                            + FACTEUR_MONETAIRE_MAX.toPlainString() + ")");
+        }
+
+        // La résolution est celle de l'import automatique : elle part du code de
+        // référentiel, puis de la catégorie corrigée, puis du libellé.
+        RawImportRowDto pourResolution = RawImportRowDto.builder()
+                .categoryCode(ligne.getCategoryCode())
+                .sourceCode(ligne.getSourceCode())
+                .label(ligne.getLabel())
+                .unit(ligne.getUnit())
+                .rawCurrency(ligne.getRawCurrency())
+                .build();
+
+        EmissionFactor facteur = resoudreFacteur(pourResolution, dataType)
+                // Sans facteur du bon type, un facteur de la même devise suffit à
+                // rattacher la mesure : la valeur appliquée est de toute façon
+                // celle que l'utilisateur a corrigée, le rattachement ne sert
+                // plus qu'à la traçabilité.
+                .or(() -> premier(factorRepository.findByCurrencyOnly(
+                        monetaire ? ligne.getRawCurrency() : "TND")))
+                .orElseThrow(() -> new LigneNonExploitableException(
+                        "aucun facteur d'émission à rattacher (categoryCode="
+                                + ligne.getCategoryCode() + ")"));
+
+        EmissionMeasure mesure = new EmissionMeasure();
+        mesure.setQuantity(ligne.getQuantity());
+        mesure.setMeasureDate(ligne.getMeasureDate() != null
+                ? ligne.getMeasureDate() : LocalDate.now());
+        mesure.setEmissionFactor(facteur);
+
+        // Le total est recalculé ici, jamais repris du navigateur : une valeur
+        // transmise telle quelle rendrait la base tributaire d'un arrondi
+        // d'affichage, voire d'un total falsifié.
+        mesure.setTotalCo2e(ligne.getQuantity()
+                .multiply(ligne.getFactor())
+                .setScale(6, RoundingMode.HALF_UP));
+
+        mesure.setOrigin(MeasureOrigin.EXCEL_IMPORT);
+        mesure.setImportLogId(ligne.getImportLogId());
+        mesure.setSourceCode(tronquer(ligne.getSourceCode(), 60));
+        mesure.setCategoryCode(tronquer(ligne.getCategoryCode(), 150));
+        mesure.setUnit(tronquer(ligne.getUnit(), 20));
+        mesure.setCurrency(tronquer(ligne.getRawCurrency(), 10));
+        mesure.setLabel(tronquer(ligne.getLabel(), 300));
+
+        mesure.setUsineId(ligne.getUsineId());
+        if (ligne.getUsineId() != null) {
+            usineLookupRepository.filialeDeLUsine(ligne.getUsineId())
+                    .ifPresent(mesure::setFilialeId);
+        }
+
+        return mesure;
+    }
+
+    private Optional<EmissionFactor> premier(List<EmissionFactor> candidats) {
+        return candidats == null || candidats.isEmpty()
+                ? Optional.empty()
+                : Optional.of(candidats.get(0));
     }
 
     private EmissionMeasure construireMesure(RawImportRowDto ligne, Long importLogId) {

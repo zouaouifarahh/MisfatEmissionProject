@@ -1,12 +1,15 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { catchError, forkJoin, of } from 'rxjs';
+import { Subscription, catchError, forkJoin, of } from 'rxjs';
 
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, AnneeReference } from '../../models/organization.model';
 import { BilanCarboneService } from '../../core/bilan-carbone.service';
 import { ActivityDataService } from '../../core/activity-data.service';
+import { EntityContextService } from '../../core/entity-context.service';
 import { kgVersTonnes } from '../../core/unites-carbone';
 import {
   consoliderGroupe, ecartMediane,
@@ -34,12 +37,27 @@ import {
   templateUrl: './consolidation-groupe.component.html',
   styleUrl: './consolidation-groupe.component.css'
 })
-export class ConsolidationGroupeComponent implements OnInit {
+export class ConsolidationGroupeComponent implements OnInit, OnDestroy {
 
   private readonly organizationService = inject(OrganizationService);
   private readonly bilanService = inject(BilanCarboneService);
   private readonly activiteService = inject(ActivityDataService);
+  private readonly entityService = inject(EntityContextService);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  private readonly abonnements = new Subscription();
+
+  /**
+   * Empreintes du dernier chargement, conservées pour recomposer sans réseau.
+   *
+   * <p>Enregistrer un KPI ne change aucune émission : rappeler les bilans des
+   * cinq filiales pour recalculer trois divisions serait cinq appels HTTP pour
+   * rien, et ferait clignoter le tableau à chaque frappe.</p>
+   */
+  private empreintes: EmpreinteFiliale[] = [];
+
+  /** Dernière année reçue du filtre global, pour n'y réagir qu'au changement. */
+  private anneeDuFiltre: number | null = null;
 
   filiales: Filiale[] = [];
   annees: AnneeReference[] = [];
@@ -67,17 +85,49 @@ export class ConsolidationGroupeComponent implements OnInit {
       this.filiales = filiales ?? [];
       this.annees = [...(annees ?? [])].sort((a, b) => b.valeur - a.valeur);
 
-      // Le plus récent exercice fait office de vue par défaut : c'est celui
-      // qu'un comité de direction consulte.
-      this.exercice = this.annees[0]?.valeur ?? null;
+      // L'exercice consulté prime sur le plus récent millésime ouvert. L'écran
+      // s'ouvrait auparavant sur la dernière année d'annee_reference — 2026 —
+      // quel que soit le filtre : un KPI saisi sur 2025 n'apparaissait donc
+      // nulle part, et l'écran passait pour figé alors qu'il montrait
+      // fidèlement un exercice vide.
+      this.exercice = this.entityService.filter.year ?? this.annees[0]?.valeur ?? null;
+      this.anneeDuFiltre = this.entityService.filter.year;
       this.cdr.markForCheck();
       this.charger();
     });
+
+    // Changer l'année dans le filtre global recharge les bilans et recalcule
+    // les intensités de toutes les filiales.
+    this.abonnements.add(this.entityService.year$.subscribe(annee => {
+      if (annee === this.anneeDuFiltre) return;
+      this.anneeDuFiltre = annee;
+
+      if (annee === null || annee === this.exercice) return;
+      this.exercice = annee;
+      this.cdr.markForCheck();
+      this.charger();
+    }));
+
+    // Un KPI enregistré ailleurs doit se voir ici sans changer d'onglet : les
+    // dénominateurs sont relus et les ratios recomposés, sans rappeler les
+    // bilans que rien n'a fait bouger.
+    this.abonnements.add(this.activiteService.donnees$.subscribe(() => {
+      if (!this.empreintes.length) return;
+      this.recomposer();
+      this.cdr.markForCheck();
+    }));
+  }
+
+  ngOnDestroy(): void {
+    this.abonnements.unsubscribe();
   }
 
   /** Recharge les bilans de toutes les filiales pour l'exercice retenu. */
   charger(): void {
     if (!this.filiales.length || this.exercice === null) {
+      // Les empreintes sont oubliées avec la consolidation : les garder ferait
+      // recomposer un tableau sur des empreintes qui ne valent plus.
+      this.empreintes = [];
       this.consolidation = null;
       this.cdr.markForCheck();
       return;
@@ -93,7 +143,7 @@ export class ConsolidationGroupeComponent implements OnInit {
         .pipe(catchError(() => of(null))))
     ).subscribe(bilans => {
 
-      const empreintes: EmpreinteFiliale[] = bilans.map((bilan, i) => {
+      this.empreintes = bilans.map((bilan, i) => {
         const filiale = this.filiales[i];
         return {
           entityId: filiale.id,
@@ -110,17 +160,31 @@ export class ConsolidationGroupeComponent implements OnInit {
         };
       });
 
-      const denominateurs: DenominateursFiliale[] = this.filiales.map(filiale => ({
-        entityId: filiale.id,
-        effectif: this.activiteService.valeur(filiale.id, exercice, 'effectif'),
-        chiffreAffairesM: this.activiteService.valeur(filiale.id, exercice, 'chiffreAffairesM'),
-        production: this.activiteService.valeur(filiale.id, exercice, 'production')
-      }));
-
-      this.consolidation = consoliderGroupe(empreintes, denominateurs);
+      this.recomposer();
       this.chargement = false;
       this.cdr.markForCheck();
     });
+  }
+
+  /**
+   * Recalcule les intensités sur les KPI du moment, sans toucher au réseau.
+   *
+   * <p>Séparé de {@link charger} parce que les deux ne dépendent pas des mêmes
+   * données : les empreintes viennent du serveur et ne bougent qu'avec
+   * l'exercice, les dénominateurs viennent de l'annuaire d'activité et changent
+   * à chaque enregistrement de KPI.</p>
+   */
+  private recomposer(): void {
+    const exercice = this.exercice;
+
+    const denominateurs: DenominateursFiliale[] = this.filiales.map(filiale => ({
+      entityId: filiale.id,
+      effectif: this.activiteService.valeur(filiale.id, exercice, 'effectif'),
+      chiffreAffairesM: this.activiteService.valeur(filiale.id, exercice, 'chiffreAffairesM'),
+      production: this.activiteService.valeur(filiale.id, exercice, 'production')
+    }));
+
+    this.consolidation = consoliderGroupe(this.empreintes, denominateurs);
   }
 
   // ---------- Lecture pour le graphique comparatif ----------
