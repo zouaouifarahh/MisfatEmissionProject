@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { ReferentialService, FacteurDetaille } from '../services/referential.service';
+import { ReferentialService, FacteurDetaille, FactorRow } from '../services/referential.service';
 import { apparier } from './appariement-referentiel';
 import { posteDepuisIntitule, scopeDuPoste, posteParId } from './nomenclature-scopes';
 
@@ -234,6 +234,73 @@ describe('Référentiel — arrivée d\'un facteur et d\'une source', () => {
       // Provenances distinctes, même rattachement : la ventilation ne dépend
       // pas de qui a saisi le facteur.
       expect(lignes.every(l => l.scopeCode === 'SCOPE_3')).toBe(true);
+    });
+
+    it('donne une ligne par facteur, non par source', () => {
+      // Le tableau n'en montrait qu'une par référence, portant le seul facteur
+      // par défaut : ajouter un second facteur à une source existante ne
+      // faisait apparaître aucune ligne, et l'ancienne valeur restait seule à
+      // l'écran. L'ajout paraissait écraser l'existant.
+      let lignes: FactorRow[] = [];
+      service.getFactorRows().subscribe(r => (lignes = r));
+
+      http.expectOne(`${BASE}/referential/categories-with-sources`).flush([
+        {
+          categoryId: 1, categoryName: 'Combustion dans les établissements',
+          scopeCode: 'SCOPE_1', scopeLabel: 'Scope 1',
+          sources: [{
+            carbonReferenceId: 7, referenceCode: 'MS1GZ', typeName: 'Gazole/Fioul',
+            unit: 'L', defaultFactorId: 91, defaultFactorValue: 1.5,
+            dataType: 'PHYSIQUE', currency: null, databaseSource: 'MISFAT_INTERNE',
+            referenceYear: 2026, uncertaintyPercent: null, validityLabel: null,
+            variantes: [
+              { factorId: 91, factorValue: 1.5, unit: 'L', dataType: 'PHYSIQUE',
+                currency: null, databaseSource: 'MISFAT_INTERNE', referenceYear: 2026,
+                uncertaintyPercent: null, validityLabel: null },
+              { factorId: 42, factorValue: 1.2, unit: 'L', dataType: 'PHYSIQUE',
+                currency: null, databaseSource: 'IPCC 2007', referenceYear: 2024,
+                uncertaintyPercent: null, validityLabel: 'Current' }
+            ]
+          }]
+        }
+      ]);
+
+      expect(lignes).toHaveLength(2);
+      expect(lignes.map(l => l.defaultFactorId)).toEqual([91, 42]);
+      expect(lignes.map(l => l.defaultFactorValue)).toEqual([1.5, 1.2]);
+
+      // Chaque ligne porte SA provenance : sans cela, modifier l'une
+      // reviendrait à modifier l'autre.
+      expect(lignes.map(l => l.databaseSource)).toEqual(['MISFAT_INTERNE', 'IPCC 2007']);
+      expect(lignes.map(l => l.origin)).toEqual(['MANUAL_ENTRY', 'EXCEL_IMPORT']);
+
+      // Le rattachement, lui, est commun aux deux.
+      expect(lignes.every(l => l.referenceCode === 'MS1GZ')).toBe(true);
+      expect(lignes.every(l => l.categoryName === 'Combustion dans les établissements')).toBe(true);
+    });
+
+    it('retombe sur le facteur par défaut quand le serveur ne déclare pas de variante', () => {
+      // Une réponse servie par une version antérieure du serveur ne porte pas
+      // la liste : le tableau doit rester peuplé plutôt que de se vider.
+      let lignes: FactorRow[] = [];
+      service.getFactorRows().subscribe(r => (lignes = r));
+
+      http.expectOne(`${BASE}/referential/categories-with-sources`).flush([
+        {
+          categoryId: 1, categoryName: 'Combustion dans les établissements',
+          scopeCode: 'SCOPE_1', scopeLabel: 'Scope 1',
+          sources: [{
+            carbonReferenceId: 7, referenceCode: 'MS1GZ', typeName: 'Gazole/Fioul',
+            unit: 'L', defaultFactorId: 42, defaultFactorValue: 1.2,
+            dataType: 'PHYSIQUE', currency: null, databaseSource: 'IPCC 2007',
+            referenceYear: 2024, uncertaintyPercent: null, validityLabel: 'Current'
+          }]
+        }
+      ]);
+
+      expect(lignes).toHaveLength(1);
+      expect(lignes[0].defaultFactorId).toBe(42);
+      expect(lignes[0].defaultFactorValue).toBe(1.2);
     });
 
     it('imbrique la référence à la création, faute de quoi le facteur est refusé', () => {

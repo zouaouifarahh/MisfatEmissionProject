@@ -1,6 +1,26 @@
 import { beforeEach } from 'vitest';
 
 /**
+ * Rend le canevas muet, sans lui donner de contexte.
+ *
+ * <p>jsdom n'implémente pas {@code getContext} : chaque appel écrit une ligne
+ * « Not implemented » sur la sortie d'erreur. Les écrans du tableau de bord
+ * montent une dizaine de graphiques chacun, et depuis que les bancs servent
+ * réellement les agrégats, une exécution complète en produit plusieurs
+ * centaines. Ce flot a d'abord fait échouer un démontage — « Closing rpc while
+ * onUserConsoleLog was pending » —, puis tuer un processus de travail, qui a
+ * emporté avec lui des tests qui passaient isolément.</p>
+ *
+ * <p>Rendre {@code null} est ce que la librairie de graphiques sait déjà
+ * traiter : elle renonce au tracé et le dit une fois, au lieu d'une ligne par
+ * appel. Aucun banc ne vérifie un rendu de canevas — ils lisent le DOM, pas les
+ * pixels —, donc rien n'est masqué qui soit vérifié par ailleurs.</p>
+ */
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;
+}
+
+/**
  * Remise à zéro du stockage du navigateur avant chaque test.
  *
  * <p>Une bonne moitié des écrans relit ses lignes du stockage local à sa

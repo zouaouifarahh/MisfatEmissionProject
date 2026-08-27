@@ -28,10 +28,25 @@ public class EmissionFactorService {
         return repository.searchFactorsFlexible(category, dataType);
     }
 
+    /**
+     * Enregistre un nouveau facteur, toujours sous un identifiant neuf.
+     *
+     * <p>L'identifiant reçu est écarté. {@code save()} distingue l'insertion de
+     * la mise à jour sur ce seul champ : un corps de requête qui porterait l'id
+     * d'un facteur existant — copié d'une variante affichée, rejoué depuis un
+     * outil de test — deviendrait un UPDATE et écraserait la valeur en place.
+     * Une création ne doit jamais pouvoir effacer une donnée ; la mise à jour a
+     * sa propre route, où l'identifiant est explicite dans l'URL.</p>
+     */
     @Transactional
     public EmissionFactor createFactor(EmissionFactor factor) {
+        factor.setId(null);
+
         if (factor.getGasDetails() != null) {
-            factor.getGasDetails().forEach(detail -> detail.setEmissionFactor(factor));
+            factor.getGasDetails().forEach(detail -> {
+                detail.setId(null);
+                detail.setEmissionFactor(factor);
+            });
         }
         return repository.save(factor);
     }

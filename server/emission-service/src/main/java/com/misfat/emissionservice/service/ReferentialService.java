@@ -2,6 +2,7 @@ package com.misfat.emissionservice.service;
 
 import com.misfat.emissionservice.dto.CategoryWithSourcesDTO;
 import com.misfat.emissionservice.dto.CategoryWithSourcesDTO.SourceOptionDTO;
+import com.misfat.emissionservice.dto.CategoryWithSourcesDTO.VarianteFacteurDTO;
 import com.misfat.emissionservice.entity.CarbonReference;
 import com.misfat.emissionservice.entity.Category;
 import com.misfat.emissionservice.entity.EmissionFactor;
@@ -65,12 +66,41 @@ public class ReferentialService {
         return resultat;
     }
 
+    /**
+     * Ordre de présentation des facteurs d'une source.
+     *
+     * <p>Le plus récent d'abord : c'est celui que la saisie applique par défaut,
+     * et celui qu'on cherche en premier dans une liste. À millésime égal, le
+     * dernier créé prime — un ajout manuel se trouve alors en tête de liste
+     * plutôt qu'enfoui derrière un facteur importé du même exercice.</p>
+     */
+    private static final Comparator<EmissionFactor> DU_PLUS_RECENT =
+            Comparator.comparing(EmissionFactor::getReferenceYear,
+                            Comparator.nullsFirst(Integer::compareTo))
+                    .thenComparing(EmissionFactor::getId, Comparator.nullsFirst(Long::compareTo))
+                    .reversed();
+
     private SourceOptionDTO versOption(CarbonReference reference, List<EmissionFactor> facteurs) {
-        EmissionFactor defaut = (facteurs == null || facteurs.isEmpty()) ? null
-                : facteurs.stream()
-                .max(Comparator.comparing(EmissionFactor::getReferenceYear,
-                        Comparator.nullsFirst(Integer::compareTo)))
-                .orElse(null);
+
+        List<EmissionFactor> ordonnes = (facteurs == null ? List.<EmissionFactor>of() : facteurs)
+                .stream()
+                .sorted(DU_PLUS_RECENT)
+                .toList();
+
+        EmissionFactor defaut = ordonnes.isEmpty() ? null : ordonnes.get(0);
+
+        List<VarianteFacteurDTO> variantes = ordonnes.stream()
+                .map(facteur -> new VarianteFacteurDTO(
+                        facteur.getId(),
+                        facteur.getFactorValue(),
+                        facteur.getUnit() != null ? facteur.getUnit() : reference.getDefaultUnit(),
+                        facteur.getDataType(),
+                        facteur.getCurrency(),
+                        facteur.getDatabaseSource(),
+                        facteur.getReferenceYear(),
+                        facteur.getUncertaintyPercent(),
+                        facteur.getValidityLabel()))
+                .toList();
 
         return new SourceOptionDTO(
                 reference.getId(),
@@ -86,6 +116,7 @@ public class ReferentialService {
                 defaut != null ? defaut.getDatabaseSource() : null,
                 defaut != null ? defaut.getReferenceYear() : null,
                 defaut != null ? defaut.getUncertaintyPercent() : null,
-                defaut != null ? defaut.getValidityLabel() : null);
+                defaut != null ? defaut.getValidityLabel() : null,
+                variantes);
     }
 }

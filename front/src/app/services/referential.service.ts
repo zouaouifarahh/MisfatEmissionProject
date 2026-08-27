@@ -36,6 +36,19 @@ export interface FacteurDetaille {
   validityLabel: string | null;
 }
 
+/** Un facteur applicable à une source, tel que la saisie peut le retenir. */
+export interface VarianteFacteur {
+  factorId: number;
+  factorValue: number | null;
+  unit: string | null;
+  dataType: string | null;
+  currency: string | null;
+  databaseSource: string | null;
+  referenceYear: number | null;
+  uncertaintyPercent: number | null;
+  validityLabel: string | null;
+}
+
 /** Source sélectionnable, avec son unité imposée et son facteur par défaut. */
 export interface SourceOption {
   carbonReferenceId: number;
@@ -51,6 +64,20 @@ export interface SourceOption {
   uncertaintyPercent: number | null;
   /** Validité telle que publiée : « Current » ou « From 2024-01-01 ». */
   validityLabel: string | null;
+
+  /**
+   * Tous les facteurs rattachés à cette source, le plus récent en tête.
+   *
+   * <p>Les champs {@code default*} n'en désignent qu'un : celui que la saisie
+   * applique tant que l'utilisateur ne tranche pas. Une même source est
+   * documentée par plusieurs bases — EPA, ADEME, IPCC — et un ajout manuel en
+   * crée une de plus : la liste les porte toutes, pour que la modale puisse
+   * les proposer au lieu de n'en montrer qu'une.</p>
+   *
+   * <p>Absente d'une réponse servie par une version antérieure du serveur : la
+   * lecture retombe alors sur le facteur par défaut seul.</p>
+   */
+  variantes?: VarianteFacteur[];
 }
 
 export interface CategoryWithSources {
@@ -92,21 +119,69 @@ export class ReferentialService {
     return this.http.get<CategoryWithSources[]>(`${this.baseUrl}/referential/categories-with-sources`);
   }
 
-  /** Même donnée, aplatie pour alimenter le tableau des facteurs. */
+  /**
+   * Même donnée, aplatie pour alimenter le tableau des facteurs.
+   *
+   * <p>Une ligne par <strong>facteur</strong>, et non par source. Le tableau
+   * n'en montrait qu'une par référence, portant le seul facteur par défaut :
+   * ajouter un second facteur à une source existante ne faisait donc
+   * apparaître aucune ligne, et l'ancienne valeur restait seule à l'écran.
+   * L'ajout paraissait écraser l'existant alors que les deux facteurs étaient
+   * bien enregistrés — c'est l'aplatissement qui en cachait un.</p>
+   *
+   * <p>Une source sans variante déclarée — serveur d'une version antérieure —
+   * retombe sur son facteur par défaut, pour que le tableau ne se vide pas.</p>
+   */
   getFactorRows(): Observable<FactorRow[]> {
     return new Observable<FactorRow[]>(subscriber => {
       const subscription = this.getCategoriesWithSources().subscribe({
         next: categories => {
           const lignes: FactorRow[] = categories.flatMap(categorie =>
-            categorie.sources.map(source => ({
-              ...source,
-              scopeCode: categorie.scopeCode,
-              scopeLabel: categorie.scopeLabel,
-              categoryName: categorie.categoryName,
-              // Les facteurs issus du seed portent le nom de leur base source
-              // (EPA, IPCC…) ; ceux créés depuis l'UI sont marqués MISFAT_INTERNE.
-              origin: source.databaseSource === 'MISFAT_INTERNE' ? 'MANUAL_ENTRY' : 'EXCEL_IMPORT'
-            }))
+            categorie.sources.flatMap(source => {
+              const contexte = {
+                scopeCode: categorie.scopeCode,
+                scopeLabel: categorie.scopeLabel,
+                categoryName: categorie.categoryName
+              };
+
+              const variantes = source.variantes?.length
+                ? source.variantes
+                : [{
+                    factorId: source.defaultFactorId as number,
+                    factorValue: source.defaultFactorValue,
+                    unit: source.unit,
+                    dataType: source.dataType,
+                    currency: source.currency,
+                    databaseSource: source.databaseSource,
+                    referenceYear: source.referenceYear,
+                    uncertaintyPercent: source.uncertaintyPercent,
+                    validityLabel: source.validityLabel
+                  } satisfies VarianteFacteur];
+
+              return variantes.map(variante => ({
+                ...source,
+                ...contexte,
+
+                // Chaque ligne porte SON facteur : sans cela, deux variantes
+                // d'une même source afficheraient la même valeur, et modifier
+                // l'une reviendrait à modifier l'autre.
+                defaultFactorId: variante.factorId ?? null,
+                defaultFactorValue: variante.factorValue,
+                unit: variante.unit ?? source.unit,
+                dataType: variante.dataType ?? source.dataType,
+                currency: variante.currency ?? null,
+                databaseSource: variante.databaseSource ?? null,
+                referenceYear: variante.referenceYear ?? null,
+                uncertaintyPercent: variante.uncertaintyPercent ?? null,
+                validityLabel: variante.validityLabel ?? null,
+
+                // Les facteurs issus du seed portent le nom de leur base source
+                // (EPA, IPCC…) ; ceux créés depuis l'UI sont marqués MISFAT_INTERNE.
+                origin: variante.databaseSource === 'MISFAT_INTERNE'
+                  ? 'MANUAL_ENTRY' as const
+                  : 'EXCEL_IMPORT' as const
+              }));
+            })
           );
           subscriber.next(lignes);
           subscriber.complete();
