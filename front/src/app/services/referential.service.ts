@@ -108,6 +108,69 @@ export interface FactorRow extends SourceOption {
   origin: 'MANUAL_ENTRY' | 'EXCEL_IMPORT';
 }
 
+/**
+ * Aplatit l'arborescence en lignes de tableau — une par <strong>facteur</strong>,
+ * et non par source.
+ *
+ * <p>Le référentiel n'affichait qu'une ligne par référence, portant son seul
+ * facteur par défaut : ajouter un second facteur à une source existante ne
+ * faisait apparaître aucune ligne, et l'ancienne valeur restait seule à
+ * l'écran. L'ajout paraissait écraser l'existant alors que les deux facteurs
+ * étaient bien enregistrés — c'est l'aplatissement qui en cachait un.</p>
+ *
+ * <p>Fonction pure et exportée : l'écran du référentiel et le service la
+ * partagent. Elle vivait en double, et les deux copies ont fini par ne plus
+ * dire la même chose.</p>
+ *
+ * <p>Une source sans variante déclarée — serveur d'une version antérieure —
+ * retombe sur son facteur par défaut, pour que le tableau ne se vide pas.</p>
+ */
+export function aplatirEnLignes(categories: readonly CategoryWithSources[]): FactorRow[] {
+  return categories.flatMap(categorie =>
+    categorie.sources.flatMap(source => {
+      const variantes: VarianteFacteur[] = source.variantes?.length
+        ? source.variantes
+        : [{
+            factorId: source.defaultFactorId as number,
+            factorValue: source.defaultFactorValue,
+            unit: source.unit,
+            dataType: source.dataType,
+            currency: source.currency,
+            databaseSource: source.databaseSource,
+            referenceYear: source.referenceYear,
+            uncertaintyPercent: source.uncertaintyPercent,
+            validityLabel: source.validityLabel
+          }];
+
+      return variantes.map(variante => ({
+        ...source,
+        scopeCode: categorie.scopeCode,
+        scopeLabel: categorie.scopeLabel,
+        categoryName: categorie.categoryName,
+
+        // Chaque ligne porte SON facteur : sans cela, deux variantes d'une même
+        // source afficheraient la même valeur, et modifier l'une reviendrait à
+        // modifier l'autre.
+        defaultFactorId: variante.factorId ?? null,
+        defaultFactorValue: variante.factorValue,
+        unit: variante.unit ?? source.unit,
+        dataType: variante.dataType ?? source.dataType,
+        currency: variante.currency ?? null,
+        databaseSource: variante.databaseSource ?? null,
+        referenceYear: variante.referenceYear ?? null,
+        uncertaintyPercent: variante.uncertaintyPercent ?? null,
+        validityLabel: variante.validityLabel ?? null,
+
+        // Les facteurs issus du seed portent le nom de leur base source
+        // (EPA, IPCC…) ; ceux créés depuis l'UI sont marqués MISFAT_INTERNE.
+        origin: variante.databaseSource === 'MISFAT_INTERNE'
+          ? 'MANUAL_ENTRY' as const
+          : 'EXCEL_IMPORT' as const
+      }));
+    })
+  );
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReferentialService {
   private readonly http = inject(HttpClient);
@@ -122,77 +185,25 @@ export class ReferentialService {
   /**
    * Même donnée, aplatie pour alimenter le tableau des facteurs.
    *
-   * <p>Une ligne par <strong>facteur</strong>, et non par source. Le tableau
-   * n'en montrait qu'une par référence, portant le seul facteur par défaut :
-   * ajouter un second facteur à une source existante ne faisait donc
-   * apparaître aucune ligne, et l'ancienne valeur restait seule à l'écran.
-   * L'ajout paraissait écraser l'existant alors que les deux facteurs étaient
-   * bien enregistrés — c'est l'aplatissement qui en cachait un.</p>
-   *
-   * <p>Une source sans variante déclarée — serveur d'une version antérieure —
-   * retombe sur son facteur par défaut, pour que le tableau ne se vide pas.</p>
+   * <p>Délègue à {@link aplatirEnLignes} : l'écran du référentiel a longtemps
+   * refait cet aplatissement chez lui, et les deux copies ont divergé — celle
+   * de l'écran est restée à une ligne par source quand celle-ci passait à une
+   * ligne par facteur. Une seule règle, en un seul endroit.</p>
    */
   getFactorRows(): Observable<FactorRow[]> {
-    return new Observable<FactorRow[]>(subscriber => {
-      const subscription = this.getCategoriesWithSources().subscribe({
-        next: categories => {
-          const lignes: FactorRow[] = categories.flatMap(categorie =>
-            categorie.sources.flatMap(source => {
-              const contexte = {
-                scopeCode: categorie.scopeCode,
-                scopeLabel: categorie.scopeLabel,
-                categoryName: categorie.categoryName
-              };
-
-              const variantes = source.variantes?.length
-                ? source.variantes
-                : [{
-                    factorId: source.defaultFactorId as number,
-                    factorValue: source.defaultFactorValue,
-                    unit: source.unit,
-                    dataType: source.dataType,
-                    currency: source.currency,
-                    databaseSource: source.databaseSource,
-                    referenceYear: source.referenceYear,
-                    uncertaintyPercent: source.uncertaintyPercent,
-                    validityLabel: source.validityLabel
-                  } satisfies VarianteFacteur];
-
-              return variantes.map(variante => ({
-                ...source,
-                ...contexte,
-
-                // Chaque ligne porte SON facteur : sans cela, deux variantes
-                // d'une même source afficheraient la même valeur, et modifier
-                // l'une reviendrait à modifier l'autre.
-                defaultFactorId: variante.factorId ?? null,
-                defaultFactorValue: variante.factorValue,
-                unit: variante.unit ?? source.unit,
-                dataType: variante.dataType ?? source.dataType,
-                currency: variante.currency ?? null,
-                databaseSource: variante.databaseSource ?? null,
-                referenceYear: variante.referenceYear ?? null,
-                uncertaintyPercent: variante.uncertaintyPercent ?? null,
-                validityLabel: variante.validityLabel ?? null,
-
-                // Les facteurs issus du seed portent le nom de leur base source
-                // (EPA, IPCC…) ; ceux créés depuis l'UI sont marqués MISFAT_INTERNE.
-                origin: variante.databaseSource === 'MISFAT_INTERNE'
-                  ? 'MANUAL_ENTRY' as const
-                  : 'EXCEL_IMPORT' as const
-              }));
-            })
-          );
-          subscriber.next(lignes);
-          subscriber.complete();
-        },
-        error: err => subscriber.error(err)
-      });
-      return () => subscription.unsubscribe();
-    });
+    return this.getCategoriesWithSources().pipe(map(aplatirEnLignes));
   }
 
-  /** Création manuelle d'un facteur : elle produit le badge « Manuel ». */
+  /**
+   * Création d'un facteur.
+   *
+   * <p>La provenance est celle que la saisie déclare. Elle était forcée à
+   * « MISFAT_INTERNE » : un facteur relevé dans l'EPA ou l'ADEME se retrouvait
+   * donc attribué à MISFAT, et deux facteurs d'une même référence devenaient
+   * indiscernables — c'est pourtant leur base documentaire qui les distingue.
+   * Faute de déclaration, le repli reste « interne » : une saisie manuelle sans
+   * source citée vient bien de la maison.</p>
+   */
   createFactor(payload: {
     carbonReferenceId: number;
     factorValue: number;
@@ -201,14 +212,16 @@ export class ReferentialService {
     currency?: string | null;
     referenceYear?: number | null;
     uncertaintyPercent?: number | null;
+    databaseSource?: string | null;
+    validityLabel?: string | null;
   }): Observable<unknown> {
-    const { carbonReferenceId, ...reste } = payload;
+    const { carbonReferenceId, databaseSource, ...reste } = payload;
     // L'API attend l'entité EmissionFactor, donc la référence imbriquée : un
     // `carbonReferenceId` à plat serait ignoré et violerait la contrainte NOT NULL.
     return this.http.post(`${this.baseUrl}/emission-factors`, {
       ...reste,
       carbonReference: { id: carbonReferenceId },
-      databaseSource: 'MISFAT_INTERNE'
+      databaseSource: databaseSource?.trim() || 'MISFAT_INTERNE'
     });
   }
 
@@ -222,6 +235,7 @@ export class ReferentialService {
     referenceYear?: number | null;
     uncertaintyPercent?: number | null;
     databaseSource?: string | null;
+    validityLabel?: string | null;
   }): Observable<unknown> {
     const { carbonReferenceId, ...reste } = payload;
     return this.http.put(`${this.baseUrl}/emission-factors/${id}`, {

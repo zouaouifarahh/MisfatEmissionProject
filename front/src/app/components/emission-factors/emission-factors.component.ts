@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
-import { ReferentialService, FactorRow, CategoryWithSources } from '../../services/referential.service';
+import {
+  ReferentialService, FactorRow, CategoryWithSources, aplatirEnLignes
+} from '../../services/referential.service';
 import { OriginBadgeComponent } from '../../shared/origin-badge/origin-badge.component';
 
 /**
@@ -53,8 +55,25 @@ export class EmissionFactorsComponent implements OnInit {
     dataType: 'PHYSIQUE',
     currency: '',
     referenceYear: new Date().getFullYear(),
-    uncertaintyPercent: null as number | null
+    uncertaintyPercent: null as number | null,
+    /** Base documentaire citée : c'est elle qui rend le facteur vérifiable. */
+    databaseSource: 'MISFAT_INTERNE',
+    /** Validité telle que publiée : « Current », « From 2024-01-01 »… */
+    validityLabel: ''
   };
+
+  /**
+   * Bases documentaires déjà présentes dans le référentiel.
+   *
+   * <p>Proposées à la saisie pour que « EPA 2024 » ne devienne pas « EPA2024 »
+   * puis « epa 2024 » — trois provenances là où il n'y en a qu'une. La liste
+   * reste ouverte : une base nouvelle doit pouvoir être citée sans qu'on ait
+   * à modifier le code.</p>
+   */
+  get basesConnues(): string[] {
+    return [...new Set(this.lignes.map(l => l.databaseSource).filter((b): b is string => !!b))]
+      .sort((a, b) => a.localeCompare(b, 'fr'));
+  }
 
   ngOnInit(): void {
     this.charger();
@@ -170,17 +189,13 @@ export class EmissionFactorsComponent implements OnInit {
     this.referentialService.getCategoriesWithSources().subscribe({
       next: categories => {
         this.categories = categories;
-        this.lignes = categories.flatMap(categorie =>
-          categorie.sources.map(source => ({
-            ...source,
-            scopeCode: categorie.scopeCode,
-            scopeLabel: categorie.scopeLabel,
-            categoryName: categorie.categoryName,
-            origin: (source.databaseSource === 'MISFAT_INTERNE' ? 'MANUAL_ENTRY' : 'EXCEL_IMPORT') as
-              | 'MANUAL_ENTRY'
-              | 'EXCEL_IMPORT'
-          }))
-        );
+
+        // L'aplatissement vit dans le service, pas ici : cet écran en tenait
+        // sa propre copie, restée à une ligne par source quand celle du
+        // service passait à une ligne par facteur. Un second facteur ajouté à
+        // une source existante n'apparaissait donc pas, et son ajout passait
+        // pour un écrasement.
+        this.lignes = aplatirEnLignes(categories);
         this.chargement = false;
         this.recalculerFiltrage();
         this.cdr.markForCheck();
@@ -299,7 +314,9 @@ export class EmissionFactorsComponent implements OnInit {
       dataType: 'PHYSIQUE',
       currency: '',
       referenceYear: new Date().getFullYear(),
-      uncertaintyPercent: null
+      uncertaintyPercent: null,
+      databaseSource: 'MISFAT_INTERNE',
+      validityLabel: ''
     };
     this.formulaireOuvert = true;
     this.messageFormulaire = '';
@@ -319,7 +336,11 @@ export class EmissionFactorsComponent implements OnInit {
       dataType: ligne.dataType ?? 'PHYSIQUE',
       currency: ligne.currency ?? '',
       referenceYear: ligne.referenceYear ?? new Date().getFullYear(),
-      uncertaintyPercent: ligne.uncertaintyPercent
+      uncertaintyPercent: ligne.uncertaintyPercent,
+      // La provenance de la ligne éditée, et non celle du formulaire vide :
+      // rouvrir un facteur EPA ne doit pas le rebaptiser « interne ».
+      databaseSource: ligne.databaseSource ?? 'MISFAT_INTERNE',
+      validityLabel: ligne.validityLabel ?? ''
     };
     this.formulaireOuvert = true;
     this.messageFormulaire = '';
@@ -402,7 +423,9 @@ export class EmissionFactorsComponent implements OnInit {
           dataType: this.nouveau.dataType,
           currency: this.nouveau.dataType === 'MONETAIRE' ? this.nouveau.currency || null : null,
           referenceYear: this.nouveau.referenceYear,
-          uncertaintyPercent: this.nouveau.uncertaintyPercent
+          uncertaintyPercent: this.nouveau.uncertaintyPercent,
+          databaseSource: this.nouveau.databaseSource.trim() || null,
+          validityLabel: this.nouveau.validityLabel.trim() || null
         })
         .subscribe(apres);
       return;
@@ -416,7 +439,9 @@ export class EmissionFactorsComponent implements OnInit {
         dataType: this.nouveau.dataType,
         currency: this.nouveau.dataType === 'MONETAIRE' ? this.nouveau.currency || null : null,
         referenceYear: this.nouveau.referenceYear,
-        uncertaintyPercent: this.nouveau.uncertaintyPercent
+        uncertaintyPercent: this.nouveau.uncertaintyPercent,
+        databaseSource: this.nouveau.databaseSource.trim() || null,
+        validityLabel: this.nouveau.validityLabel.trim() || null
       })
       .subscribe({
         next: () => {

@@ -21,6 +21,25 @@ if (typeof HTMLCanvasElement !== 'undefined') {
 }
 
 /**
+ * Coupe les traces de mise au point, garde les avertissements et les erreurs.
+ *
+ * <p>Les écrans tracent abondamment sous {@code isDevMode()} — origine des
+ * apports, agrégats par filiale, appariements rejoués — et le banc de test est
+ * en mode développement. Ces traces servent au navigateur, pas au banc : leur
+ * volume a fait échouer un démontage de processus de travail, « Closing rpc
+ * while onUserConsoleLog was pending », en emportant des tests qui passaient.
+ * </p>
+ *
+ * <p>{@code warn} et {@code error} restent audibles : ils signalent des
+ * défauts, et les taire reviendrait à rendre le banc sourd à ce qu'il doit
+ * justement faire remonter. Aucun test n'observe la console — vérifié —, donc
+ * rien de vérifié ailleurs n'est masqué ici.</p>
+ */
+console.log = () => undefined;
+console.debug = () => undefined;
+console.info = () => undefined;
+
+/**
  * Remise à zéro du stockage du navigateur avant chaque test.
  *
  * <p>Une bonne moitié des écrans relit ses lignes du stockage local à sa

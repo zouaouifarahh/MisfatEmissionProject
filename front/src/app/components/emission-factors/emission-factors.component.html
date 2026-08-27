@@ -186,6 +186,26 @@
         </label>
       </div>
 
+      <!-- Provenance et validité : un facteur sans source citée n'est pas
+           vérifiable, et deux facteurs d'une même référence ne se distinguent
+           que par là. La liste propose les bases déjà présentes ; le champ
+           reste libre, aucune liste fermée ne survivrait à une base nouvelle. -->
+      <div class="field-row">
+        <label class="field">
+          <span>Provenance / base source <em>*</em></span>
+          <input type="text" list="bases-documentaires" placeholder="EPA 2024, ADEME, MISFAT_INTERNE…"
+                 [(ngModel)]="nouveau.databaseSource" name="databaseSource">
+          <datalist id="bases-documentaires">
+            <option *ngFor="let base of basesConnues" [value]="base"></option>
+          </datalist>
+        </label>
+        <label class="field">
+          <span>Validité</span>
+          <input type="text" placeholder="Current, From 2024-01-01…"
+                 [(ngModel)]="nouveau.validityLabel" name="validityLabel">
+        </label>
+      </div>
+
       <p class="form-error" *ngIf="messageFormulaire">{{ messageFormulaire }}</p>
     </div>
 

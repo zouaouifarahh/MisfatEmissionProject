@@ -65,6 +65,12 @@ public class EmissionFactorService {
             existingFactor.setReferenceYear(updatedFactor.getReferenceYear());
             existingFactor.setHasMargins(updatedFactor.getHasMargins());
 
+            // Incertitude et validité étaient omises : la saisie pouvait les
+            // modifier à l'écran sans que rien ne soit enregistré. Ce sont
+            // pourtant elles qui disent ce que vaut le facteur et jusqu'à quand.
+            existingFactor.setUncertaintyPercent(updatedFactor.getUncertaintyPercent());
+            existingFactor.setValidityLabel(updatedFactor.getValidityLabel());
+
             if (updatedFactor.getGasDetails() != null) {
                 existingFactor.getGasDetails().clear();
                 updatedFactor.getGasDetails().forEach(detail -> {
