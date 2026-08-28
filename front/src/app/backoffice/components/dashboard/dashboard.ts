@@ -68,6 +68,7 @@ import { ReportFiltersService } from '../../../core/report-filters.service';
 import { TCo2ePipe } from '../../../shared/tco2e.pipe';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
 import { RecalculFacteursService } from '../../../shared/dispatch/recalcul-facteurs';
+import { messagePurge } from '../../../core/migrations-demarrage';
 
 /**
  * Ligne du tableau de suivi de saisie.
@@ -1233,6 +1234,53 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.analyseVariation.includes('hausse') ? '📈' : '📉';
   }
 
+  /**
+   * Répartition importée que le cloisonnement écarte de l'exercice consulté.
+   *
+   * <p>Une balance solde un exercice et un seul : celle d'un autre millésime ne
+   * pèse rien ici, et c'est la règle. Mais l'écran d'import affiche le total du
+   * classeur sans filtre, quand le tableau de bord rendait zéro sans un mot —
+   * la même donnée valait dix-neuf mille tonnes d'un côté et rien de l'autre,
+   * et rien n'expliquait l'écart. Un poste vide se lit alors comme une collecte
+   * à faire, alors que la donnée est là, rangée sous une autre année.</p>
+   *
+   * @returns `null` quand la répartition est comptée, ou qu'il n'y en a pas.
+   */
+  get ventilationHorsPerimetre():
+    { fichier: string; exercice: number | null; exerciceConsulte: number | null;
+      tonnes: number; lignes: number } | null {
+
+    const kg = this.dispatchStore.emissionKgHorsPerimetre();
+    if (!kg) return null;
+
+    const etat = this.dispatchStore.instantane;
+
+    return {
+      fichier: etat.fichier,
+      exercice: etat.exercice,
+      exerciceConsulte: this.entityService.filter.year ?? null,
+      tonnes: kgVersTonnes(kg),
+      lignes: etat.lignes.length
+    };
+  }
+
+  /**
+   * Rattache la répartition importée à l'exercice consulté.
+   *
+   * <p>Le millésime d'un classeur est deviné de son nom : il peut donc être
+   * faux, et rien ne permettait de le corriger sans tout réimporter. Le
+   * rattachement reste une décision de l'exploitant — le bandeau l'expose, il
+   * ne l'applique pas de lui-même : déplacer d'office une balance d'un exercice
+   * à l'autre lui prêterait une année que personne n'a posée.</p>
+   */
+  rattacherVentilationALExerciceConsulte(): void {
+    const annee = this.entityService.filter.year ?? null;
+    if (annee === null) return;
+
+    this.dispatchStore.rattacherAExercice(annee);
+    this.chargerStats();
+  }
+
   /** Recharge les agrégats depuis la base pour le périmètre courant. */
   chargerStats(): void {
     const f = this.entityService.filter;
@@ -1727,25 +1775,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * nomenclatures ; à défaut, on compare les libellés normalisés.</p>
    */
   private categorieCanonique(scopeId: string, brute: string): string {
-    const cle = brute
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase();
+    const texte = String(brute ?? '').trim();
+    const cle = this.clefComparable(texte);
+    if (!cle) return texte;
 
-    const numeroGhg = /^category\s*(\d{1,2})\b/.exec(cle);
-    if (numeroGhg) {
+    // Le numéro de catégorie est le seul repère univoque entre les deux
+    // nomenclatures : « Category 15: Investments » et « C15 » désignent le
+    // quinzième poste du Scope 3. Le code seul n'est reconnu que s'il occupe
+    // tout le libellé — sinon « C15 » se retrouverait à capter n'importe quel
+    // intitulé commençant par un C suivi de chiffres.
+    const numero = /^categor(?:y|ie)(\d{1,2})/.exec(cle)?.[1]
+      ?? /^c(\d{1,2})$/.exec(cle)?.[1];
+
+    if (numero) {
       const scope3 = this.scopesData.find(s => s.id === 'scope3');
-      const categorie = scope3?.categories[Number(numeroGhg[1]) - 1];
+      const categorie = scope3?.categories[Number(numero) - 1];
       if (categorie) return categorie.nom;
     }
 
+    // Le rapprochement passe des deux côtés par la forme comparable. Il ne
+    // comparait jusqu'ici qu'une clé désaccentuée à un libellé accentué :
+    // « Émissions de réfrigérants » ne pouvait donc jamais se reconnaître, et
+    // le poste partait en fin de liste hors nomenclature pendant que la ligne
+    // prévue par le référentiel restait à zéro.
     const connue = this.scopesData
       .flatMap(s => s.categories)
-      .find(c => c.nom.toLowerCase() === cle || c.id === cle);
+      .find(c => this.clefComparable(c.nom) === cle || this.clefComparable(c.id) === cle);
 
-    return connue ? connue.nom : brute.trim();
+    return connue ? connue.nom : texte;
   }
 
   /**
@@ -2168,6 +2225,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.purgerCachesObsoletes();
+
+    // Les reprises de démarrage ont déjà tourné : si l'une a neutralisé des
+    // lignes, l'utilisateur doit l'apprendre ici et non le déduire d'un total
+    // qui a bougé sans explication.
+    this.messageRecalcul = messagePurge();
 
     // Les cours sont chargés une fois pour toute la console : c'est eux qui
     // ramènent au dinar les facteurs libellés en euros ou en dollars, et deux

@@ -818,7 +818,10 @@
     text-align: right;
 }
 
-.cause-zero { opacity: 0.6; }
+/* Un poste à zéro se distingue par sa teinte, jamais par la transparence : un
+   texte translucide se lit mal sur toute surface et tombe sous le seuil de
+   contraste, alors que « 0 tCO₂e » est précisément ce qu'il faut pouvoir lire.
+   La distinction passe donc par l'encre sourde et la barre vide. */
 .cause-zero .cause-fill { background: #e2e8f0 !important; }
 .cause-zero .cause-valeur,
 .cause-zero .cause-pct { color: var(--text-muted); }
@@ -943,7 +946,8 @@
 .donut-legend-item.active { background: #ffffff; border-color: #cbd5e1; box-shadow: var(--card-shadow); }
 .donut-legend-item.active .legend-name { color: var(--text-primary); font-weight: 800; }
 .donut-legend-item.dimmed { opacity: 0.45; }
-.donut-legend-item.zero-cat { cursor: default; opacity: 0.6; }
+.donut-legend-item.zero-cat { cursor: default; }
+.donut-legend-item.zero-cat .legend-value { color: var(--text-muted); }
 
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .legend-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1364,8 +1368,7 @@
    La barre garde la teinte claire de son scope plutôt qu'un gris neutre — sur
    un scope entièrement à zéro, la carte perdait sinon toute identité couleur
    et paraissait éteinte. */
-.rank-zero { opacity: 0.7; }
-.rank-zero .rank-fill { background: var(--rank-clair); opacity: 0.45; }
+.rank-zero .rank-fill { background: var(--rank-clair); }
 .rank-zero .rank-pct { color: var(--text-muted); }
 
 /* Piste teintée du scope : la carte reste colorée même sans donnée. */
@@ -1519,12 +1522,12 @@
     color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0;
 }
 
-/* Catégorie attendue mais non encore collectée : atténuée sans être masquée,
-   le zéro reste une information de couverture du périmètre GHG. */
-.detail-row-zero { opacity: 0.55; }
+/* Catégorie attendue mais non encore collectée. Le zéro est une information de
+   couverture du périmètre GHG — il signale une collecte à lancer — donc il se
+   lit en toutes lettres : l'encre est sourde, la ligne reste opaque. */
 .detail-row-zero .detail-row-value { color: var(--text-muted); font-weight: 600; }
 
-.zero-cat { opacity: 0.5; cursor: default; }
+.zero-cat { cursor: default; }
 
 /* ==========================================================================
    DENSIFICATION DU LAYOUT
@@ -1677,8 +1680,9 @@
 .synthese-table tbody tr { transition: background 0.15s ease; }
 .synthese-table tbody tr:hover { background: #F0F1F3; }
 
-/* Catégorie examinée mais sans mesure : atténuée, jamais retirée du tableau. */
-.ligne-zero { opacity: 0.58; }
+/* Catégorie examinée mais sans mesure : jamais retirée du tableau, et jamais
+   estompée non plus — c'est une ligne qu'on doit pouvoir lire. */
+.ligne-zero td { color: var(--text-muted); }
 
 /* Ligne de total en bleu foncé : c'est le chiffre que l'on cherche en premier. */
 .synthese-table tfoot td {
@@ -2155,10 +2159,10 @@
 .pilule-nom { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pilule-pct { font-variant-numeric: tabular-nums; color: #64748b; }
 
-/* Une catégorie à 0 % n'est pas masquée — elle documente un poste collecté sans
-   émission — mais elle s'efface pour ne pas encombrer la lecture. */
-.pilule-nulle { opacity: 0.4; font-weight: 500; }
-.pilule-nulle:hover { opacity: 0.85; }
+/* Une catégorie à 0 % n'est ni masquée ni effacée : elle documente un poste
+   collecté sans émission, et son libellé doit rester lisible. Le poids de trait
+   et l'encre sourde suffisent à la mettre au second plan. */
+.pilule-nulle { font-weight: 500; color: var(--text-muted); }
 
 .empile-pastille {
     width: 11px;
@@ -2704,6 +2708,49 @@
     color: inherit;
     cursor: pointer;
     opacity: 0.6;
+}
+
+/* Répartition importée qu'un autre exercice retient. Le ton est ambre et non
+   rouge : rien n'est en défaut — la donnée est là, rangée sous un millésime que
+   l'écran n'affiche pas. C'est une explication, pas une alerte. */
+.bandeau-hors-perimetre {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin-bottom: 14px;
+    padding: 13px 16px;
+    border-radius: 11px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #7A5312;
+    background: #FDF6E7;
+    border: 1px solid #F2DFB4;
+}
+
+.bandeau-hp-icone { font-size: 15px; line-height: 1.35; }
+.bandeau-hp-texte { flex: 1; min-width: 0; }
+.bandeau-hp-texte strong { color: #5E3F0B; font-weight: 800; }
+
+.bandeau-hp-action {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 7px 13px;
+    border: 1px solid #D9B366;
+    border-radius: 8px;
+    background: #FFFFFF;
+    font-size: 12px;
+    font-weight: 700;
+    color: #7A5312;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bandeau-hp-action:hover { background: #FBEFD6; border-color: #C69A45; }
+.bandeau-hp-action:focus-visible { outline: 2px solid #B9832E; outline-offset: 2px; }
+
+@media (max-width: 720px) {
+    .bandeau-hors-perimetre { flex-wrap: wrap; }
+    .bandeau-hp-action { width: 100%; }
 }
 
 .bandeau-recalcul .bandeau-fermer:hover { opacity: 1; }

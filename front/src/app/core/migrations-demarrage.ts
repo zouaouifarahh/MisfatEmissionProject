@@ -136,6 +136,93 @@ function attribuerPeriode2025(): number {
   return datees;
 }
 
+/** Marqueur de la neutralisation des émissions résiduelles, versionné. */
+export const MARQUEUR_PURGE_ABERRANTES = 'misfat_purge_emissions_aberrantes_v1';
+
+/**
+ * Plafond de plausibilité d'une ligne, en kgCO₂e.
+ *
+ * <p>Un million de tonnes sur une seule ligne. L'empreinte entière du groupe se
+ * compte en dizaines de milliers de tonnes : le seuil est trois ordres de
+ * grandeur au-dessus de la plus grosse ligne légitime, et n'arbitre donc aucun
+ * cas discutable. Il ne retient que les artefacts de calcul — ceux qui portaient
+ * le bilan à trente-sept millions.</p>
+ */
+export const EMISSION_LIGNE_MAX = 1e9;
+
+/** Compte rendu de la dernière neutralisation, pour le bandeau du tableau de bord. */
+export const bilanPurge = { lignes: 0, kgRetires: 0 };
+
+/**
+ * Neutralise les émissions résiduelles qu'aucun ordre de grandeur ne justifie.
+ *
+ * <p>Une correction de formule ne corrige que les calculs à venir : une ligne
+ * enregistrée avant garde l'émission calculée à la saisie, et une seule suffit
+ * à porter une filiale au-dessus du million de tonnes et à laisser le bandeau
+ * d'invraisemblance allumé sur une cause pourtant réparée.</p>
+ *
+ * <p>La reprise ne <strong>recalcule</strong> pas : chaque écran a sa formule —
+ * tonne-kilomètre, kilowattheure, montant, pouvoir de réchauffement — et rejouer
+ * partout une formule unique rendrait des chiffres faux là où elle ne s'applique
+ * pas. Elle remet à zéro l'émission et le facteur, et ne touche à rien d'autre :
+ * la quantité, le poids, la distance et le montant restent intacts, si bien que
+ * la ligne se revalorise dès qu'un facteur juste lui est affecté.</p>
+ *
+ * @returns le nombre de lignes neutralisées.
+ */
+function neutraliserEmissionsAberrantes(): number {
+  if (migrationFaite(MARQUEUR_PURGE_ABERRANTES)) return 0;
+
+  let neutralisees = 0;
+  let kgRetires = 0;
+
+  for (const cle of Object.values(CLES_PAR_CATEGORIE)) {
+    const lignes = relire(cle) as Record<string, unknown>[];
+    if (!lignes.length) continue;
+
+    let touchee = false;
+
+    const reprises = lignes.map(ligne => {
+      const emission = Number(ligne['emissionCalculee']);
+      if (!Number.isFinite(emission) || Math.abs(emission) <= EMISSION_LIGNE_MAX) return ligne;
+
+      touchee = true;
+      neutralisees++;
+      kgRetires += emission;
+
+      return { ...ligne, emissionCalculee: 0, facteur: null };
+    });
+
+    if (!touchee) continue;
+
+    try {
+      localStorage.setItem(cle, JSON.stringify(reprises));
+    } catch {
+      // Stockage saturé : le marqueur n'est pas posé, la reprise se rejouera.
+      return 0;
+    }
+  }
+
+  bilanPurge.lignes = neutralisees;
+  bilanPurge.kgRetires = kgRetires;
+
+  marquerMigration(MARQUEUR_PURGE_ABERRANTES);
+  return neutralisees;
+}
+
+/** Message rendu à l'utilisateur quand des lignes ont été neutralisées. */
+export function messagePurge(): string {
+  if (bilanPurge.lignes <= 0) return '';
+
+  const tonnes = (Math.abs(bilanPurge.kgRetires) / 1000)
+    .toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+
+  return `${bilanPurge.lignes} ligne(s) portaient une émission impossible `
+    + `(${tonnes} tCO₂e au total) : leur facteur a été retiré et leur émission remise `
+    + 'à zéro. Les quantités saisies sont conservées — réaffectez un facteur pour les '
+    + 'revaloriser.';
+}
+
 /**
  * Joue les reprises en attente sur le stockage du navigateur.
  *
@@ -161,6 +248,12 @@ export function jouerMigrationsDeDemarrage(): number {
     reprises += attribuerPeriode2025();
   } catch (erreur) {
     console.error('[migrations] attribution de la période 2025 interrompue', erreur);
+  }
+
+  try {
+    reprises += neutraliserEmissionsAberrantes();
+  } catch (erreur) {
+    console.error('[migrations] neutralisation des émissions aberrantes interrompue', erreur);
   }
 
   // Les vues qui agrègent le stockage doivent repartir des valeurs reprises,

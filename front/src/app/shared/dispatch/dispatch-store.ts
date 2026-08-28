@@ -301,6 +301,42 @@ export class DispatchStore {
       : AUCUNE_LIGNE;
   }
 
+  /**
+   * Émissions retenues par le cloisonnement, en kgCO₂e.
+   *
+   * <p>Une répartition qui ne relève pas du périmètre consulté est écartée en
+   * bloc — c'est la règle, et elle est juste. Mais le tableau de bord rendait
+   * alors zéro sans un mot, alors que l'écran d'import continuait d'afficher le
+   * total du classeur : la même donnée valait dix-neuf mille tonnes ici et rien
+   * là, sans que rien n'explique l'écart.</p>
+   *
+   * <p>Ce relevé ne lève pas le cloisonnement : il donne de quoi le dire.</p>
+   *
+   * @returns 0 lorsque la répartition est comptée, ou qu'il n'y en a aucune.
+   */
+  emissionKgHorsPerimetre(): number {
+    const lignes = this.etat.value.lignes;
+    if (!lignes.length || this.lignesActives.length) return 0;
+
+    return lignes.reduce((somme, ligne) => somme + (Number(ligne.emissionKg) || 0), 0);
+  }
+
+  /**
+   * Rattache la répartition en cours à un exercice.
+   *
+   * <p>Le millésime d'un classeur est deviné de son nom, ou choisi à l'import :
+   * il peut donc être faux, et rien ne permettait de le corriger sans tout
+   * réimporter. Le rattachement est une décision de l'exploitant — il n'est
+   * jamais déduit ici —, et il vaut pour la répartition entière, une balance ne
+   * soldant qu'un exercice.</p>
+   */
+  rattacherAExercice(exercice: number | null): void {
+    if (this.etat.value.exercice === exercice) return;
+
+    this.etat.next({ ...this.etat.value, exercice });
+    this.persister();
+  }
+
   /** Prend acte du périmètre consulté et rediffuse la répartition. */
   suivrePerimetre(exercice: number | null, entityId: number | null): void {
     if (exercice === this.exerciceActif && entityId === this.entiteActive) return;
