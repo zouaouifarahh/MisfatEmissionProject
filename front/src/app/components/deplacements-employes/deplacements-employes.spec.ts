@@ -4,6 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { DeplacementsEmployesComponent } from './deplacements-employes';
+import { JOURS_TRAVAILLES_DEFAUT } from '../../shared/mobilite/modes-transport';
 
 /**
  * Rendu du composant, note d'information et box de calcul en direct.
@@ -123,7 +124,10 @@ describe('DeplacementsEmployesComponent', () => {
     composant.formModel.distanceAllerKm = 15;
     composant.enregistrerEmission();
     expect(composant.listeEmissions.length).toBe(1);
-    expect(composant.listeEmissions[0].kmAnnuels).toBe(6600);
+    // 15 km aller × 2 × jours travaillés, seul occupant. La constante est lue
+    // plutôt que recopiée : un chiffre en dur ferait échouer ce banc au
+    // prochain arbitrage sur les jours travaillés, sans rien apprendre.
+    expect(composant.listeEmissions[0].kmAnnuels).toBe(15 * 2 * JOURS_TRAVAILLES_DEFAUT);
     expect(composant.listeEmissions[0].provenance).toBe('Réel');
   });
 

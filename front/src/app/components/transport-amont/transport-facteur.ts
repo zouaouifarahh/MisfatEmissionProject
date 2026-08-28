@@ -8,6 +8,8 @@ import { FacteurDetaille } from '../../services/referential.service';
  * Excel et les tests empruntent exactement le même chemin.</p>
  */
 
+import { alignerSurFacteur } from '../../core/conversion-unites';
+
 export type ModeTransport = 'Fret routier' | 'Fret maritime' | 'Fret aérien' | 'Non précisé';
 
 export const MODES_TRANSPORT: ModeTransport[] = ['Fret routier', 'Fret maritime', 'Fret aérien'];
@@ -127,7 +129,75 @@ export interface DonneesCalcul {
   montant: number | null;
 }
 
-/** Applique la formule dictée par l'unité du facteur retenu. */
+/**
+ * Poids total d'une expédition comptée en unités.
+ *
+ * <p>Un expéditeur de filtres ne pèse pas ses palettes : il compte les pièces
+ * et connaît le poids moyen de la référence. Le poids total s'en déduit, et
+ * c'est lui que la formule tonne-kilomètre attend.</p>
+ *
+ * <p>Rend {@code null} tant que l'un des deux manque : un poids déduit d'une
+ * quantité inconnue serait une invention, et la saisie directe du poids reste
+ * ouverte pour les expéditions qu'on pèse réellement.</p>
+ */
+export function poidsTotalDepuisQuantite(
+  quantite: number | null | undefined,
+  poidsMoyenKg: number | null | undefined
+): number | null {
+
+  if (quantite === null || quantite === undefined || !Number.isFinite(quantite)) return null;
+  if (poidsMoyenKg === null || poidsMoyenKg === undefined || !Number.isFinite(poidsMoyenKg)) {
+    return null;
+  }
+  if (quantite <= 0 || poidsMoyenKg <= 0) return null;
+
+  const total = quantite * poidsMoyenKg;
+  return Number.isFinite(total) ? total : null;
+}
+
+/**
+ * Tonnes-kilomètres d'une expédition.
+ *
+ * <p>{@code t.km = Distance moyenne pondérée × Quantité × Poids moyen × 0,001}.
+ * Le millième convertit les kilogrammes en tonnes : c'est la conversion que le
+ * facteur attend, et celle dont l'oubli décale le poste d'un facteur mille.</p>
+ *
+ * <p>La distance est dite « moyenne pondérée » parce qu'une expédition groupée
+ * dessert plusieurs pays : la distance retenue est la moyenne des distances
+ * pondérée par la part de quantité livrée à chacun. Cette pondération se fait à
+ * la saisie — l'écran reçoit la distance déjà pondérée, il ne la recalcule
+ * pas.</p>
+ */
+export function tonnesKilometres(
+  distanceMoyennePondereeKm: number | null,
+  quantite: number | null,
+  poidsMoyenKg: number | null
+): number | null {
+
+  const poidsTotalKg = poidsTotalDepuisQuantite(quantite, poidsMoyenKg);
+  if (poidsTotalKg === null) return null;
+  if (distanceMoyennePondereeKm === null || !Number.isFinite(distanceMoyennePondereeKm)) {
+    return null;
+  }
+
+  const tkm = distanceMoyennePondereeKm * poidsTotalKg * 0.001;
+  return Number.isFinite(tkm) ? tkm : null;
+}
+
+/**
+ * Applique la formule dictée par l'unité du facteur retenu.
+ *
+ * <p>La branche massique alignait le poids sur le facteur sans regarder l'unité
+ * de celui-ci : un facteur publié à la tonne — le référentiel en compte cinq,
+ * dont un à 3 100 kgCO₂e — était multiplié par des kilogrammes, et le poste
+ * sortait mille fois trop haut. C'est l'erreur que ce module annonce en
+ * ouverture et que la formule commettait.</p>
+ *
+ * <p>La conversion passe par {@link alignerSurFacteur}, qui refuse de deviner :
+ * une unité qu'elle ne reconnaît pas laisse la quantité inchangée plutôt que de
+ * la corriger au jugé. Mieux vaut un poste juste dans son unité de saisie qu'un
+ * poste faux dans une autre.</p>
+ */
 export function calculerEmission(source: DonneesCalcul): number {
   const facteur = source.facteur ?? 0;
   if (!facteur) return 0;
@@ -139,8 +209,22 @@ export function calculerEmission(source: DonneesCalcul): number {
     case 'MONETAIRE': return (source.montant ?? 0) * facteur;
     case 'TONNE_KM': return (poids / 1000) * distance * facteur;
     case 'KM': return distance * facteur;
-    default: return poids * facteur;
+    default: return poidsAlignéSurLeFacteur(poids, source.uniteFacteur) * facteur;
   }
+}
+
+/**
+ * Poids exprimé dans l'unité que le facteur attend.
+ *
+ * <p>Les poids sont saisis en kilogrammes ; le facteur, lui, peut être publié
+ * au kilogramme, à la tonne ou au gramme. Sans cet alignement, l'écart d'unité
+ * se reporte tel quel sur l'émission.</p>
+ */
+function poidsAlignéSurLeFacteur(poidsKg: number, uniteFacteur: string): number {
+  const aligne = alignerSurFacteur(poidsKg, 'kg', uniteFacteur);
+  return aligne.statut === 'CONVERTI' || aligne.statut === 'IDENTIQUE'
+    ? aligne.valeur
+    : poidsKg;
 }
 
 /**

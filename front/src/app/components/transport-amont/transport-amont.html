@@ -301,17 +301,51 @@
           </small>
         </div>
 
+        <!-- SAISIE PAR QUANTITÉ — un expéditeur de filtres compte les pièces
+             plutôt que de peser ses palettes. Le poids total s'en déduit. -->
+        <div class="form-row" *ngIf="!formModel.monetaire">
+          <div class="form-group flex-1">
+            <label for="ta-quantite">Quantité expédiée (unités)</label>
+            <input id="ta-quantite" type="number" step="any" min="0" name="taQuantite"
+                   [(ngModel)]="formModel.quantite"
+                   (ngModelChange)="onSaisieChange()" placeholder="0">
+          </div>
+          <div class="form-group flex-1">
+            <label for="ta-poids-moyen">Poids moyen d'une unité (kg)</label>
+            <input id="ta-poids-moyen" type="number" step="any" min="0" name="taPoidsMoyen"
+                   [(ngModel)]="formModel.poidsMoyenKg"
+                   (ngModelChange)="onSaisieChange()" placeholder="0.000">
+          </div>
+        </div>
+
         <!-- SAISIE POIDS / DISTANCE -->
         <div class="form-row" *ngIf="!formModel.monetaire">
           <div class="form-group flex-1">
-            <label for="ta-poids">Poids (kg) *</label>
+            <label for="ta-poids">Poids total (kg) *</label>
             <input id="ta-poids" type="number" step="any" [(ngModel)]="formModel.poidsKg"
                    (ngModelChange)="onSaisieChange()" placeholder="0.00">
+            <small class="field-hint" *ngIf="formModel.quantite && formModel.poidsMoyenKg">
+              Déduit de {{ formModel.quantite | number:'1.0-0' }} unité(s)
+              × {{ formModel.poidsMoyenKg | number:'1.0-3' }} kg.
+            </small>
           </div>
           <div class="form-group flex-1">
-            <label for="ta-distance">Distance (km) *</label>
+            <label for="ta-distance">Distance moyenne pondérée (km) *</label>
             <input id="ta-distance" type="number" step="any" [(ngModel)]="formModel.distanceKm"
                    (ngModelChange)="onSaisieChange()" placeholder="0">
+            <small class="field-hint">
+              Moyenne des distances par pays, pondérée par la part de quantité livrée.
+            </small>
+          </div>
+        </div>
+
+        <!-- Grandeur intermédiaire : c'est elle que le facteur multiplie. -->
+        <div class="form-row" *ngIf="!formModel.monetaire && tonnesKmPrevisionnelles !== null">
+          <div class="form-group flex-1">
+            <small class="field-hint">
+              <strong>{{ tonnesKmPrevisionnelles | number:'1.0-3' }} t.km</strong>
+              — distance × quantité × poids moyen × 0,001
+            </small>
           </div>
         </div>
 
@@ -330,8 +364,10 @@
 
         <div class="form-row">
           <div class="form-group flex-1">
-            <label for="ta-fact">Facteur d'émission</label>
-            <input id="ta-fact" type="number" [value]="formModel.facteur" readonly class="readonly-field">
+            <label for="ta-fact">Facteur d'émission *</label>
+            <input id="ta-fact" type="number" step="any" min="0" name="taFacteur"
+                   [(ngModel)]="formModel.facteur">
+            <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
             <small class="field-hint">{{ formModel.uniteFacteur ? 'par ' + formModel.uniteFacteur : '—' }}</small>
           </div>
           <div class="form-group flex-1">

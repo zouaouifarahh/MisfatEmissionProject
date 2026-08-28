@@ -19,6 +19,16 @@ public class EmissionFactorService {
         return repository.findAll();
     }
 
+    /**
+     * Facteurs lisibles depuis une société : les publics et les siens.
+     *
+     * <p>Une société non renseignée vaut consolidation groupe, où tout est
+     * lisible.</p>
+     */
+    public List<EmissionFactor> getFactorsVisibles(Long filialeId) {
+        return repository.findVisiblesPour(filialeId);
+    }
+
     public Optional<EmissionFactor> getFactorById(Long id) {
         return repository.findById(id);
     }

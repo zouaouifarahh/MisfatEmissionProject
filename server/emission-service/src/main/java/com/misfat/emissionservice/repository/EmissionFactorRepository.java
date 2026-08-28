@@ -81,4 +81,20 @@ public interface EmissionFactorRepository extends JpaRepository<EmissionFactor, 
             @Param("category") String category,
             @Param("dataType") String dataType
     );
+
+    /**
+     * Facteurs lisibles depuis une société : les publics et les siens.
+     *
+     * <p>Un facteur public — ADEME, EPA, GIEC — ne porte pas de société : il
+     * documente une réalité physique que rien ne rend propre à une filiale.
+     * Un facteur rattaché n'est en revanche visible que depuis la société qui
+     * l'a saisi ; le montrer ailleurs laisserait MISFAT Maroc calculer son
+     * bilan sur un ratio tunisien.</p>
+     *
+     * <p>Une société non renseignée vaut consolidation groupe : tout est
+     * lisible, ce qui est exactement ce que la vue consolidée demande.</p>
+     */
+    @Query("SELECT ef FROM EmissionFactor ef WHERE " +
+            ":filialeId IS NULL OR ef.filialeId IS NULL OR ef.filialeId = :filialeId")
+    List<EmissionFactor> findVisiblesPour(@Param("filialeId") Long filialeId);
 }

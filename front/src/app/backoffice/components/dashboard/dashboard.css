@@ -227,7 +227,21 @@
     text-overflow: ellipsis;
 }
 
+/* Code de catégorie : largeur fixe pour que les libellés s'alignent, et une
+   teinte en retrait — il repère, il ne se lit pas en premier. */
+.nested-code {
+    flex-shrink: 0;
+    min-width: 26px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    color: var(--accent-soft, #F5A15C);
+    opacity: .85;
+}
+
 .nested-sub-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+.nested-sub-item:hover .nested-code,
+.nested-sub-item.active .nested-code { opacity: 1; }
 
 .nested-sub-item.active {
     color: var(--accent-soft);

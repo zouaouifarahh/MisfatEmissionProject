@@ -18,6 +18,7 @@ import { lireClasseurDechets, normaliserUnite } from './dechets-excel';
 import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatchees';
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { SOURCE_VENTILATION, lignesVentileesPour } from '../../shared/dispatch/adaptateurs-mesure';
 import { inject } from '@angular/core';
 import {
@@ -642,7 +643,9 @@ export class DechetsComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      // Persiste ET annonce : le tableau de bord relit ses totaux sans qu'on
+      // ait à changer de filtre ou recharger la page.
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refusé');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =

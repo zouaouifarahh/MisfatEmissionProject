@@ -15,6 +15,9 @@ import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
 
 import { lireClasseur, nombreTolerant } from './transport-excel';
+import {
+  MARQUEUR_RECALCUL_ECHELLE, recalculerEchelle, messageRecalcul
+} from './recalcul-echelle';
 import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatchees';
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
@@ -22,7 +25,8 @@ import { SOURCE_VENTILATION, lignesVentileesPour } from '../../shared/dispatch/a
 import { inject } from '@angular/core';
 import {
   ModeTransport, MODES_TRANSPORT, choisirFacteur, classerFacteurs,
-  calculerEmission, deduireMode, libelleFormule, modeCalculDe
+  calculerEmission, deduireMode, libelleFormule, modeCalculDe,
+  poidsTotalDepuisQuantite, tonnesKilometres
 } from './transport-facteur';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
@@ -145,6 +149,16 @@ export class TransportAmontComponent implements OnInit {
     client: '',
     /** `true` pour valoriser au montant facturé plutôt qu'au poids-distance. */
     monetaire: false,
+    /**
+     * Nombre d'unités expédiées.
+     *
+     * <p>Un expéditeur de filtres compte les pièces plutôt que de peser ses
+     * palettes : le poids total s'en déduit par le poids moyen de la
+     * référence.</p>
+     */
+    quantite: null as number | null,
+    /** Poids moyen d'une unité, en kilogrammes. */
+    poidsMoyenKg: null as number | null,
     poidsKg: null as number | null,
     distanceKm: null as number | null,
     montant: null as number | null,
@@ -222,6 +236,9 @@ export class TransportAmontComponent implements OnInit {
         // Le référentiel est là : les lignes déjà saisies peuvent être
         // rapprochées à nouveau de leur facteur officiel.
         this.remigrerParReferentiel();
+        // Après l'appariement : celui-ci peut changer le facteur d'une ligne,
+        // et le recalcul doit partir du facteur retenu, pas du précédent.
+        this.recalculerEchelleMassique();
         this.chargementFacteurs = false;
 
         this.avertissementReferentiel = this.facteursDisponibles.length
@@ -404,6 +421,11 @@ export class TransportAmontComponent implements OnInit {
         client: emission.client,
         monetaire: (emission.uniteFacteur ?? '').toUpperCase() === (emission.devise ?? '').toUpperCase()
                    && emission.montant !== null,
+        // Quantité et poids moyen ne sont pas conservés sur la ligne : le poids
+        // total, lui, l'est. Rouvrir une ligne repart donc du poids, ce qui la
+        // laisse modifiable sans reconstituer un détail qu'on n'a pas gardé.
+        quantite: null,
+        poidsMoyenKg: null,
         poidsKg: emission.poidsKg,
         distanceKm: emission.distanceKm,
         montant: emission.montant,
@@ -429,6 +451,8 @@ export class TransportAmontComponent implements OnInit {
         destination: '',
         client: '',
         monetaire: false,
+        quantite: null,
+        poidsMoyenKg: null,
         poidsKg: null,
         distanceKm: null,
         montant: null,
@@ -544,9 +568,30 @@ export class TransportAmontComponent implements OnInit {
     });
   }
 
-  /** Le total prévisionnel suit la frappe. */
+  /**
+   * Le total prévisionnel suit la frappe.
+   *
+   * <p>Quand la quantité et le poids moyen sont renseignés, le poids total en
+   * découle : c'est la façon dont un expéditeur de filtres connaît son
+   * chargement. La saisie directe du poids reste possible pour les expéditions
+   * qu'on pèse — elle n'est écrasée que si les deux autres champs la
+   * déterminent.</p>
+   */
   onSaisieChange(): void {
+    const deduit = poidsTotalDepuisQuantite(this.formModel.quantite, this.formModel.poidsMoyenKg);
+    if (deduit !== null) this.formModel.poidsKg = deduit;
     this.cdr.detectChanges();
+  }
+
+  /**
+   * Tonnes-kilomètres de la ligne en cours, affichées sous la saisie.
+   *
+   * <p>Montrer la grandeur intermédiaire évite d'avoir à croire le total sur
+   * parole : c'est elle que le facteur multiplie.</p>
+   */
+  get tonnesKmPrevisionnelles(): number | null {
+    return tonnesKilometres(
+      this.formModel.distanceKm, this.formModel.quantite, this.formModel.poidsMoyenKg);
   }
 
   enregistrerEmission(): void {
@@ -971,6 +1016,41 @@ export class TransportAmontComponent implements OnInit {
     }
 
     marquerMigration(MARQUEUR);
+  }
+
+  /**
+   * Rejoue la formule sur les lignes calculées avant la correction d'échelle.
+   *
+   * <p>La branche massique multipliait un poids en kilogrammes par un facteur
+   * publié à la tonne : le poste sortait mille fois trop haut. La formule est
+   * corrigée, mais le stockage ne se recalcule pas tout seul — et une seule
+   * ligne résiduelle suffit à porter une filiale au-dessus du million de
+   * tonnes, laissant le bandeau d'invraisemblance allumé sur une cause déjà
+   * réparée.</p>
+   *
+   * <p>Rejouée une fois, sous marqueur versionné : le recalcul ne doit pas
+   * repasser à chaque ouverture de l'écran, et la correction ne concerne que
+   * les lignes antérieures.</p>
+   */
+  private recalculerEchelleMassique(): void {
+    if (migrationFaite(MARQUEUR_RECALCUL_ECHELLE)) return;
+    if (!this.listeEmissions.length) {
+      marquerMigration(MARQUEUR_RECALCUL_ECHELLE);
+      return;
+    }
+
+    const bilan = recalculerEchelle(this.listeEmissions);
+
+    if (bilan.reprises) {
+      this.listeEmissions = bilan.lignes;
+      this.sauvegarder();
+      // Le message s'ajoute à celui de l'appariement plutôt que de l'écraser :
+      // les deux reprises ont pu jouer sur le même chargement.
+      this.messageMigration = [this.messageMigration, messageRecalcul(bilan)]
+        .filter(Boolean).join(' ');
+    }
+
+    marquerMigration(MARQUEUR_RECALCUL_ECHELLE);
   }
 
   /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */

@@ -3,11 +3,17 @@ package com.misfat.emissionservice.service;
 import com.misfat.emissionservice.dto.CategoryWithSourcesDTO;
 import com.misfat.emissionservice.dto.CategoryWithSourcesDTO.SourceOptionDTO;
 import com.misfat.emissionservice.dto.CategoryWithSourcesDTO.VarianteFacteurDTO;
+import com.misfat.emissionservice.dto.SourceSansFacteurDTO;
 import com.misfat.emissionservice.entity.CarbonReference;
 import com.misfat.emissionservice.entity.Category;
 import com.misfat.emissionservice.entity.EmissionFactor;
+import com.misfat.emissionservice.entity.EmissionSource;
+import com.misfat.emissionservice.entity.Scope;
 import com.misfat.emissionservice.repository.CarbonReferenceRepository;
+import com.misfat.emissionservice.repository.CategoryRepository;
 import com.misfat.emissionservice.repository.EmissionFactorRepository;
+import com.misfat.emissionservice.repository.EmissionSourceRepository;
+import com.misfat.emissionservice.repository.ScopeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +28,9 @@ public class ReferentialService {
 
     private final CarbonReferenceRepository carbonReferenceRepository;
     private final EmissionFactorRepository emissionFactorRepository;
+    private final EmissionSourceRepository emissionSourceRepository;
+    private final CategoryRepository categoryRepository;
+    private final ScopeRepository scopeRepository;
 
     /**
      * Catégories et sources associées, chaque source exposant son unité et son
@@ -29,10 +38,22 @@ public class ReferentialService {
      */
     @Transactional(readOnly = true)
     public List<CategoryWithSourcesDTO> categoriesAvecSources() {
+        return categoriesAvecSources(null);
+    }
+
+    /**
+     * Même vue, restreinte à ce qu'une société a le droit de lire.
+     *
+     * @param filialeId société consultée ; {@code null} vaut consolidation
+     *                  groupe, où tout est lisible.
+     */
+    @Transactional(readOnly = true)
+    public List<CategoryWithSourcesDTO> categoriesAvecSources(Long filialeId) {
 
         // Un seul chargement des facteurs, regroupés par référence : évite un
         // appel par source (N+1) sur les 68 références du référentiel.
-        Map<Long, List<EmissionFactor>> facteursParReference = emissionFactorRepository.findAll().stream()
+        Map<Long, List<EmissionFactor>> facteursParReference =
+                emissionFactorRepository.findVisiblesPour(filialeId).stream()
                 .filter(f -> f.getCarbonReference() != null)
                 .collect(Collectors.groupingBy(f -> f.getCarbonReference().getId()));
 
@@ -64,6 +85,125 @@ public class ReferentialService {
                 .comparing(CategoryWithSourcesDTO::scopeCode, Comparator.nullsLast(String::compareTo))
                 .thenComparing(CategoryWithSourcesDTO::categoryName, Comparator.nullsLast(String::compareToIgnoreCase)));
         return resultat;
+    }
+
+    /**
+     * Sources qu'aucun facteur ne documente.
+     *
+     * <p>Deux manques distincts, réunis sous une seule liste parce qu'ils ont
+     * la même conséquence : la source est inutilisable à la saisie.</p>
+     *
+     * <p>Le premier est une référence du référentiel carbone sans facteur : elle
+     * paraît dans les listes déroulantes mais n'y apporte aucune valeur.</p>
+     *
+     * <p>Le second est plus sévère. Une source déclarée depuis l'écran
+     * « Sources d'Émission » n'obtenait aucune référence carbone, et les
+     * facteurs ne référencent que celles-là : elle ne pouvait donc jamais
+     * recevoir de facteur, ni apparaître au référentiel, ni être choisie nulle
+     * part. Elle était perdue au moment même de sa création — c'est ce que
+     * signale une source rendue ici avec un {@code carbonReferenceId} nul.</p>
+     */
+    @Transactional(readOnly = true)
+    public List<SourceSansFacteurDTO> sourcesSansFacteur() {
+
+        Set<Long> referencesDocumentees = emissionFactorRepository.findAll().stream()
+                .filter(f -> f.getCarbonReference() != null)
+                .map(f -> f.getCarbonReference().getId())
+                .collect(Collectors.toSet());
+
+        List<CarbonReference> references = carbonReferenceRepository.findAll();
+
+        List<SourceSansFacteurDTO> manques = references.stream()
+                .filter(reference -> !referencesDocumentees.contains(reference.getId()))
+                .map(reference -> new SourceSansFacteurDTO(
+                        reference.getReferenceCode(),
+                        reference.getTypeName(),
+                        reference.getCategory() != null ? reference.getCategory().getName() : null,
+                        reference.getCategory() != null && reference.getCategory().getScope() != null
+                                ? reference.getCategory().getScope().getCode() : null,
+                        reference.getDefaultUnit(),
+                        reference.getId()))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        Set<String> codesDuReferentiel = references.stream()
+                .map(reference -> normaliser(reference.getReferenceCode()))
+                .collect(Collectors.toSet());
+
+        emissionSourceRepository.findAll().stream()
+                .filter(source -> !codesDuReferentiel.contains(normaliser(source.getReferenceCode())))
+                .map(source -> new SourceSansFacteurDTO(
+                        source.getReferenceCode(),
+                        source.getSourceName(),
+                        source.getCategory(),
+                        source.getScope(),
+                        source.getDefaultUnit(),
+                        null))
+                .forEach(manques::add);
+
+        manques.sort(Comparator
+                .comparing(SourceSansFacteurDTO::scopeCode, Comparator.nullsLast(String::compareTo))
+                .thenComparing(SourceSansFacteurDTO::categoryName, Comparator.nullsLast(String::compareToIgnoreCase))
+                .thenComparing(SourceSansFacteurDTO::referenceCode, Comparator.nullsLast(String::compareToIgnoreCase)));
+
+        return manques;
+    }
+
+    /**
+     * Rattache au référentiel carbone une source qui n'y figure pas encore.
+     *
+     * <p>Un facteur ne peut viser qu'une référence carbone : tant qu'une source
+     * déclarée n'en a pas, lui affecter une valeur est impossible. La référence
+     * est donc créée à la demande, à partir de ce que la source déclare — son
+     * code, son libellé, sa catégorie, son unité — sans rien inventer.</p>
+     *
+     * <p>La catégorie est reprise si elle existe sous ce nom dans ce scope, et
+     * créée sinon : une catégorie nouvelle est le cas normal quand on déclare
+     * une source que le référentiel importé ne connaissait pas.</p>
+     *
+     * @return la référence carbone, existante ou nouvellement créée.
+     */
+    @Transactional
+    public CarbonReference rattacherAuReferentiel(String referenceCode) {
+        String code = normaliser(referenceCode);
+
+        Optional<CarbonReference> deja = carbonReferenceRepository.findAll().stream()
+                .filter(reference -> normaliser(reference.getReferenceCode()).equals(code))
+                .findFirst();
+        if (deja.isPresent()) return deja.get();
+
+        EmissionSource source = emissionSourceRepository.findAll().stream()
+                .filter(s -> normaliser(s.getReferenceCode()).equals(code))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Aucune source déclarée sous le code " + referenceCode));
+
+        Scope scope = scopeRepository.findAll().stream()
+                .filter(s -> s.getCode() != null && s.getCode().equalsIgnoreCase(source.getScope()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Scope inconnu : " + source.getScope()));
+
+        Category categorie = categoryRepository
+                .findByNameIgnoreCaseAndScopeId(source.getCategory(), scope.getId())
+                .orElseGet(() -> {
+                    Category nouvelle = new Category();
+                    nouvelle.setName(source.getCategory());
+                    nouvelle.setScope(scope);
+                    return categoryRepository.save(nouvelle);
+                });
+
+        CarbonReference reference = new CarbonReference();
+        reference.setReferenceCode(source.getReferenceCode());
+        reference.setTypeName(source.getSourceName());
+        reference.setCategory(categorie);
+        reference.setDefaultUnit(source.getDefaultUnit());
+
+        return carbonReferenceRepository.save(reference);
+    }
+
+    /** Code comparable : sans espaces, en capitales. */
+    private static String normaliser(String code) {
+        return code == null ? "" : code.trim().toUpperCase();
     }
 
     /**

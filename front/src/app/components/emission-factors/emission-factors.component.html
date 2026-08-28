@@ -21,6 +21,43 @@
     </div>
   </header>
 
+  <!-- Sources qu'aucun facteur ne documente. En tête de page et non au bas du
+       tableau : une source sans facteur n'y a aucune ligne, elle est invisible,
+       et la catégorie qu'elle porte reste inutilisable à la saisie sans que
+       rien ne le dise. -->
+  <div class="alerte-sources" *ngIf="sourcesSansFacteur.length">
+    <header class="alerte-tete">
+      <strong>⚠️ Sources sans facteur d'émission rattaché ({{ sourcesSansFacteur.length }})</strong>
+      <button type="button" class="icon-btn"
+              [title]="alerteRepliee ? 'Déplier' : 'Replier'"
+              (click)="alerteRepliee = !alerteRepliee">{{ alerteRepliee ? '▾' : '▴' }}</button>
+    </header>
+
+    <p class="alerte-chapeau" *ngIf="!alerteRepliee">
+      Ces sources existent au référentiel mais aucun facteur ne les documente : elles ne peuvent
+      pas être retenues à la saisie. Affectez-leur une valeur pour les rendre utilisables.
+    </p>
+
+    <ul class="alerte-liste" *ngIf="!alerteRepliee">
+      <li *ngFor="let source of sourcesSansFacteur">
+        <span class="alerte-ref">
+          {{ source.referenceCode }}
+          <!-- Sans référence carbone, la source est invisible du référentiel :
+               elle doit y être rattachée avant de pouvoir porter un facteur. -->
+          <em class="alerte-detachee" *ngIf="source.carbonReferenceId === null"
+              title="Source déclarée hors du référentiel carbone">non rattachée</em>
+        </span>
+        <span class="alerte-type">{{ source.typeName }}</span>
+        <span class="alerte-cat">{{ source.scopeCode }} · {{ source.categoryName || '—' }}</span>
+        <button type="button" class="btn-outline btn-affecter"
+                [disabled]="rattachementEnCours === source.referenceCode"
+                (click)="affecterUnFacteur(source)">
+          {{ rattachementEnCours === source.referenceCode ? '⏳ Rattachement…' : '＋ Affecter un facteur' }}
+        </button>
+      </li>
+    </ul>
+  </div>
+
   <!-- Bilan du dernier import par lot -->
   <div class="import-summary" *ngIf="bilanImport" [class.import-summary-warn]="bilanImport.erreurs > 0">
     <div class="import-summary-body">

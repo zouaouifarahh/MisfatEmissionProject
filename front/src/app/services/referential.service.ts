@@ -2,6 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
+import { societeCourante } from '../core/perimetre-courant';
+
 /** Facteur tel que renvoyé par `/emission-factors`, référence imbriquée. */
 interface RawFactor {
   id: number;
@@ -78,6 +80,22 @@ export interface SourceOption {
    * lecture retombe alors sur le facteur par défaut seul.</p>
    */
   variantes?: VarianteFacteur[];
+}
+
+/**
+ * Source qu'aucun facteur ne documente.
+ *
+ * <p>{@link carbonReferenceId} nul signale une source déclarée depuis l'écran
+ * « Sources d'Émission » que le référentiel carbone ignore : elle doit d'abord
+ * y être rattachée pour pouvoir recevoir un facteur.</p>
+ */
+export interface SourceSansFacteur {
+  referenceCode: string;
+  typeName: string;
+  categoryName: string | null;
+  scopeCode: string | null;
+  defaultUnit: string | null;
+  carbonReferenceId: number | null;
 }
 
 export interface CategoryWithSources {
@@ -171,15 +189,87 @@ export function aplatirEnLignes(categories: readonly CategoryWithSources[]): Fac
   );
 }
 
+/**
+ * Le libellé de catégorie répond-il au motif de l'écran ?
+ *
+ * <p>Le motif est essayé sur le libellé tel quel, puis sur sa forme sans
+ * accents. Les écrans écrivent leurs motifs sur les intitulés GHG anglais du
+ * classeur — « Refrigerant gas loss and other fugitive emissions » — mais une
+ * catégorie créée depuis l'application porte le libellé français. « Émissions
+ * de réfrigérants » ne contient pas la suite de lettres « refrigerant » : la
+ * source y était rangée, avec son facteur, et n'apparaissait pourtant dans
+ * aucune liste déroulante. Un accent suffisait à la faire disparaître.</p>
+ *
+ * <p>Les accents sont retirés, rien d'autre : la casse est déjà gérée par le
+ * drapeau {@code i} des motifs, et élargir davantage — ignorer les espaces, la
+ * ponctuation — ferait accepter des rapprochements que personne n'a
+ * demandés.</p>
+ */
+export function correspondALaCategorie(
+  motif: RegExp, libelleCategorie: string | null | undefined
+): boolean {
+
+  const libelle = (libelleCategorie ?? '').trim();
+  if (!libelle) return false;
+
+  if (motif.test(libelle)) return true;
+
+  const sansAccents = libelle.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return sansAccents !== libelle && motif.test(sansAccents);
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReferentialService {
   private readonly http = inject(HttpClient);
 
   private readonly baseUrl = 'http://localhost:8082/api/v1';
 
+  /**
+   * Société consultée, telle que le serveur l'attend pour cloisonner.
+   *
+   * <p>Lue au moment de l'appel plutôt que passée par chaque écran : le
+   * cloisonnement ne doit pas dépendre du soin qu'un appelant met à
+   * transmettre le périmètre. Un écran qui l'oublierait verrait les facteurs
+   * d'une autre filiale sans que rien ne le signale.</p>
+   *
+   * <p>Lue au relais et non par injection du contexte d'entité : celui-ci
+   * ouvre deux requêtes à sa construction, et toute lecture du référentiel les
+   * aurait déclenchées.</p>
+   */
+  private get perimetre(): HttpParams {
+    const filialeId = societeCourante();
+    return filialeId === null ? new HttpParams() : new HttpParams().set('filialeId', filialeId);
+  }
+
+  /**
+   * Sources qu'aucun facteur ne documente.
+   *
+   * <p>Non déduite de {@link getCategoriesWithSources} : cette vue est bâtie
+   * sur le référentiel carbone, et une source déclarée depuis l'écran
+   * « Sources d'Émission » n'y figure pas tant qu'aucune référence ne la
+   * rattache. C'est justement le manque le plus grave, et le seul que la vue
+   * ne pouvait pas voir.</p>
+   */
+  getSourcesSansFacteur(): Observable<SourceSansFacteur[]> {
+    return this.http.get<SourceSansFacteur[]>(
+      `${this.baseUrl}/referential/sources-sans-facteur`);
+  }
+
+  /**
+   * Rattache une source déclarée au référentiel, et rend sa référence.
+   *
+   * <p>Un facteur ne peut viser qu'une référence carbone : sans ce rattachement,
+   * affecter une valeur à une source déclarée est impossible.</p>
+   */
+  rattacherSource(referenceCode: string): Observable<{ carbonReferenceId: number }> {
+    return this.http.post<{ carbonReferenceId: number }>(
+      `${this.baseUrl}/referential/sources/${encodeURIComponent(referenceCode)}/rattacher`, {});
+  }
+
   /** Arborescence scope → catégorie → source pour les listes en cascade. */
   getCategoriesWithSources(): Observable<CategoryWithSources[]> {
-    return this.http.get<CategoryWithSources[]>(`${this.baseUrl}/referential/categories-with-sources`);
+    return this.http.get<CategoryWithSources[]>(
+      `${this.baseUrl}/referential/categories-with-sources`, { params: this.perimetre });
   }
 
   /**
@@ -221,7 +311,13 @@ export class ReferentialService {
     return this.http.post(`${this.baseUrl}/emission-factors`, {
       ...reste,
       carbonReference: { id: carbonReferenceId },
-      databaseSource: databaseSource?.trim() || 'MISFAT_INTERNE'
+      databaseSource: databaseSource?.trim() || 'MISFAT_INTERNE',
+
+      // Le facteur naît rattaché à la société depuis laquelle on le saisit :
+      // c'est son procédé, son contrat, sa mesure. Sur la vue consolidée
+      // groupe, aucune société n'est désignée et le facteur reste public —
+      // le rattacher d'office à l'une d'elles serait un choix arbitraire.
+      filialeId: societeCourante()
     });
   }
 
@@ -255,11 +351,19 @@ export class ReferentialService {
    * facteur par référence, cette vue conserve les doublons de source : une même
    * référence peut être documentée par l'EPA, l'ADEME et l'IPCC avec des
    * valeurs distinctes, et la saisie doit pouvoir trancher explicitement.</p>
+   *
+   * <p>Le motif est essayé sur le libellé tel quel <em>et</em> sur sa forme sans
+   * accents. Les motifs des écrans sont écrits sur les intitulés GHG anglais du
+   * classeur — « Refrigerant gas loss » — quand une catégorie créée à la main
+   * porte le libellé français : « Émissions de réfrigérants » ne contient pas
+   * la suite de lettres « refrigerant », et la source restait invisible de son
+   * propre écran de saisie. C'est un accent qui la cachait.</p>
    */
   getFactorsByCategory(motifCategorie: RegExp): Observable<FacteurDetaille[]> {
-    return this.http.get<RawFactor[]>(`${this.baseUrl}/emission-factors`).pipe(
+    return this.http.get<RawFactor[]>(`${this.baseUrl}/emission-factors`,
+      { params: this.perimetre }).pipe(
       map(facteurs => facteurs
-        .filter(f => f.carbonReference?.category?.name && motifCategorie.test(f.carbonReference.category.name))
+        .filter(f => correspondALaCategorie(motifCategorie, f.carbonReference?.category?.name))
         .map(f => ({
           id: f.id,
           referenceCode: f.carbonReference!.referenceCode,

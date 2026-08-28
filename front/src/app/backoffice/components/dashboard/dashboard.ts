@@ -1,4 +1,4 @@
-﻿import { ChangeDetectorRef, Component, OnInit, inject, isDevMode } from '@angular/core';
+﻿import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -56,7 +56,9 @@ import { EntityContextService } from '../../../core/entity-context.service';
 import { EmissionStatsService, EmissionStats, StatsMode } from '../../../services/emission-stats.service';
 import { DispatchStore } from '../../../shared/dispatch/dispatch-store';
 import { libelleEcran } from '../../../shared/dispatch/regles-dispatch';
-import { totauxLocaux, totauxLocauxParEtablissement } from '../../../shared/dispatch/mesures-locales';
+import {
+  totauxLocaux, totauxLocauxParEtablissement, mesuresLocalesModifiees$
+} from '../../../shared/dispatch/mesures-locales';
 import { PerimetreOrganisation } from '../../../core/perimetre';
 import { BilanCarboneService } from '../../../core/bilan-carbone.service';
 import { ActivityDataService, ChampActivite } from '../../../core/activity-data.service';
@@ -64,7 +66,7 @@ import { kgVersTonnes, tonnesVersKg } from '../../../core/unites-carbone';
 import { rapport } from '../../../core/consolidation-groupe';
 import { ReportFiltersService } from '../../../core/report-filters.service';
 import { TCo2ePipe } from '../../../shared/tco2e.pipe';
-import { catchError, forkJoin, of } from 'rxjs';
+import { Subscription, catchError, forkJoin, of } from 'rxjs';
 import { RecalculFacteursService } from '../../../shared/dispatch/recalcul-facteurs';
 
 /**
@@ -180,7 +182,21 @@ interface PointHistorique {
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
+
+  /**
+   * Abonnements de la console, résiliés à sa fermeture.
+   *
+   * <p>La console vit aussi longtemps que la session, mais elle est détruite et
+   * reconstruite à chaque passage par la connexion : un abonnement laissé
+   * ouvert s'y accumulerait, et chaque saisie déclencherait autant de
+   * rechargements qu'il y a eu d'ouvertures.</p>
+   */
+  private readonly abonnements = new Subscription();
+
+  ngOnDestroy(): void {
+    this.abonnements.unsubscribe();
+  }
 
   /**
    * Rôle et droits de navigation de l'utilisateur connecté.
@@ -303,43 +319,55 @@ export class DashboardComponent implements OnInit {
   usines: Usine[] = [];
   annees: AnneeReference[] = [];
 
-  // Structure des Scopes & Catégories
+  /**
+   * Structure des scopes et de leurs postes.
+   *
+   * <p>Chaque poste porte son code : C1 à C15 pour le Scope 3, où la
+   * numérotation est celle du GHG Protocol et sert de langue commune avec les
+   * auditeurs et le référentiel — « Category 4 » dans les classeurs, « C4 »
+   * dans le menu. Les Scopes 1 et 2 n'ont pas de numérotation normative : leurs
+   * postes portent S1 et S2, qui disent au moins de quel scope ils relèvent.</p>
+   *
+   * <p>Le code précède le libellé parce que c'est par lui qu'on cherche : un
+   * responsable qui doit renseigner la catégorie 7 ne parcourt pas quinze
+   * intitulés français pour retrouver « Déplacements des employés ».</p>
+   */
   scopesData = [
     {
       id: 'scope1',
       name: 'Scope 1',
       categories: [
-        { id: 'combustion-etablissements', nom: 'Combustion dans les usines', icone: '🏭' },
-        { id: 'combustion-vehicules', nom: 'Combustion des véhicules', icone: '🚗' },
-        { id: 'emissions-refrigerants', nom: 'Émissions de réfrigérants', icone: '❄️' }
+        { id: 'combustion-etablissements', code: 'S1', nom: 'Combustion dans les usines', icone: '🏭' },
+        { id: 'combustion-vehicules', code: 'S1', nom: 'Combustion des véhicules', icone: '🚗' },
+        { id: 'emissions-refrigerants', code: 'S1', nom: 'Émissions de réfrigérants', icone: '❄️' }
       ]
     },
     {
       id: 'scope2',
       name: 'Scope 2',
       categories: [
-        { id: 'electricite-achetee', nom: 'Électricité achetée', icone: '💡' }
+        { id: 'electricite-achetee', code: 'S2', nom: 'Électricité achetée', icone: '💡' }
       ]
     },
     {
       id: 'scope3',
       name: 'Scope 3',
       categories: [
-        { id: 'biens-services', nom: 'Biens et services achetés', icone: '📦' },
-        { id: 'biens-equipement', nom: 'Biens d\'équipement', icone: '🏗️' },
-        { id: 'energie', nom: 'Activités liées à l\'énergie', icone: '⛽' },
-        { id: 'transport-amont', nom: 'Transport en amont', icone: '🚚' },
-        { id: 'dechets', nom: 'Déchets', icone: '🗑️' },
-        { id: 'voyages-affaires', nom: 'Voyages d\'affaires', icone: '✈️' },
-        { id: 'deplacements-employes', nom: 'Déplacements des employés', icone: '🚌' },
-        { id: 'actifs-loues-amont', nom: 'Actifs loués en amont', icone: '🏢' },
-        { id: 'transport-aval', nom: 'Transport en aval', icone: '🚛' },
-        { id: 'transformation-produits', nom: 'Transformation des produits', icone: '🏭' },
-        { id: 'utilisation-produits', nom: 'Utilisation des produits', icone: '🛒' },
-        { id: 'fin-de-vie-produits', nom: 'Fin de vie des produits', icone: '♻️' },
-        { id: 'actifs-loues-aval', nom: 'Actifs loués en aval', icone: '🏢' },
-        { id: 'franchises', nom: 'Franchises', icone: '🤝' },
-        { id: 'investissements', nom: 'Investissements', icone: '💰' }
+        { id: 'biens-services', code: 'C1', nom: 'Biens et services achetés', icone: '📦' },
+        { id: 'biens-equipement', code: 'C2', nom: 'Biens d\'équipement', icone: '🏗️' },
+        { id: 'energie', code: 'C3', nom: 'Activités liées à l\'énergie', icone: '⛽' },
+        { id: 'transport-amont', code: 'C4', nom: 'Transport en amont', icone: '🚚' },
+        { id: 'dechets', code: 'C5', nom: 'Déchets', icone: '🗑️' },
+        { id: 'voyages-affaires', code: 'C6', nom: 'Voyages d\'affaires', icone: '✈️' },
+        { id: 'deplacements-employes', code: 'C7', nom: 'Déplacements des employés', icone: '🚌' },
+        { id: 'actifs-loues-amont', code: 'C8', nom: 'Actifs loués en amont', icone: '🏢' },
+        { id: 'transport-aval', code: 'C9', nom: 'Transport en aval', icone: '🚛' },
+        { id: 'transformation-produits', code: 'C10', nom: 'Transformation des produits', icone: '🏭' },
+        { id: 'utilisation-produits', code: 'C11', nom: 'Utilisation des produits', icone: '🛒' },
+        { id: 'fin-de-vie-produits', code: 'C12', nom: 'Fin de vie des produits', icone: '♻️' },
+        { id: 'actifs-loues-aval', code: 'C13', nom: 'Actifs loués en aval', icone: '🏢' },
+        { id: 'franchises', code: 'C14', nom: 'Franchises', icone: '🤝' },
+        { id: 'investissements', code: 'C15', nom: 'Investissements', icone: '💰' }
       ]
     }
   ];
@@ -2231,6 +2259,16 @@ export class DashboardComponent implements OnInit {
     // cours avant de se corriger. Au rendu serveur, où il n'y a pas de seconde
     // réponse, ce total faux était le seul que la page portait.
     //
+    // Une saisie enregistrée dans un écran de collecte doit se voir ici sans
+    // changer de filtre ni recharger la page. Les cartes restaient sinon sur le
+    // compte du dernier chargement, et le poste paraissait figé à zéro.
+    this.abonnements.add(
+      mesuresLocalesModifiees$.subscribe(() => {
+        this.chargerStats();
+        this.cdr.markForCheck();
+      })
+    );
+
     // Le header pilote le périmètre : le dashboard s'y aligne au lieu de
     // maintenir ses propres sélections en parallèle.
     this.entityService.filter$.subscribe(filtre => {

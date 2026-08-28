@@ -320,14 +320,26 @@
 
           <div class="form-group flex-1">
             <label for="vo-depart">Départ / Provenance</label>
-            <input id="vo-depart" type="text" [(ngModel)]="formModel.depart"
-                   placeholder="Ex : Tunis">
+            <!-- Pré-rempli sur le pays de la société consultée : une mission
+                 part du site où travaille la personne. Reste modifiable. -->
+            <input id="vo-depart" type="text" list="vo-pays"
+                   [(ngModel)]="formModel.depart" (ngModelChange)="onTrajetChange()"
+                   placeholder="Ex : Tunisie">
+            <small class="field-hint" *ngIf="paysDeLaSociete">
+              Par défaut : {{ paysDeLaSociete }} — pays de {{ societeActiveLabel }}.
+            </small>
           </div>
 
           <div class="form-group flex-1">
             <label for="vo-dest">Destination / Pays</label>
-            <input id="vo-dest" type="text" [(ngModel)]="formModel.destination"
-                   placeholder="Ex : France, Allemagne, MAROC">
+            <!-- Liste indicative, champ libre : une destination nouvelle ne doit
+                 pas obliger à modifier le code. -->
+            <input id="vo-dest" type="text" list="vo-pays"
+                   [(ngModel)]="formModel.destination" (ngModelChange)="onTrajetChange()"
+                   placeholder="Ex : France, Allemagne, Maroc">
+            <datalist id="vo-pays">
+              <option *ngFor="let pays of destinationsFrequentes" [value]="pays"></option>
+            </datalist>
           </div>
 
           <div class="form-group flex-1">
@@ -343,7 +355,11 @@
           <div class="form-group flex-1">
             <label for="vo-dist">Distance (km) *</label>
             <input id="vo-dist" type="number" step="any" [(ngModel)]="formModel.distanceKm"
-                   (ngModelChange)="onDistanceChange()" placeholder="0.00">
+                   (ngModelChange)="onDistanceChange(); onDistanceSaisie()" placeholder="0.00">
+            <small class="field-hint distance-proposee" *ngIf="distanceProposee">
+              Distance indicative {{ formModel.depart }} → {{ formModel.destination }},
+              de capitale à capitale. Corrigez-la si vous connaissez le trajet réel.
+            </small>
             <small class="field-hint" *ngIf="segmentCourant">
               Segment déduit : <strong>{{ segmentCourant }}</strong>
             </small>

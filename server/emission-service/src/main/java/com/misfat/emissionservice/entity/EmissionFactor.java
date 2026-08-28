@@ -50,6 +50,24 @@ public class EmissionFactor {
     @Column(name = "has_margins")
     private Boolean hasMargins = true;
 
+    /**
+     * Société propriétaire du facteur ; {@code null} pour un facteur public.
+     *
+     * <p>Un facteur publié par l'ADEME, l'EPA ou le GIEC documente une réalité
+     * physique qui ne dépend d'aucune société : il reste lisible par toutes.
+     * Un facteur saisi à la main documente en revanche un procédé, un contrat
+     * ou une mesure propres à une filiale — le voir depuis une autre reviendrait
+     * à lui prêter une donnée qui ne la concerne pas, et à laisser MISFAT Maroc
+     * calculer son bilan sur un ratio tunisien.</p>
+     *
+     * <p>Colonne nullable à dessein : {@code ddl-auto=update} ne peut pas
+     * ajouter une colonne NOT NULL à une table déjà peuplée, et les facteurs
+     * antérieurs doivent rester visibles plutôt que de disparaître d'un coup
+     * des écrans. Ils sont donc publics jusqu'à ce qu'on les rattache.</p>
+     */
+    @Column(name = "filiale_id")
+    private Long filialeId;
+
     @OneToMany(mappedBy = "emissionFactor", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GasEmissionDetail> gasDetails = new ArrayList<>();
 

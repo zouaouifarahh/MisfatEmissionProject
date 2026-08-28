@@ -1,5 +1,7 @@
 import { beforeEach } from 'vitest';
 
+import { definirSocieteCourante } from './app/core/perimetre-courant';
+
 /**
  * Rend le canevas muet, sans lui donner de contexte.
  *
@@ -66,4 +68,9 @@ beforeEach(() => {
   // l'autre : les toucher y lèverait une exception avant le premier test.
   if (typeof localStorage !== 'undefined') localStorage.clear();
   if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+
+  // La société consultée vit dans un module, pas dans un service : elle
+  // survivrait donc d'un test à l'autre, et un banc qui choisit une filiale
+  // ferait filtrer le référentiel du banc suivant.
+  definirSocieteCourante(null);
 });

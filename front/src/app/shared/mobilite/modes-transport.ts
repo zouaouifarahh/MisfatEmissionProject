@@ -269,8 +269,19 @@ export function calculerEmission(grandeur: number | null, facteur: number | null
   return Number.isFinite(emission) ? emission : 0;
 }
 
-/** Jours travaillés retenus à défaut de donnée, usage courant en France. */
-export const JOURS_TRAVAILLES_DEFAUT = 220;
+/**
+ * Jours travaillés retenus à défaut de donnée.
+ *
+ * <p>251 jours : l'année civile moins les week-ends, sans déduction des congés
+ * ni des jours fériés. C'est la valeur arbitrée pour MISFAT, plus haute que les
+ * 220 jours d'usage en France — elle majore donc le kilométrage domicile-travail
+ * plutôt que de le sous-estimer, ce qui est le sens prudent pour un poste dont
+ * la donnée est déclarative.</p>
+ *
+ * <p>Reste modifiable ligne à ligne : un temps partiel ou un site en trois-huit
+ * ne se ramène à aucune valeur générale.</p>
+ */
+export const JOURS_TRAVAILLES_DEFAUT = 251;
 
 /** Taux d'occupation retenu à défaut : un occupant par véhicule. */
 export const COVOITURAGE_DEFAUT = 1;

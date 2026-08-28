@@ -204,7 +204,10 @@ describe('Parser de la matrice A', () => {
     expect(ligne.joursTravailles).toBe(JOURS_TRAVAILLES_DEFAUT);
     expect(ligne.covoiturage).toBe(1);
     expect(ligne.mode).toBe('Voiture');
-    expect(ligne.kmAnnuels).toBe(6600);
+    // 15 km aller × 2 × jours travaillés, seul occupant. La constante est lue
+    // plutôt que recopiée : un chiffre en dur ferait échouer ce banc au
+    // prochain arbitrage sur les jours travaillés, sans rien apprendre.
+    expect(ligne.kmAnnuels).toBe(15 * 2 * JOURS_TRAVAILLES_DEFAUT);
     expect(ligne.defautsAppliques).toContain('établissement');
     expect(ligne.defautsAppliques).toContain('jours travaillés');
     expect(ligne.defautsAppliques).toContain('taux d\'occupation');

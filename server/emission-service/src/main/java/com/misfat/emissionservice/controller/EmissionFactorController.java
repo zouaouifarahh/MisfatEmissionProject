@@ -21,9 +21,17 @@ public class EmissionFactorController {
         return ResponseEntity.ok(service.createFactor(factor));
     }
 
+    /**
+     * @param filialeId société consultée. Absent, tous les facteurs remontent —
+     *                  c'est la vue consolidée groupe. Renseigné, seuls les
+     *                  facteurs publics et ceux de la société sont rendus : un
+     *                  ratio saisi pour MISFAT Tunisie n'a pas à valoriser le
+     *                  bilan de MISFAT Maroc.
+     */
     @GetMapping
-    public ResponseEntity<List<EmissionFactor>> getAll() {
-        return ResponseEntity.ok(service.getAllFactors());
+    public ResponseEntity<List<EmissionFactor>> getAll(
+            @RequestParam(required = false) Long filialeId) {
+        return ResponseEntity.ok(service.getFactorsVisibles(filialeId));
     }
 
     @GetMapping("/{id}")

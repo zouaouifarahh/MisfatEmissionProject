@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 
 import {
-  ReferentialService, FactorRow, CategoryWithSources, aplatirEnLignes
+  ReferentialService, FactorRow, CategoryWithSources, SourceSansFacteur, aplatirEnLignes
 } from '../../services/referential.service';
 import { OriginBadgeComponent } from '../../shared/origin-badge/origin-badge.component';
 
@@ -70,6 +70,91 @@ export class EmissionFactorsComponent implements OnInit {
    * reste ouverte : une base nouvelle doit pouvoir être citée sans qu'on ait
    * à modifier le code.</p>
    */
+  /** Le bandeau des sources sans facteur est-il replié ? */
+  alerteRepliee = false;
+
+  /**
+   * Sources qu'aucun facteur ne documente.
+   *
+   * <p>Servie par le serveur et non déduite du tableau : une source déclarée
+   * depuis l'écran « Sources d'Émission » n'obtient aucune référence carbone,
+   * et les facteurs ne visent que celles-là. Elle n'apparaît donc dans aucune
+   * vue du référentiel — c'est précisément le manque le plus grave, et le seul
+   * qu'un calcul local sur les lignes affichées ne pouvait pas voir.</p>
+   */
+  sourcesSansFacteur: SourceSansFacteur[] = [];
+
+  /** Rattachement en cours, pour ne pas le déclencher deux fois. */
+  rattachementEnCours: string | null = null;
+
+  /**
+   * Relit les sources en manque de facteur.
+   *
+   * <p>Rejoué après chaque chargement du référentiel : affecter un facteur doit
+   * faire disparaître l'alerte sans qu'on ait à recharger la page.</p>
+   *
+   * <p>Un échec laisse la liste vide plutôt que de faire tomber l'écran : le
+   * référentiel reste consultable même si le décompte des manques ne l'est
+   * pas.</p>
+   */
+  private chargerSourcesSansFacteur(): void {
+    this.referentialService.getSourcesSansFacteur().subscribe({
+      next: sources => {
+        this.sourcesSansFacteur = sources ?? [];
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.sourcesSansFacteur = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  /**
+   * Ouvre le formulaire sur une source en alerte, déjà désignée.
+   *
+   * <p>Le geste utile est d'affecter un facteur, pas de retrouver la référence
+   * dans une liste de cent-quarante entrées après avoir lu son nom deux lignes
+   * plus haut. L'unité déclarée est reprise : c'est celle que la saisie
+   * imposera de toute façon.</p>
+   *
+   * <p>Une source que le référentiel ignore y est d'abord rattachée : sans
+   * référence carbone, aucun facteur ne peut la viser.</p>
+   */
+  affecterUnFacteur(source: SourceSansFacteur): void {
+    if (source.carbonReferenceId !== null) {
+      this.ouvrirSurLaReference(source.carbonReferenceId, source.defaultUnit);
+      return;
+    }
+
+    if (this.rattachementEnCours) return;
+    this.rattachementEnCours = source.referenceCode;
+
+    this.referentialService.rattacherSource(source.referenceCode).subscribe({
+      next: rattachee => {
+        this.rattachementEnCours = null;
+        // La liste des références change : le formulaire doit pouvoir désigner
+        // celle qui vient de naître.
+        this.charger();
+        this.ouvrirSurLaReference(rattachee.carbonReferenceId, source.defaultUnit);
+      },
+      error: (err: { status?: number; error?: { message?: string } }) => {
+        this.rattachementEnCours = null;
+        this.erreur = err?.error?.message
+          ?? `Rattachement de ${source.referenceCode} refusé par le serveur `
+             + `(code ${err?.status ?? '?'}).`;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private ouvrirSurLaReference(carbonReferenceId: number, unite: string | null): void {
+    this.ouvrirFormulaire();
+    this.nouveau.carbonReferenceId = carbonReferenceId;
+    this.nouveau.unit = unite ?? '';
+    this.cdr.markForCheck();
+  }
+
   get basesConnues(): string[] {
     return [...new Set(this.lignes.map(l => l.databaseSource).filter((b): b is string => !!b))]
       .sort((a, b) => a.localeCompare(b, 'fr'));
@@ -197,6 +282,7 @@ export class EmissionFactorsComponent implements OnInit {
         // pour un écrasement.
         this.lignes = aplatirEnLignes(categories);
         this.chargement = false;
+        this.chargerSourcesSansFacteur();
         this.recalculerFiltrage();
         this.cdr.markForCheck();
       },

@@ -27,6 +27,9 @@ import {
 import {
   MODES_VOYAGE, reconnaitreMode, classeBadgeMode, emojiMode
 } from '../../shared/mobilite/modes-transport';
+import {
+  DESTINATIONS_FREQUENTES, distanceIndicative, paysDeDepart
+} from '../../shared/mobilite/trajets-voyages';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -263,11 +266,58 @@ export class VoyagesAffairesComponent implements OnInit {
     });
   }
 
+  /** Destinations proposées à la saisie ; le champ reste libre. */
+  readonly destinationsFrequentes = DESTINATIONS_FREQUENTES;
+
+  /** Vrai quand la distance affichée vient de la table et non d'une saisie. */
+  distanceProposee = false;
+
+  /**
+   * Propose une distance dès que le trajet est renseigné.
+   *
+   * <p>Elle n'écrase jamais une distance saisie : la table donne des ordres de
+   * grandeur de capitale à capitale, l'utilisateur connaît son trajet. Une
+   * valeur proposée est en revanche remplacée quand le trajet change, sinon
+   * elle documenterait l'ancien.</p>
+   *
+   * <p>Un trajet que la table ignore laisse le champ vide plutôt que de
+   * l'approcher : une distance inventée se retrouverait dans un bilan carbone
+   * sans que rien ne la distingue d'une distance relevée.</p>
+   */
+  onTrajetChange(): void {
+    const saisieManuelle = this.formModel.distanceKm !== null && !this.distanceProposee;
+    if (saisieManuelle) return;
+
+    const proposee = distanceIndicative(this.formModel.depart, this.formModel.destination);
+
+    this.formModel.distanceKm = proposee;
+    this.distanceProposee = proposee !== null;
+    this.cdr.detectChanges();
+  }
+
+  /** L'utilisateur reprend la main sur la distance : elle cesse d'être proposée. */
+  onDistanceSaisie(): void {
+    this.distanceProposee = false;
+  }
+
+  /**
+   * Pays d'implantation de la société consultée.
+   *
+   * <p>Il sert de départ par défaut : une mission part du site où travaille la
+   * personne, et le ressaisir à chaque ligne n'apprend rien.</p>
+   */
+  paysDeLaSociete = '';
+
   private majPerimetre(): void {
     const societe = this.filiales.find(f => f.id === this.societeActiveId) ?? null;
 
     this.societeActiveLabel = societe?.libelle ?? 'Groupe MISFAT';
     this.deviseActive = societe?.devise?.trim().toUpperCase() || 'TND';
+    this.paysDeLaSociete = paysDeDepart(societe?.pays);
+
+    // Un départ vide suit la société ; un départ déjà saisi ne bouge pas, il
+    // peut documenter une mission partie d'ailleurs.
+    if (!this.formModel.depart) this.formModel.depart = this.paysDeLaSociete;
 
     this.usinesDisponibles = societe
       ? (societe.usines ?? [])

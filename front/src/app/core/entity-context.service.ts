@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, combineLatest, filter, map, shareReplay } 
 import { OrganizationService } from '../services/organization.service';
 import { Filiale, Usine, AnneeReference } from '../models/organization.model';
 import { EntityProfile, GROUP_ENTITY, profileFor } from './entity-catalogue';
+import { definirSocieteCourante } from './perimetre-courant';
 
 /** Filtres actifs, transmis à tous les appels HTTP de l'application. */
 export interface EntityFilter {
@@ -112,6 +113,7 @@ export class EntityContextService {
   /** Change d'entité et réinitialise l'usine, qui n'appartient plus au périmètre. */
   selectEntity(entity: EntityOption): void {
     this.entitySubject.next(entity);
+    definirSocieteCourante(entity.id);
     this.usineSubject.next(null);
     this.loadUsines(entity.id);
   }
@@ -169,6 +171,10 @@ export class EntityContextService {
         if (active.id !== null) {
           const rafraichie = options.find(o => o.id === active.id);
           this.entitySubject.next(rafraichie ?? { ...GROUP_ENTITY, id: null });
+          // Une société supprimée fait retomber le périmètre sur le groupe :
+          // le relais doit le savoir, sans quoi le référentiel continuerait
+          // d'être filtré sur une société qui n'existe plus.
+          definirSocieteCourante(rafraichie?.id ?? null);
           if (!rafraichie) this.usineSubject.next(null);
         }
       },

@@ -75,7 +75,10 @@
                   class="nested-sub-item"
                   [class.active]="activeSub === cat.id"
                   (click)="setActive(cat.id, $event)">
-                  <span>{{ cat.icone }}</span> {{ cat.nom }}
+                  <span>{{ cat.icone }}</span>
+                  <!-- Le code précède le libellé : c'est par lui qu'on cherche
+                       quand on doit renseigner « la catégorie 7 ». -->
+                  <span class="nested-code">{{ cat.code }}</span> {{ cat.nom }}
                 </div>
               </div>
             </div>

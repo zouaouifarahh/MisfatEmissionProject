@@ -12,11 +12,70 @@
  * et sont les mêmes pour toutes les vues.</p>
  */
 
+import { Observable, Subject } from 'rxjs';
+
 import {
   ORGANISATION_GROUPE,
   PerimetreOrganisation,
   releveDuPerimetre
 } from '../../core/perimetre';
+
+/**
+ * Annonce des saisies d'écran, pour les vues qui les agrègent.
+ *
+ * <p>Les écrans de collecte écrivent leurs lignes dans le stockage du
+ * navigateur ; le tableau de bord les y relit. Rien ne l'avertissait d'une
+ * écriture : ses cartes restaient sur le compte du dernier chargement, et une
+ * mesure enregistrée n'apparaissait qu'au changement de filtre ou au
+ * rafraîchissement de la page. Le poste paraissait rester à zéro.</p>
+ *
+ * <p>Un sujet de module plutôt qu'un service : ce signal n'a ni état ni
+ * dépendance, et le faire injecter obligerait vingt écrans à recevoir un
+ * service pour émettre un événement sans donnée.</p>
+ */
+const mesuresModifiees = new Subject<void>();
+
+/** Flux des modifications de saisie, tous écrans confondus. */
+export const mesuresLocalesModifiees$: Observable<void> = mesuresModifiees.asObservable();
+
+/**
+ * Annonce qu'un écran vient d'écrire ses lignes.
+ *
+ * <p>L'événement ne porte pas ce qui a changé : les vues relisent le stockage,
+ * qui fait foi. Porter un délta obligerait à le tenir juste, et un délta faux
+ * est pire qu'une relecture.</p>
+ */
+export function signalerMesuresLocalesModifiees(): void {
+  mesuresModifiees.next();
+}
+
+/**
+ * Écrit les lignes d'une catégorie et annonce l'écriture.
+ *
+ * <p>Un seul chemin pour persister une saisie : l'écran passe par là, et
+ * l'annonce suit l'écriture sans qu'il ait à y penser. Chaque écran appelait
+ * {@code localStorage.setItem} de son côté et aucun n'annonçait rien — le
+ * tableau de bord restait donc sur le compte du dernier chargement.</p>
+ *
+ * <p>L'annonce vient <strong>après</strong> l'écriture : une vue prévenue trop
+ * tôt relirait l'ancienne valeur et conclurait que rien n'a changé.</p>
+ *
+ * @returns `false` si le stockage a refusé l'écriture — quota dépassé sur une
+ *          liste volumineuse —, pour que l'écran le signale plutôt que de
+ *          laisser croire la ligne conservée.
+ */
+export function enregistrerLignes(cle: string, lignes: unknown): boolean {
+  if (typeof localStorage === 'undefined') return false;
+
+  try {
+    localStorage.setItem(cle, JSON.stringify(lignes));
+  } catch {
+    return false;
+  }
+
+  mesuresModifiees.next();
+  return true;
+}
 
 /** Clé de stockage de chaque catégorie, par identifiant d'écran. */
 export const CLES_PAR_CATEGORIE: Record<string, string> = {

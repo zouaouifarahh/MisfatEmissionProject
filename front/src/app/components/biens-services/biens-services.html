@@ -273,7 +273,9 @@
 
           <div class="form-group flex-1">
             <label for="bs-facteur">Facteur appliqué</label>
-            <input id="bs-facteur" type="number" [value]="formModel.facteur" readonly class="readonly-field">
+            <input id="bs-facteur" type="number" step="any" min="0" name="bsFacteur"
+                   [(ngModel)]="formModel.facteur">
+            <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
           </div>
         </div>
 
