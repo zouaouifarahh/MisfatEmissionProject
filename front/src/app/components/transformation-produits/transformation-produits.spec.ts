@@ -46,7 +46,7 @@ describe('TransformationProduitsComponent', () => {
     // Deux colonnes de plus depuis l'appariement au référentiel : la
     // référence carbone désigne le facteur, le code article ERP en tient lieu
     // quand le référentiel et l'ERP partagent la même codification.
-    expect(hote.querySelectorAll('.data-table thead th').length).toBe(13);
+    expect(hote.querySelectorAll('.data-table thead th').length).toBe(14);
     expect(hote.querySelector('.empty-row')).toBeTruthy();
   });
 
@@ -70,6 +70,10 @@ describe('TransformationProduitsComponent', () => {
     composant.formModel.procede = 'Usinage / Découpe';
     composant.formModel.quantite = 5000;
     composant.formModel.unite = 'kg';
+    // La période est désormais exigée : sans elle, la mesure serait rattachée
+    // à son année de saisie et disparaîtrait du bilan qu'elle documente.
+    composant.formModel.dateDebut = '2025-01-01';
+    composant.formModel.dateFin = '2025-12-31';
     composant.enregistrerEmission();
 
     expect(composant.listeEmissions.length).toBe(1);
@@ -140,6 +144,10 @@ describe('TransformationProduitsComponent', () => {
     expect(composant.messageErreur).toContain('quantité');
 
     composant.formModel.quantite = 5000;
+    // La période est désormais exigée : sans elle, la mesure serait rattachée
+    // à son année de saisie et disparaîtrait du bilan qu'elle documente.
+    composant.formModel.dateDebut = '2025-01-01';
+    composant.formModel.dateFin = '2025-12-31';
     composant.enregistrerEmission();
     expect(composant.listeEmissions.length).toBe(1);
     // Une référence absente est engendrée : le produit reste traçable.

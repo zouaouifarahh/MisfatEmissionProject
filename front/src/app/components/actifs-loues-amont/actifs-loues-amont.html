@@ -104,6 +104,7 @@
             <th>Facteur retenu</th>
             <th>Base appliquée</th>
             <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th>Période</th>
             <th class="ta-center">Actions</th>
           </tr>
         </thead>
@@ -176,6 +177,7 @@
 
             <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
 
+            <td class="cell-note">{{ periodeLisible(item) }}</td>
             <td class="ta-center">
               <div class="action-buttons">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
@@ -185,7 +187,7 @@
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="12" class="empty-row">
+            <td colspan="13" class="empty-row">
               Aucun actif loué enregistré sur ce périmètre.
             </td>
           </tr>
@@ -195,7 +197,7 @@
           <tr>
             <td colspan="12">Total — {{ emissionsFiltrees.length }} actif(s)</td>
             <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
-            <td colspan="1"></td>
+            <td colspan="2"></td>
           </tr>
         </tfoot>
       </table>
@@ -405,6 +407,20 @@
             <span class="origine-repli">Facteur de repli</span>
             <span>{{ facteurCourant.libelle }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
+           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
+           bilan 2025 sans que rien ne le signale. -->
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="ala-debut">Période — de *</label>
+          <input id="ala-debut" type="date" name="alaDateDebut" [(ngModel)]="formModel.dateDebut">
+        </div>
+        <div class="form-group flex-1">
+          <label for="ala-fin">Période — à *</label>
+          <input id="ala-fin" type="date" name="alaDateFin" [(ngModel)]="formModel.dateFin">
         </div>
       </div>
 

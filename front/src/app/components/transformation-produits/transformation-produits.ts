@@ -22,6 +22,7 @@ import {
   MASSE_PAR_UNITE
 } from './transformation-facteur';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { periodeLisible } from '../../shared/ui/periode-lisible';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -59,6 +60,9 @@ export interface EmissionTransformation {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionCalculee: number;
+  /** Periode couverte par la mesure, au format ISO. */
+  dateDebut: string;
+  dateFin: string;
   creeLe: string;
 }
 
@@ -81,6 +85,9 @@ const TAILLES_PAGE = [20, 50, 100];
   styleUrl: './transformation-produits.css'
 })
 export class TransformationProduitsComponent implements OnInit {
+
+  /** Periode d'une ligne, pour la colonne du tableau. */
+  readonly periodeLisible = periodeLisible;
 
   listeEmissions: EmissionTransformation[] = [];
   filtreProcede = 'Tous';
@@ -152,7 +159,9 @@ export class TransformationProduitsComponent implements OnInit {
     provenance: 'Réel' as Provenance,
     typeSaisie: 'Masse' as TypeSaisie,
     quantite: null as number | null,
-    unite: 'kg'
+    unite: 'kg',
+    dateDebut: '',
+    dateFin: ''
   };
 
   constructor(
@@ -422,7 +431,9 @@ export class TransformationProduitsComponent implements OnInit {
         provenance: emission.provenance === 'Excel' ? 'Réel' : emission.provenance,
         typeSaisie: emission.typeSaisie,
         quantite: emission.quantite,
-        unite: emission.unite
+        unite: emission.unite,
+        dateDebut: emission.dateDebut ?? '',
+        dateFin: emission.dateFin ?? ''
       };
     } else {
       this.isEdition = false;
@@ -435,7 +446,9 @@ export class TransformationProduitsComponent implements OnInit {
         provenance: 'Réel',
         typeSaisie: 'Masse',
         quantite: null,
-        unite: 'kg'
+        unite: 'kg',
+        dateDebut: '',
+        dateFin: ''
       };
     }
 
@@ -545,6 +558,16 @@ export class TransformationProduitsComponent implements OnInit {
     const facteur = this.facteurCourant;
     const grandeur = this.grandeurPrevisionnelle;
 
+
+    // Sans periode, la mesure est rattachee a son annee de saisie : une
+    // donnee 2025 enregistree en 2026 disparait du bilan 2025 sans que
+    // rien ne le signale. C'est la panne la plus couteuse a decouvrir tard.
+    if (!m.dateDebut || !m.dateFin) {
+      return this.refuser('La periode couverte est obligatoire : sans elle, la mesure serait rattachee a son annee de saisie.');
+    }
+    if (new Date(m.dateFin) < new Date(m.dateDebut)) {
+      return this.refuser('La date de fin precede la date de debut.');
+    }
     const ligne: EmissionTransformation = {
       id: this.idEditionActive ?? Date.now(),
       scope: 'SCOPE_3',
@@ -567,6 +590,8 @@ export class TransformationProduitsComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmissionProcede(grandeur, facteur.valeur),
+      dateDebut: this.formModel.dateDebut,
+      dateFin: this.formModel.dateFin,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -741,6 +766,8 @@ export class TransformationProduitsComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionProcede(brute.grandeur, facteur.valeur),
+            dateDebut: '',
+            dateFin: '',
             creeLe: horodatage
           };
         });

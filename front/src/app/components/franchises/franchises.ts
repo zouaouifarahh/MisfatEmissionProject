@@ -23,6 +23,7 @@ import {
   uniteApproche, EMISSIONS_PAR_SITE_AN
 } from './franchises-facteur';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { periodeLisible } from '../../shared/ui/periode-lisible';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -57,6 +58,9 @@ export interface EmissionFranchise {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionCalculee: number;
+  /** Periode couverte par la mesure, au format ISO. */
+  dateDebut: string;
+  dateFin: string;
   creeLe: string;
 }
 
@@ -75,6 +79,9 @@ const TAILLES_PAGE = [20, 50, 100];
   styleUrl: './franchises.css'
 })
 export class FranchisesComponent implements OnInit {
+
+  /** Periode d'une ligne, pour la colonne du tableau. */
+  readonly periodeLisible = periodeLisible;
 
   listeEmissions: EmissionFranchise[] = [];
   filtreApproche = 'Toutes';
@@ -141,7 +148,9 @@ export class FranchisesComponent implements OnInit {
     localisation: '',
     approche: 'Par site' as TypeApproche,
     provenance: 'Estimation' as Provenance,
-    quantite: null as number | null
+    quantite: null as number | null,
+    dateDebut: '',
+    dateFin: ''
   };
 
   constructor(
@@ -382,14 +391,18 @@ export class FranchisesComponent implements OnInit {
         localisation: emission.localisation,
         approche: emission.approche,
         provenance: emission.provenance === 'Excel' ? 'Estimation' : emission.provenance,
-        quantite: emission.quantite
+        quantite: emission.quantite,
+        dateDebut: emission.dateDebut ?? '',
+        dateFin: emission.dateFin ?? ''
       };
     } else {
       this.isEdition = false;
       this.idEditionActive = null;
       this.formModel = {
         reference: '', franchise: '', localisation: '',
-        approche: 'Par site', provenance: 'Estimation', quantite: null
+        approche: 'Par site', provenance: 'Estimation', quantite: null,
+        dateDebut: '',
+        dateFin: ''
       };
     }
 
@@ -457,6 +470,16 @@ export class FranchisesComponent implements OnInit {
     const facteur = this.facteurCourant;
     const grandeur = this.grandeurPrevisionnelle;
 
+
+    // Sans periode, la mesure est rattachee a son annee de saisie : une
+    // donnee 2025 enregistree en 2026 disparait du bilan 2025 sans que
+    // rien ne le signale. C'est la panne la plus couteuse a decouvrir tard.
+    if (!m.dateDebut || !m.dateFin) {
+      return this.refuser('La periode couverte est obligatoire : sans elle, la mesure serait rattachee a son annee de saisie.');
+    }
+    if (new Date(m.dateFin) < new Date(m.dateDebut)) {
+      return this.refuser('La date de fin precede la date de debut.');
+    }
     const ligne: EmissionFranchise = {
       id: this.idEditionActive ?? Date.now(),
       scope: 'SCOPE_3',
@@ -475,6 +498,8 @@ export class FranchisesComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmissionFranchise(grandeur, facteur.valeur),
+      dateDebut: this.formModel.dateDebut,
+      dateFin: this.formModel.dateFin,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -638,6 +663,8 @@ export class FranchisesComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionFranchise(grandeur, facteur.valeur),
+            dateDebut: '',
+            dateFin: '',
             creeLe: horodatage
           });
         });

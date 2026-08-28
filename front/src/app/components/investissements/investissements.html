@@ -206,6 +206,7 @@
             <th>Base appliquée</th>
             <th class="sortable ta-right" (click)="sortData('emissions')">Émiss. (kgCO₂e)</th>
             <th class="ta-right">Émiss. (tCO₂e)</th>
+            <th>Période</th>
             <th class="ta-center">Statut / Actions</th>
           </tr>
         </thead>
@@ -255,6 +256,7 @@
 
             <td class="ta-right num num-tonnes">{{ enTonnes(item.emissionCalculee) | number:'1.0-3' }}</td>
 
+            <td class="cell-note">{{ periodeLisible(item) }}</td>
             <td class="ta-center">
               <span class="statut-badge" [class.statut-valide]="!item.replique"
                     [class.statut-repli]="item.replique">
@@ -269,7 +271,7 @@
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="11" class="empty-row">
+            <td colspan="12" class="empty-row">
               Aucune immobilisation enregistrée sur ce périmètre.
             </td>
           </tr>
@@ -279,7 +281,7 @@
           <tr>
             <td colspan="8">Total — {{ nombreImmobilisations }} immobilisation(s)</td>
             <td class="ta-right num-fort">{{ totalAcquisitions | number:'1.0-2' }}</td>
-            <td colspan="2"></td>
+            <td colspan="3"></td>
           </tr>
         </tfoot>
       </table>
@@ -415,6 +417,20 @@
               « Fallback appliqué (#N/A) ».
             </span>
           </div>
+        </div>
+      </div>
+
+      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
+           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
+           bilan 2025 sans que rien ne le signale. -->
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="inv-debut">Période — de *</label>
+          <input id="inv-debut" type="date" name="invDateDebut" [(ngModel)]="formModel.dateDebut">
+        </div>
+        <div class="form-group flex-1">
+          <label for="inv-fin">Période — à *</label>
+          <input id="inv-fin" type="date" name="invDateFin" [(ngModel)]="formModel.dateFin">
         </div>
       </div>
 

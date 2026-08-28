@@ -23,6 +23,7 @@ import {
   JOURS_TRAVAILLES_DEFAUT, COVOITURAGE_DEFAUT, ETABLISSEMENT_DEFAUT
 } from '../../shared/mobilite/modes-transport';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { periodeLisible } from '../../shared/ui/periode-lisible';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -60,6 +61,9 @@ export interface EmissionDeplacement {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionCalculee: number;
+  /** Periode couverte par la mesure, au format ISO. */
+  dateDebut: string;
+  dateFin: string;
   creeLe: string;
 }
 
@@ -81,6 +85,9 @@ const TAILLES_PAGE = [20, 50, 100];
   styleUrl: './deplacements-employes.css'
 })
 export class DeplacementsEmployesComponent implements OnInit {
+
+  /** Periode d'une ligne, pour la colonne du tableau. */
+  readonly periodeLisible = periodeLisible;
 
   /** Statut du facteur retenu : référentiel MS SQL ou repli ADEME. */
   filtreStatut = 'Tous';
@@ -146,7 +153,9 @@ export class DeplacementsEmployesComponent implements OnInit {
     motorisation: '',
     distanceAllerKm: null as number | null,
     joursTravailles: JOURS_TRAVAILLES_DEFAUT,
-    covoiturage: COVOITURAGE_DEFAUT
+    covoiturage: COVOITURAGE_DEFAUT,
+    dateDebut: '',
+    dateFin: ''
   };
 
   constructor(
@@ -412,7 +421,9 @@ export class DeplacementsEmployesComponent implements OnInit {
         motorisation: emission.motorisation,
         distanceAllerKm: emission.distanceAllerKm,
         joursTravailles: emission.joursTravailles,
-        covoiturage: emission.covoiturage
+        covoiturage: emission.covoiturage,
+        dateDebut: emission.dateDebut ?? '',
+        dateFin: emission.dateFin ?? ''
       };
     } else {
       this.isEdition = false;
@@ -429,7 +440,9 @@ export class DeplacementsEmployesComponent implements OnInit {
         motorisation: '',
         distanceAllerKm: null,
         joursTravailles: JOURS_TRAVAILLES_DEFAUT,
-        covoiturage: COVOITURAGE_DEFAUT
+        covoiturage: COVOITURAGE_DEFAUT,
+        dateDebut: '',
+        dateFin: ''
       };
     }
 
@@ -508,6 +521,16 @@ export class DeplacementsEmployesComponent implements OnInit {
     const facteur = this.facteurCourant;
     const kmAnnuels = this.kmAnnuelsPrevisionnels;
 
+
+    // Sans periode, la mesure est rattachee a son annee de saisie : une
+    // donnee 2025 enregistree en 2026 disparait du bilan 2025 sans que
+    // rien ne le signale. C'est la panne la plus couteuse a decouvrir tard.
+    if (!m.dateDebut || !m.dateFin) {
+      return this.refuser('La periode couverte est obligatoire : sans elle, la mesure serait rattachee a son annee de saisie.');
+    }
+    if (new Date(m.dateFin) < new Date(m.dateDebut)) {
+      return this.refuser('La date de fin precede la date de debut.');
+    }
     const ligne: EmissionDeplacement = {
       id: this.idEditionActive ?? Date.now(),
       scope: 'SCOPE_3',
@@ -531,6 +554,8 @@ export class DeplacementsEmployesComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmission(kmAnnuels, facteur.valeur),
+      dateDebut: this.formModel.dateDebut,
+      dateFin: this.formModel.dateFin,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -697,6 +722,8 @@ export class DeplacementsEmployesComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmission(brute.kmAnnuels, facteur.valeur),
+            dateDebut: '',
+            dateFin: '',
             creeLe: horodatage
           };
         });

@@ -119,6 +119,7 @@
             <th class="ta-right">Consommation est.</th>
             <th>Facteur MS SQL</th>
             <th class="sortable ta-right" (click)="sortData('emissions')">Émiss. (kgCO₂e)</th>
+            <th>Période</th>
             <th class="ta-center">Actions</th>
           </tr>
         </thead>
@@ -184,6 +185,7 @@
 
             <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
 
+            <td class="cell-note">{{ periodeLisible(item) }}</td>
             <td class="ta-center">
               <div class="action-buttons">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
@@ -193,7 +195,7 @@
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="9" class="empty-row">
+            <td colspan="10" class="empty-row">
               {{ sansReseau
                   ? 'Catégorie déclarée non applicable : aucun réseau franchisé, total arrêté à 0 kgCO₂e.'
                   : 'Aucune franchise enregistrée sur ce périmètre.' }}
@@ -205,7 +207,7 @@
           <tr>
             <td colspan="9">Total — {{ emissionsFiltrees.length }} franchise(s)</td>
             <td class="ta-right num-fort">{{ totalSites | number:'1.0-0' }} sites</td>
-            <td colspan="1"></td>
+            <td colspan="2"></td>
           </tr>
         </tfoot>
       </table>
@@ -362,6 +364,20 @@
             <span class="origine-repli">Facteur de repli</span>
             <span>{{ facteurCourant.libelle }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
+           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
+           bilan 2025 sans que rien ne le signale. -->
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="frc-debut">Période — de *</label>
+          <input id="frc-debut" type="date" name="frcDateDebut" [(ngModel)]="formModel.dateDebut">
+        </div>
+        <div class="form-group flex-1">
+          <label for="frc-fin">Période — à *</label>
+          <input id="frc-fin" type="date" name="frcDateFin" [(ngModel)]="formModel.dateFin">
         </div>
       </div>
 

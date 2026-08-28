@@ -30,6 +30,7 @@ import { provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } 
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersImmobilisation } from '../../shared/dispatch/adaptateurs-mesure';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { periodeLisible } from '../../shared/ui/periode-lisible';
 
 /** Immobilisation valorisée, catégorie 15 du Scope 3. */
 export interface EmissionInvestissement {
@@ -61,6 +62,9 @@ export interface EmissionInvestissement {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionCalculee: number;
+  /** Periode couverte par la mesure, au format ISO. */
+  dateDebut: string;
+  dateFin: string;
   creeLe: string;
   /** Provenance : renseignée pour les seules lignes issues de la ventilation. */
   sourceData?: string;
@@ -82,6 +86,9 @@ const TAILLES_PAGE = [20, 50, 100];
   styleUrl: './investissements.css'
 })
 export class InvestissementsComponent implements OnInit {
+
+  /** Periode d'une ligne, pour la colonne du tableau. */
+  readonly periodeLisible = periodeLisible;
 
   /** Provenance de la donnée : saisie, estimation ou import de classeur. */
   filtreProvenance = 'Toutes';
@@ -155,7 +162,9 @@ export class InvestissementsComponent implements OnInit {
     numeroImmo: '',
     designation: '',
     categorieCarbone: 'Metals / Metal Products' as CategorieCarbone,
-    montant: null as number | null
+    montant: null as number | null,
+    dateDebut: '',
+    dateFin: ''
   };
 
   constructor(
@@ -473,14 +482,18 @@ export class InvestissementsComponent implements OnInit {
         numeroImmo: emission.numeroImmo,
         designation: emission.designation,
         categorieCarbone: emission.categorieCarbone,
-        montant: emission.montant
+        montant: emission.montant,
+        dateDebut: emission.dateDebut ?? '',
+        dateFin: emission.dateFin ?? ''
       };
     } else {
       this.isEdition = false;
       this.idEditionActive = null;
       this.formModel = {
         numeroImmo: '', designation: '',
-        categorieCarbone: 'Metals / Metal Products', montant: null
+        categorieCarbone: 'Metals / Metal Products', montant: null,
+        dateDebut: '',
+        dateFin: ''
       };
     }
 
@@ -537,6 +550,16 @@ export class InvestissementsComponent implements OnInit {
 
     const facteur = this.facteurCourant;
 
+
+    // Sans periode, la mesure est rattachee a son annee de saisie : une
+    // donnee 2025 enregistree en 2026 disparait du bilan 2025 sans que
+    // rien ne le signale. C'est la panne la plus couteuse a decouvrir tard.
+    if (!m.dateDebut || !m.dateFin) {
+      return this.refuser('La periode couverte est obligatoire : sans elle, la mesure serait rattachee a son annee de saisie.');
+    }
+    if (new Date(m.dateFin) < new Date(m.dateDebut)) {
+      return this.refuser('La date de fin precede la date de debut.');
+    }
     const ligne: EmissionInvestissement = {
       id: this.idEditionActive ?? Date.now(),
       scope: 'SCOPE_3',
@@ -555,6 +578,8 @@ export class InvestissementsComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmissionCapex(m.montant, facteur.valeur),
+      dateDebut: this.formModel.dateDebut,
+      dateFin: this.formModel.dateFin,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -717,6 +742,8 @@ export class InvestissementsComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionCapex(ligne.montant, facteur.valeur),
+            dateDebut: '',
+            dateFin: '',
             creeLe: horodatage
           };
         });

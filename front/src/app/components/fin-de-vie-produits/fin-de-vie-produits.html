@@ -97,6 +97,7 @@
             <th>Facteur MS SQL</th>
             <th>Base appliquée</th>
             <th class="sortable ta-right" (click)="sortData('emissions')">Émissions (kgCO₂e)</th>
+            <th>Période</th>
             <th class="ta-center">Actions</th>
           </tr>
         </thead>
@@ -161,6 +162,7 @@
 
             <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
 
+            <td class="cell-note">{{ periodeLisible(item) }}</td>
             <td class="ta-center">
               <div class="action-buttons">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
@@ -170,7 +172,7 @@
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="9" class="empty-row">
+            <td colspan="10" class="empty-row">
               Aucun produit en fin de vie enregistré sur ce périmètre.
             </td>
           </tr>
@@ -180,7 +182,7 @@
           <tr>
             <td colspan="9">Total — {{ emissionsFiltrees.length }} flux</td>
             <td class="ta-right num-fort">{{ totalMasseTonnes | number:'1.0-3' }} T</td>
-            <td colspan="1"></td>
+            <td colspan="2"></td>
           </tr>
         </tfoot>
       </table>
@@ -363,6 +365,20 @@
             <span class="origine-repli">Facteur de repli</span>
             <span>{{ facteurCourant.libelle }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
+           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
+           bilan 2025 sans que rien ne le signale. -->
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="fdv-debut">Période — de *</label>
+          <input id="fdv-debut" type="date" name="fdvDateDebut" [(ngModel)]="formModel.dateDebut">
+        </div>
+        <div class="form-group flex-1">
+          <label for="fdv-fin">Période — à *</label>
+          <input id="fdv-fin" type="date" name="fdvDateFin" [(ngModel)]="formModel.dateFin">
         </div>
       </div>
 

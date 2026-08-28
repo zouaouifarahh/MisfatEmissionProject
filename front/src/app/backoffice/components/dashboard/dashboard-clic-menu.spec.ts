@@ -157,7 +157,7 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
     // Deux colonnes de plus depuis l'appariement au référentiel : la
     // référence carbone désigne le facteur, le code article ERP en tient lieu
     // quand le référentiel et l'ERP partagent la même codification.
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(12);
 
     // Ni écran vide, ni panneau « à développer ».
     expect(hote.querySelector('.ecran-a-venir')).toBeNull();
@@ -181,7 +181,7 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
     // Deux colonnes de plus depuis l'appariement au référentiel : la
     // référence carbone désigne le facteur, le code article ERP en tient lieu
     // quand le référentiel et l'ERP partagent la même codification.
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(12);
 
     // La déclaration de non-applicabilité doit être offerte d'emblée.
     expect(ecran?.querySelector('.declaration-toggle')?.textContent)
@@ -208,7 +208,7 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
     // Deux colonnes de plus depuis l'appariement au référentiel : la
     // référence carbone désigne le facteur, le code article ERP en tient lieu
     // quand le référentiel et l'ERP partagent la même codification.
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(12);
 
     expect(ecran?.querySelector('.declaration-toggle')?.textContent)
       .toContain('Aucun réseau de franchise sous enseigne');
@@ -235,7 +235,7 @@ describe('DashboardComponent — clic dans le menu latéral', () => {
     // Onze colonnes depuis l'ajout de « Référence carbone » et « Code article
     // ERP » : le numéro d'immobilisation identifie un actif comptable, il ne
     // sert plus de clé de valorisation carbone.
-    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(11);
+    expect(ecran?.querySelectorAll('.data-table thead th').length).toBe(12);
 
     const entetes = [...(ecran?.querySelectorAll('.data-table thead th') ?? [])]
       .map(th => th.textContent?.trim() ?? '');

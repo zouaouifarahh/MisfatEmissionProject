@@ -24,6 +24,7 @@ import {
   classeBadgeFiliere, emojiFiliere, libelleFiliere
 } from './fin-de-vie-facteur';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { periodeLisible } from '../../shared/ui/periode-lisible';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -62,6 +63,9 @@ export interface EmissionFinDeVie {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionCalculee: number;
+  /** Periode couverte par la mesure, au format ISO. */
+  dateDebut: string;
+  dateFin: string;
   creeLe: string;
 }
 
@@ -83,6 +87,9 @@ const TAILLES_PAGE = [20, 50, 100];
   styleUrl: './fin-de-vie-produits.css'
 })
 export class FinDeVieProduitsComponent implements OnInit {
+
+  /** Periode d'une ligne, pour la colonne du tableau. */
+  readonly periodeLisible = periodeLisible;
 
   listeEmissions: EmissionFinDeVie[] = [];
   filtreFiliere = 'Toutes';
@@ -146,7 +153,9 @@ export class FinDeVieProduitsComponent implements OnInit {
     masse: null as number | null,
     unite: 'Tonnes',
     montant: null as number | null,
-    devise: 'TND'
+    devise: 'TND',
+    dateDebut: '',
+    dateFin: ''
   };
 
   constructor(
@@ -406,7 +415,9 @@ export class FinDeVieProduitsComponent implements OnInit {
         masse: emission.masse,
         unite: emission.unite,
         montant: emission.montant,
-        devise: emission.devise
+        devise: emission.devise,
+        dateDebut: emission.dateDebut ?? '',
+        dateFin: emission.dateFin ?? ''
       };
     } else {
       this.isEdition = false;
@@ -420,7 +431,9 @@ export class FinDeVieProduitsComponent implements OnInit {
         masse: null,
         unite: 'Tonnes',
         montant: null,
-        devise: this.deviseActive
+        devise: this.deviseActive,
+        dateDebut: '',
+        dateFin: ''
       };
     }
 
@@ -533,6 +546,16 @@ export class FinDeVieProduitsComponent implements OnInit {
     const facteur = this.facteurCourant;
     const grandeur = this.grandeurPrevisionnelle;
 
+
+    // Sans periode, la mesure est rattachee a son annee de saisie : une
+    // donnee 2025 enregistree en 2026 disparait du bilan 2025 sans que
+    // rien ne le signale. C'est la panne la plus couteuse a decouvrir tard.
+    if (!m.dateDebut || !m.dateFin) {
+      return this.refuser('La periode couverte est obligatoire : sans elle, la mesure serait rattachee a son annee de saisie.');
+    }
+    if (new Date(m.dateFin) < new Date(m.dateDebut)) {
+      return this.refuser('La date de fin precede la date de debut.');
+    }
     const ligne: EmissionFinDeVie = {
       id: this.idEditionActive ?? Date.now(),
       scope: 'SCOPE_3',
@@ -556,6 +579,8 @@ export class FinDeVieProduitsComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmissionFinDeVie(grandeur, facteur.valeur),
+      dateDebut: this.formModel.dateDebut,
+      dateFin: this.formModel.dateFin,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -728,6 +753,8 @@ export class FinDeVieProduitsComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionFinDeVie(brute.grandeur, facteur.valeur),
+            dateDebut: '',
+            dateFin: '',
             creeLe: horodatage
           };
         });

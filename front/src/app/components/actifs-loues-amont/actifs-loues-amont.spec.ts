@@ -61,7 +61,7 @@ describe('ActifsLouesAmontComponent', () => {
     // Deux colonnes de plus depuis l'appariement au référentiel : la
     // référence carbone désigne le facteur, le code article ERP en tient lieu
     // quand le référentiel et l'ERP partagent la même codification.
-    expect(hote.querySelectorAll('.data-table thead th').length).toBe(14);
+    expect(hote.querySelectorAll('.data-table thead th').length).toBe(15);
     expect(hote.querySelector('.empty-row')).toBeTruthy();
   });
 
@@ -149,6 +149,10 @@ describe('ActifsLouesAmontComponent', () => {
     expect(composant.messageErreur).toContain('quantité');
 
     composant.formModel.quantite = 300;
+    // La période est désormais exigée : sans elle, la mesure serait rattachée
+    // à son année de saisie et disparaîtrait du bilan qu'elle documente.
+    composant.formModel.dateDebut = '2025-01-01';
+    composant.formModel.dateFin = '2025-12-31';
     composant.enregistrerEmission();
     expect(composant.listeEmissions.length).toBe(1);
     // Une référence absente est engendrée : l'actif reste traçable.
