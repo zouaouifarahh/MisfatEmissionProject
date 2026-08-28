@@ -16,6 +16,7 @@ import { ConfirmationService } from '../../shared/ui/confirmation.service';
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante , provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 // Extension locale de l'interface pour autoriser la propriété nomFacteurDetaille et referenceCode
 export interface ExtendedEmissionFactor extends EmissionFactor {
@@ -369,7 +370,9 @@ export class EmissionListComponent implements OnInit {
 
   sauvegarderDansLocalStorage() {
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem('listeEmissions', JSON.stringify(this.listeEmissions));
+      // Persiste ET annonce : le tableau de bord relit ses totaux sans qu'on
+      // ait à changer de filtre ou recharger la page.
+      enregistrerLignes('listeEmissions', this.listeEmissions);
     }
   }
 
@@ -864,7 +867,9 @@ genererCodeReference() {
     });
 
     try {
-      localStorage.setItem('listeEmissions', JSON.stringify(migrees));
+      // La migration change les émissions déjà enregistrées : les vues qui les
+      // agrègent doivent repartir des valeurs migrées.
+      enregistrerLignes('listeEmissions', migrees);
       localStorage.setItem(CLE_MIGRATION, 'fait');
     } catch (erreur) {
       console.error('[combustion-établissements] Migration en kilogrammes non persistée', erreur);

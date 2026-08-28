@@ -13,6 +13,7 @@ import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatc
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante , provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersAchat } from '../../shared/dispatch/adaptateurs-mesure';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Ligne d'achat de bien ou service, catégorie 1 du Scope 3. */
 export interface EmissionAchat {
@@ -700,7 +701,7 @@ export class BiensServicesComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =

@@ -22,6 +22,7 @@ import {
   classeBadgeMode, emojiMode,
   JOURS_TRAVAILLES_DEFAUT, COVOITURAGE_DEFAUT, ETABLISSEMENT_DEFAUT
 } from '../../shared/mobilite/modes-transport';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -561,7 +562,7 @@ export class DeplacementsEmployesComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =

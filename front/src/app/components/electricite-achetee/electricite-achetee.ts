@@ -19,6 +19,7 @@ import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRete
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
 import { emissionKg, quantiteVersUniteFacteur } from '../../core/unites-carbone';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Ligne de consommation d'électricité achetée. */
 export interface EmissionElectricite {
@@ -572,7 +573,7 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
   private sauvegarder(): void {
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
     }
   }
 

@@ -23,6 +23,7 @@ import {
   calculerEmissionUsage, classeBadgeGamme, emojiGamme,
   DUREE_VIE_DEFAUT_KM, ETABLISSEMENT_DEFAUT
 } from './utilisation-facteur';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -577,7 +578,7 @@ export class UtilisationProduitsComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =

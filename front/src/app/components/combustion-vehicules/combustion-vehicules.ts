@@ -14,6 +14,7 @@ import { ConfirmationService } from '../../shared/ui/confirmation.service';
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante , provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 export interface ExtendedEmissionFactor extends EmissionFactor {
   referenceCode?: string;       // Ex: MS1COC, MS1COV, MS2ENDI
@@ -236,7 +237,9 @@ export class CombustionVehiculesComponent implements OnInit {
     });
 
     try {
-      localStorage.setItem('listeEmissionsVehicules', JSON.stringify(migrees));
+      // La migration change les émissions déjà enregistrées : les vues qui les
+      // agrègent doivent repartir des valeurs migrées.
+      enregistrerLignes('listeEmissionsVehicules', migrees);
       localStorage.setItem(CLE_MIGRATION, 'fait');
     } catch (erreur) {
       console.error('[combustion] Migration en kilogrammes non persistée', erreur);
@@ -478,7 +481,9 @@ export class CombustionVehiculesComponent implements OnInit {
 
   sauvegarderDansLocalStorage() {
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem('listeEmissionsVehicules', JSON.stringify(this.listeEmissions));
+      // Persiste ET annonce : le tableau de bord relit ses totaux sans qu'on
+      // ait à changer de filtre ou recharger la page.
+      enregistrerLignes('listeEmissionsVehicules', this.listeEmissions);
     }
   }
 

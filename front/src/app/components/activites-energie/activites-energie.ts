@@ -14,6 +14,7 @@ import {
 import { EntityContextService } from '../../core/entity-context.service';
 import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Ligne d'activité liée à l'énergie, catégorie 3 du Scope 3. */
 export interface EmissionEnergie {
@@ -556,7 +557,7 @@ export class ActivitesEnergieComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =

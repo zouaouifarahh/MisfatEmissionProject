@@ -18,6 +18,7 @@ import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatc
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante , provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Ligne de mesure de fuite de fluide frigorigène. */
 export interface EmissionRefrigerant {
@@ -517,7 +518,7 @@ export class EmissionsRefrigerantsComponent implements OnInit {
 
   private sauvegarder(): void {
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
     }
   }
 

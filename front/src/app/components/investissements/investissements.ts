@@ -29,6 +29,7 @@ import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatc
 import { provenanceDe, classeProvenance, libelleProvenance, provenanceRetenue } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersImmobilisation } from '../../shared/dispatch/adaptateurs-mesure';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Immobilisation valorisée, catégorie 15 du Scope 3. */
 export interface EmissionInvestissement {
@@ -584,7 +585,7 @@ export class InvestissementsComponent implements OnInit {
   private sauvegarder(): void {
     if (!isPlatformBrowser(this.platformId)) return;
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =

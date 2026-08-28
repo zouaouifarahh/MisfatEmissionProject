@@ -15,9 +15,6 @@ import { OrganizationService } from '../../services/organization.service';
 import { Filiale, Usine } from '../../models/organization.model';
 
 import { lireClasseur, nombreTolerant } from './transport-excel';
-import {
-  MARQUEUR_RECALCUL_ECHELLE, recalculerEchelle, messageRecalcul
-} from './recalcul-echelle';
 import { LignesDispatcheesComponent } from '../../shared/dispatch/lignes-dispatchees';
 import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRetenu, uniteDominante } from '../../shared/ui/kpis-categorie';
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
@@ -28,6 +25,7 @@ import {
   calculerEmission, deduireMode, libelleFormule, modeCalculDe,
   poidsTotalDepuisQuantite, tonnesKilometres
 } from './transport-facteur';
+import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -236,9 +234,6 @@ export class TransportAmontComponent implements OnInit {
         // Le référentiel est là : les lignes déjà saisies peuvent être
         // rapprochées à nouveau de leur facteur officiel.
         this.remigrerParReferentiel();
-        // Après l'appariement : celui-ci peut changer le facteur d'une ligne,
-        // et le recalcul doit partir du facteur retenu, pas du précédent.
-        this.recalculerEchelleMassique();
         this.chargementFacteurs = false;
 
         this.avertissementReferentiel = this.facteursDisponibles.length
@@ -682,7 +677,7 @@ export class TransportAmontComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(this.listeEmissions));
+      if (!enregistrerLignes(CLE_STOCKAGE, this.listeEmissions)) throw new Error('stockage refuse');
       this.avertissementStockage = '';
     } catch {
       this.avertissementStockage =
@@ -1018,40 +1013,10 @@ export class TransportAmontComponent implements OnInit {
     marquerMigration(MARQUEUR);
   }
 
-  /**
-   * Rejoue la formule sur les lignes calculées avant la correction d'échelle.
-   *
-   * <p>La branche massique multipliait un poids en kilogrammes par un facteur
-   * publié à la tonne : le poste sortait mille fois trop haut. La formule est
-   * corrigée, mais le stockage ne se recalcule pas tout seul — et une seule
-   * ligne résiduelle suffit à porter une filiale au-dessus du million de
-   * tonnes, laissant le bandeau d'invraisemblance allumé sur une cause déjà
-   * réparée.</p>
-   *
-   * <p>Rejouée une fois, sous marqueur versionné : le recalcul ne doit pas
-   * repasser à chaque ouverture de l'écran, et la correction ne concerne que
-   * les lignes antérieures.</p>
-   */
-  private recalculerEchelleMassique(): void {
-    if (migrationFaite(MARQUEUR_RECALCUL_ECHELLE)) return;
-    if (!this.listeEmissions.length) {
-      marquerMigration(MARQUEUR_RECALCUL_ECHELLE);
-      return;
-    }
-
-    const bilan = recalculerEchelle(this.listeEmissions);
-
-    if (bilan.reprises) {
-      this.listeEmissions = bilan.lignes;
-      this.sauvegarder();
-      // Le message s'ajoute à celui de l'appariement plutôt que de l'écraser :
-      // les deux reprises ont pu jouer sur le même chargement.
-      this.messageMigration = [this.messageMigration, messageRecalcul(bilan)]
-        .filter(Boolean).join(' ');
-    }
-
-    marquerMigration(MARQUEUR_RECALCUL_ECHELLE);
-  }
+  // La reprise de l'échelle massique est jouée au démarrage de l'application
+  // — voir core/migrations-demarrage. Elle vivait ici, donc ne se jouait que
+  // si l'utilisateur ouvrait cet écran : qui consulte le bilan sans saisir
+  // voyait un total faux indéfiniment.
 
   /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
   libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
