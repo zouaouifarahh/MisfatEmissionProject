@@ -17,6 +17,9 @@ import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRete
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import {
+  SourceDisponible, sourcesDuReferentiel, sourcesHorsReferentiel
+} from '../../shared/ui/sources-emission';
 
 // Extension locale de l'interface pour autoriser la propriété nomFacteurDetaille et referenceCode
 export interface ExtendedEmissionFactor extends EmissionFactor {
@@ -120,17 +123,48 @@ export class EmissionListComponent implements OnInit {
   private filiales: Filiale[] = [];
   private societeActiveId: number | null = null;
   
-  // Liste des sources d'émissions pour Combustion dans les établissements (Installations fixes)
-   sourcesList: string[] = [
-  'Gaz naturel',
-  'Gazole/Fioul',
-  'Fioul lourd',
-  'Essence automobile',
-  'Propane',
-  'Butane',
-  'Charbon / Lignite',
-  'Biomasse / Bois'
-];
+  /**
+   * Catégorie de l'écran, telle que le référentiel la nomme.
+   *
+   * <p>La base porte le libellé français pour cette catégorie ; l'anglais est
+   * accepté au cas où l'import viendrait d'un classeur GHG.</p>
+   */
+  private static readonly MOTIF_CATEGORIE =
+    /combustion.*(etablissement|installation|fixe|stationnaire)|stationary combustion/i;
+
+  /**
+   * Sources écrites dans le code, conservées en secours.
+   *
+   * <p>Elles ne sont plus la liste de référence : le référentiel l'est. Elles
+   * répondent encore aux facteurs de secours, et restent proposées à part tant
+   * qu'aucun facteur de la base ne les documente.</p>
+   */
+  private static readonly SOURCES_DE_SECOURS: string[] = [
+    'Gaz naturel',
+    'Gazole/Fioul',
+    'Fioul lourd',
+    'Essence automobile',
+    'Propane',
+    'Butane',
+    'Charbon / Lignite',
+    'Biomasse / Bois'
+  ];
+
+  /** Sources documentées par le référentiel pour cette catégorie. */
+  sourcesReferentiel: SourceDisponible[] = [];
+
+  /** Sources qu'aucun facteur de la base ne documente : secours et lignes déjà saisies. */
+  sourcesAutres: string[] = EmissionListComponent.SOURCES_DE_SECOURS.slice();
+
+  /**
+   * Toutes les sources proposées, pour les filtres de tableau.
+   *
+   * <p>Le filtre de masse raisonne en chaînes ; le menu de saisie, lui, montre
+   * les deux groupes séparément.</p>
+   */
+  get sourcesList(): string[] {
+    return [...this.sourcesReferentiel.map(source => source.nom), ...this.sourcesAutres];
+  }
 
   // Liste des unités physiques autorisées
   unitesPhysiquesList = ['L', 'T', 'Kg', 'kWh'];
@@ -276,6 +310,11 @@ export class EmissionListComponent implements OnInit {
       next: facteurs => {
         this.facteursReferentiel = facteurs;
 
+        // Le menu des sources se relève de la base plutôt que du code : une
+        // source créée au référentiel doit pouvoir être saisie, et rien à
+        // l'écran ne pouvait dire pourquoi elle ne se proposait pas.
+        this.relegerLesSources();
+
         // Le référentiel est là : les lignes déjà saisies sont rapprochées
         // à nouveau, une seule fois.
         this.remigrerParReferentiel();
@@ -283,6 +322,28 @@ export class EmissionListComponent implements OnInit {
       },
       error: () => console.warn('Référentiel carbone injoignable : bascule sur les facteurs de secours.')
     });
+  }
+
+  /**
+   * Recompose les deux groupes de sources proposées à la saisie.
+   *
+   * <p>Les sources déjà employées par des lignes enregistrées sont jointes au
+   * second groupe : sans elles, rouvrir une ancienne ligne la trouverait sans
+   * source, le menu ne proposant plus la sienne.</p>
+   */
+  private relegerLesSources(): void {
+    this.sourcesReferentiel = sourcesDuReferentiel(
+      this.facteursReferentiel,
+      nom => EmissionListComponent.MOTIF_CATEGORIE.test(nom)
+        || EmissionListComponent.MOTIF_CATEGORIE.test(
+          nom.normalize('NFD').replace(/[̀-ͯ]/g, ''))
+    );
+
+    this.sourcesAutres = sourcesHorsReferentiel(
+      EmissionListComponent.SOURCES_DE_SECOURS,
+      this.listeEmissions.map(ligne => String(ligne.emissionSource ?? '')),
+      this.sourcesReferentiel
+    );
   }
 
   /** Remet la recherche et le filtre d'usine à leur état initial. */
@@ -878,8 +939,8 @@ genererCodeReference() {
     return migrees;
   }
 
-  obtenirCalculApercu(factorValue: number): string {
-    if (!this.formModel.quantite || this.formModel.quantite <= 0) {
+  obtenirCalculApercu(factorValue: number | null): string {
+    if (!this.formModel.quantite || this.formModel.quantite <= 0 || !factorValue) {
       return '0.0000';
     }
     // L'aperçu montre la valeur qui sera enregistrée : l'afficher en tonnes

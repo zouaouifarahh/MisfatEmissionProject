@@ -349,6 +349,16 @@
           </select>
         </div>
 
+        <!-- La base propose, l'exploitant arbitre : un facteur négocié ou
+             mesuré sur site n'a pas à passer par une création au référentiel
+             pour être appliqué à une ligne. -->
+        <div class="form-group">
+          <label for="al-facteur-applique">Facteur appliqué</label>
+          <input id="al-facteur-applique" type="number" step="any" min="0"
+                 [(ngModel)]="facteurApplique" name="alFacteurApplique">
+          <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
+        </div>
+
         <!-- BOX DE CALCUL EN DIRECT -->
         <div class="formule-box">
           <div class="formule-titre">

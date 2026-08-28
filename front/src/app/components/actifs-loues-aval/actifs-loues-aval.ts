@@ -134,6 +134,19 @@ export class ActifsLouesAvalComponent implements OnInit {
   messageMigration = '';
   facteursCompatibles: FacteurDetaille[] = [];
   facteurChoisiId: number | null = null;
+
+  /**
+   * Facteur réellement appliqué, repris de la base retenue et modifiable.
+   *
+   * <p>Le formulaire n'exposait que le choix d'une entrée du référentiel : un
+   * facteur négocié, mesuré sur site ou communiqué par un tiers n'avait aucun
+   * chemin vers la saisie, sinon la création d'une entrée au référentiel pour
+   * une valeur qui ne concerne qu'une ligne.</p>
+   *
+   * <p>La base propose, l'exploitant arbitre : la valeur est pré-remplie au
+   * choix de l'entrée, et reste éditable.</p>
+   */
+  facteurApplique: number | null = null;
   avertissementReferentiel = '';
   erreurInitialisation = '';
   avertissementStockage = '';
@@ -417,6 +430,11 @@ export class ActifsLouesAvalComponent implements OnInit {
     }
 
     this.majFacteursCompatibles();
+
+    // Rouvrir une ligne doit rendre le facteur qu'elle porte, et non celui
+    // que la base propose aujourd'hui : le référentiel a pu changer depuis.
+    if (emission) this.facteurApplique = emission.facteur;
+
     this.modaleSaisieOuverte = true;
     this.cdr.detectChanges();
   }
@@ -437,7 +455,12 @@ export class ActifsLouesAvalComponent implements OnInit {
 
   onCritereChange(): void { this.majFacteursCompatibles(); this.cdr.detectChanges(); }
   onSaisieChange(): void { this.cdr.detectChanges(); }
-  onFacteurChoisiChange(): void { this.cdr.detectChanges(); }
+  onFacteurChoisiChange(): void {
+    // Changer d'entrée du référentiel ramène sa valeur : sans cela, le facteur
+    // saisi pour l'entrée précédente resterait appliqué à la nouvelle.
+    this.facteurApplique = this.facteurDeLaBase.valeur;
+    this.cdr.detectChanges();
+  }
 
   private majFacteursCompatibles(): void {
     this.facteursCompatibles = classerFacteursAval(this.facteursDisponibles, {
@@ -447,6 +470,7 @@ export class ActifsLouesAvalComponent implements OnInit {
       devise: this.deviseActive
     });
     this.facteurChoisiId = this.facteursCompatibles[0]?.id ?? null;
+    this.facteurApplique = this.facteurDeLaBase.valeur;
   }
 
   /** L'énergie desservante ne change le facteur que pour une consommation. */
@@ -454,7 +478,23 @@ export class ActifsLouesAvalComponent implements OnInit {
     return this.formModel.modeSaisie !== 'Monétaire';
   }
 
+  /**
+   * Facteur effectivement appliqué au calcul et enregistré sur la ligne.
+   *
+   * <p>La valeur saisie prime dès qu'elle est exploitable. Zéro et le vide ne
+   * la remplacent pas : ils annuleraient l'émission sans qu'aucune décision ne
+   * l'ait voulu — un champ qu'on vide pour le ressaisir n'est pas un facteur
+   * nul.</p>
+   */
   get facteurCourant() {
+    const base = this.facteurDeLaBase;
+    const saisi = Number(this.facteurApplique);
+
+    return Number.isFinite(saisi) && saisi > 0 ? { ...base, valeur: saisi } : base;
+  }
+
+  /** Facteur retenu, base et repli compris, avant arbitrage de l'exploitant. */
+  private get facteurDeLaBase() {
     const choisi = this.facteursCompatibles.find(f => f.id === Number(this.facteurChoisiId));
     if (choisi) {
       return {

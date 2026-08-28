@@ -299,11 +299,21 @@
 
                 <option value="" disabled>-- Sélectionner la source --</option>
 
-                <option *ngFor="let src of sourcesEmissionList" [value]="src">
+                <!-- Les sources viennent du référentiel, jamais d'une liste
+                     écrite dans le code : une source créée en base doit pouvoir
+                     être saisie. Les deux groupes disent d'où vient chaque
+                     option. -->
+                <optgroup label="Référentiel carbone" *ngIf="sourcesReferentiel.length">
+                  <option *ngFor="let src of sourcesReferentiel" [value]="src.nom">
+                    {{ src.libelle }}
+                  </option>
+                </optgroup>
 
-                  {{ src }}
-
-                </option>
+                <optgroup label="Hors référentiel (facteur de secours)" *ngIf="sourcesAutres.length">
+                  <option *ngFor="let src of sourcesAutres" [value]="src">
+                    {{ src }}
+                  </option>
+                </optgroup>
 
               </select>
 
@@ -453,31 +463,9 @@
 
                   <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
 
-                    <span style="color: #64748b;">Valeur du facteur actif :</span>
+                    <span style="color: #64748b;">Valeur retenue au référentiel :</span>
 
                     <strong style="color: #0f172a;">{{ facteurSelectionne.factorValue }} kg CO₂eq / {{ facteurSelectionne.unit }}</strong>
-
-                  </div>
-
-                  <div style="border-top: 1px solid #e2e8f0; padding-top: 8px;">
-
-                    <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Calcul en temps réel :</span>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-
-                      <span style="font-family: monospace; color: #475569; font-size: 13px;">
-
-                        {{ formModel.quantite || 0 }} × {{ facteurSelectionne.factorValue }} / 1000 =
-
-                      </span>
-
-                      <strong style="color: #00b074; font-size: 16px;">
-
-                        {{ obtenirCalculApercu(facteurSelectionne.factorValue) }} kgCO₂e
-
-                      </strong>
-
-                    </div>
 
                   </div>
 
@@ -485,9 +473,30 @@
 
               </div>
 
+              <!-- Le facteur reste saisissable. La base propose, l'exploitant
+                   arbitre : un facteur négocié ou mesuré sur site n'a pas à
+                   passer par une création au référentiel pour être appliqué. -->
+              <div class="form-group" style="margin-top: 14px;">
+                <label for="cv-facteur">Facteur appliqué <span class="required">*</span></label>
+                <input id="cv-facteur" type="number" step="any" min="0" class="form-control"
+                       name="facteur" [(ngModel)]="formModel.facteur" required>
+                <small class="field-hint" style="display: block; margin-top: 4px; font-size: 12px; color: #64748b;">
+                  Repris de la base retenue ; modifiable si le cas l'exige.
+                </small>
+              </div>
 
-
-              <input type="hidden" name="facteur" [(ngModel)]="formModel.facteur" required>
+              <div class="live-preview-box" *ngIf="formModel.facteur"
+                   style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Calcul en temps réel :</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-family: monospace; color: #475569; font-size: 13px;">
+                    {{ formModel.quantite || 0 }} × {{ formModel.facteur }} =
+                  </span>
+                  <strong style="color: #00b074; font-size: 16px;">
+                    {{ obtenirCalculApercu(formModel.facteur) }} kgCO₂e
+                  </strong>
+                </div>
+              </div>
 
             </div>
 

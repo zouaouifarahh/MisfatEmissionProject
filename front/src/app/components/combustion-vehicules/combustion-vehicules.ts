@@ -15,6 +15,9 @@ import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRete
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import {
+  SourceDisponible, sourcesDuReferentiel, sourcesHorsReferentiel
+} from '../../shared/ui/sources-emission';
 
 export interface ExtendedEmissionFactor extends EmissionFactor {
   referenceCode?: string;       // Ex: MS1COC, MS1COV, MS2ENDI
@@ -111,12 +114,41 @@ export class CombustionVehiculesComponent implements OnInit {
   private filiales: Filiale[] = [];
   private societeActiveId: number | null = null;
   
-  // Sources restreintes à la combustion véhicules Scope 1
-  sourcesEmissionList: string[] = [
+  /**
+   * Catégorie de l'écran, telle que le référentiel la nomme.
+   *
+   * <p>La base porte les deux nomenclatures pour ce poste : le libellé français
+   * « Combustion des véhicules » et les intitulés anglais hérités de l'import
+   * — « Company owned cars », « Company owned vehicles ». Ne retenir que l'une
+   * des deux laisserait la moitié des facteurs hors du menu.</p>
+   */
+  private static readonly MOTIF_CATEGORIE =
+    /combustion.*(vehicul|mobile)|mobile combustion|company owned (car|vehicle)/i;
+
+  /**
+   * Sources écrites dans le code, conservées en secours.
+   *
+   * <p>Elles ne filtrent plus la réponse du référentiel : l'écran interrogeait
+   * la base puis <em>intersectait</em> sa réponse avec cette liste, si bien que
+   * toute source nouvelle — celle qu'on venait de créer — était éliminée par la
+   * liste qu'elle devait enrichir.</p>
+   */
+  private static readonly SOURCES_DE_SECOURS: string[] = [
     'Diesel medium and heavy duty truck',
     'Average diesel car',
     'Diesel'
   ];
+
+  /** Sources documentées par le référentiel pour cette catégorie. */
+  sourcesReferentiel: SourceDisponible[] = [];
+
+  /** Sources qu'aucun facteur de la base ne documente : secours et lignes déjà saisies. */
+  sourcesAutres: string[] = CombustionVehiculesComponent.SOURCES_DE_SECOURS.slice();
+
+  /** Toutes les sources proposées, pour les filtres de tableau. */
+  get sourcesEmissionList(): string[] {
+    return [...this.sourcesReferentiel.map(source => source.nom), ...this.sourcesAutres];
+  }
 
   unitesPhysiquesList = ['L', 'Km'];
 
@@ -207,7 +239,8 @@ export class CombustionVehiculesComponent implements OnInit {
       }
     }
 
-    this.chargerTypesEmissionDepuisBackend();
+    // Les sources ne sont plus demandées séparément : elles se relèvent du
+    // référentiel une fois qu'il est chargé, comme les facteurs eux-mêmes.
     this.chargerPerimetre();
     this.chargerReferentiel();
   }
@@ -255,6 +288,9 @@ export class CombustionVehiculesComponent implements OnInit {
     this.referentialService.getFactorsByCategory(/.*/).subscribe({
       next: facteurs => {
         this.facteursReferentiel = facteurs;
+
+        // Le menu des sources se relève de la base plutôt que du code.
+        this.relegerLesSources();
 
         // Le référentiel complet est là : les lignes déjà saisies peuvent être
         // rapprochées à nouveau. `facteursDisponibles` ne conviendrait pas — il
@@ -341,23 +377,31 @@ export class CombustionVehiculesComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  chargerTypesEmissionDepuisBackend() {
-    if (this.emissionService && typeof this.emissionService.getEmissionTypes === 'function') {
-      this.emissionService.getEmissionTypes().subscribe({
-        next: (types) => {
-          if (types && types.length > 0) {
-            const filtreScope1 = types.filter(t => this.sourcesEmissionList.includes(t));
-            if (filtreScope1.length > 0) {
-              this.sourcesEmissionList = filtreScope1;
-            }
-          }
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          console.warn('Erreur API, bascule sur les sources locales Scope 1.', err);
-        }
-      });
-    }
+  /**
+   * Recompose les deux groupes de sources proposées à la saisie.
+   *
+   * <p>Le référentiel fait foi. L'appel qui vivait ici interrogeait bien la
+   * base, mais n'en gardait que ce qui figurait déjà dans la liste écrite :
+   * une source créée au référentiel ne pouvait donc jamais apparaître, et rien
+   * à l'écran ne disait pourquoi.</p>
+   *
+   * <p>Les sources déjà employées par des lignes enregistrées rejoignent le
+   * second groupe : sans elles, rouvrir une ancienne ligne la trouverait sans
+   * source, le menu ne proposant plus la sienne.</p>
+   */
+  private relegerLesSources(): void {
+    this.sourcesReferentiel = sourcesDuReferentiel(
+      this.facteursReferentiel,
+      nom => CombustionVehiculesComponent.MOTIF_CATEGORIE.test(nom)
+        || CombustionVehiculesComponent.MOTIF_CATEGORIE.test(
+          nom.normalize('NFD').replace(/[̀-ͯ]/g, ''))
+    );
+
+    this.sourcesAutres = sourcesHorsReferentiel(
+      CombustionVehiculesComponent.SOURCES_DE_SECOURS,
+      this.listeEmissions.map(ligne => String(ligne.emissionSource ?? '')),
+      this.sourcesReferentiel
+    );
   }
 
   /**
@@ -782,8 +826,8 @@ export class CombustionVehiculesComponent implements OnInit {
    * en tonnes pendant qu'on stocke des kilogrammes laissait l'utilisateur
    * vérifier un chiffre différent de celui qui entrait au bilan.</p>
    */
-  obtenirCalculApercu(factorValue: number): string {
-    if (!this.formModel.quantite || this.formModel.quantite <= 0) {
+  obtenirCalculApercu(factorValue: number | null): string {
+    if (!this.formModel.quantite || this.formModel.quantite <= 0 || !factorValue) {
       return '0.0000';
     }
     const totalKg = this.formModel.quantite * factorValue;
