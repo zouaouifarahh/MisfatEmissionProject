@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { ReferentialService, FacteurDetaille, FactorRow } from '../services/referential.service';
 import { apparier } from './appariement-referentiel';
+import { definirSocieteCourante } from './perimetre-courant';
 import { posteDepuisIntitule, scopeDuPoste, posteParId } from './nomenclature-scopes';
 
 /**
@@ -34,6 +35,14 @@ describe('Référentiel — arrivée d\'un facteur et d\'une source', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
+    // Le référentiel se filtre sur la société consultée, qui vit dans un module
+    // et non dans un service : elle survit donc au démontage d'un banc. Ce banc
+    // vérifie des URL exactes, sans paramètre — il doit donc dire sous quel
+    // périmètre il les attend, faute de quoi la filiale retenue par un banc
+    // voisin ajouterait un « ?filialeId= » qu'aucune assertion n'a prévu, et
+    // l'échec dépendrait de l'ordre des fichiers plutôt que du code.
+    definirSocieteCourante(null);
+
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()]
     });

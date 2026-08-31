@@ -199,6 +199,30 @@
       </button>
     </div>
 
+    <!-- Mesures saisies que l'exercice consulté écarte. Un tableau vide ne dit
+         pas si la collecte reste à faire ou si la donnée est sur une autre
+         année — et les deux appellent des gestes opposés. -->
+    <div class="bandeau-hors-perimetre" *ngIf="mesuresSurAutresExercices as ailleurs">
+      <span class="bandeau-hp-icone" aria-hidden="true">📅</span>
+      <div class="bandeau-hp-texte">
+        <strong>Aucune mesure d'écran sur cet exercice.</strong>
+        {{ ailleurs.lignes }} ligne(s) sont enregistrées sur {{ ailleurs.exercices }}.
+        La collecte n'est pas à refaire : la donnée est saisie, sous un autre millésime.
+      </div>
+    </div>
+
+    <!-- Mesures dont le facteur reste à affecter : la donnée est là, elle pèse
+         zéro, et rien ne la distinguait d'un poste non collecté. -->
+    <div class="bandeau-hors-perimetre" *ngIf="mesuresSansFacteur">
+      <span class="bandeau-hp-icone" aria-hidden="true">🏷️</span>
+      <div class="bandeau-hp-texte">
+        <strong>{{ mesuresSansFacteur }} mesure(s) saisie(s) sans facteur.</strong>
+        Leur quantité est renseignée mais leur émission reste à zéro : elles ne
+        pèsent rien au bilan tant qu'un facteur ne leur est pas affecté. Le détail
+        est nommé dans la console.
+      </div>
+    </div>
+
     <app-header (imported)="onImported()"></app-header>
 
     <!-- Demandes d'accès (admin) -->

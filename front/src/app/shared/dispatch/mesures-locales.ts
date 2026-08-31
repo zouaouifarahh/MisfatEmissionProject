@@ -17,6 +17,7 @@ import { Observable, Subject } from 'rxjs';
 import {
   ORGANISATION_GROUPE,
   PerimetreOrganisation,
+  exercicesDeLaLigne,
   releveDuPerimetre
 } from '../../core/perimetre';
 
@@ -185,6 +186,89 @@ export function totauxLocaux(
   }
 
   return totaux;
+}
+
+/** Mesure saisie dont la quantité est là, mais dont l'émission reste à zéro. */
+export interface MesureIncomplete {
+  categorie: string;
+  /** Ce que la ligne désigne, tel que l'écran l'a enregistré. */
+  libelle: string;
+  quantite: number;
+}
+
+/**
+ * Mesures qui portent une quantité sans produire d'émission.
+ *
+ * <p>Le facteur n'a pas été résolu : la ligne existe, elle est comptée dans le
+ * périmètre, et elle pèse zéro. Rien ne la distinguait d'une catégorie non
+ * collectée — le poste affichait zéro dans les deux cas, et l'exploitant ne
+ * pouvait pas savoir s'il devait saisir une donnée ou affecter un facteur.</p>
+ *
+ * <p>Elles ne bloquent rien : le bilan se calcule sans elles, et ce relevé sert
+ * seulement à les nommer.</p>
+ */
+export function mesuresIncompletes(
+  exercice: number | null = null,
+  organisation: PerimetreOrganisation = ORGANISATION_GROUPE
+): MesureIncomplete[] {
+
+  const incompletes: MesureIncomplete[] = [];
+
+  for (const categorie of Object.keys(CLES_PAR_CATEGORIE)) {
+    for (const ligne of lignesLocales(categorie, exercice, organisation)) {
+      const emission = Number(ligne['emissionCalculee']) || 0;
+      if (emission) continue;
+
+      // La quantité ne porte pas le même nom d'un écran à l'autre : celle qui
+      // est renseignée fait foi, et une ligne sans quantité n'est pas
+      // incomplète — elle est simplement vide.
+      const quantite = [ligne['quantite'], ligne['quantiteTotale'], ligne['montant'],
+                        ligne['poidsKg'], ligne['distanceKm']]
+        .map(valeur => Number(valeur) || 0)
+        .find(valeur => valeur > 0) ?? 0;
+
+      if (!quantite) continue;
+
+      const libelle = [ligne['designation'], ligne['emissionSource'], ligne['reference'],
+                       ligne['franchise'], ligne['etiquette']]
+        .map(valeur => String(valeur ?? '').trim())
+        .find(valeur => valeur.length > 0) ?? '(sans libellé)';
+
+      incompletes.push({ categorie, libelle, quantite });
+    }
+  }
+
+  return incompletes;
+}
+
+/**
+ * Exercices que les mesures enregistrées documentent, tous écrans confondus.
+ *
+ * <p>Un tableau de bord vide sur l'exercice consulté ne dit pas si la collecte
+ * reste à faire ou si la donnée est rangée sous un autre millésime. Ce relevé
+ * répond à la question, sans toucher aux dates : dater une ligne d'office sur
+ * l'exercice regardé la ferait compter dans tous les millésimes à la fois.</p>
+ *
+ * <p>La société consultée s'applique ; l'exercice, non — c'est précisément ce
+ * qu'on cherche à connaître.</p>
+ */
+export function exercicesRenseignes(
+  organisation: PerimetreOrganisation = ORGANISATION_GROUPE
+): { exercice: number; lignes: number }[] {
+
+  const parExercice = new Map<number, number>();
+
+  for (const categorie of Object.keys(CLES_PAR_CATEGORIE)) {
+    for (const ligne of lignesLocales(categorie, null, organisation)) {
+      for (const exercice of exercicesDeLaLigne(ligne)) {
+        parExercice.set(exercice, (parExercice.get(exercice) ?? 0) + 1);
+      }
+    }
+  }
+
+  return [...parExercice.entries()]
+    .map(([exercice, lignes]) => ({ exercice, lignes }))
+    .sort((a, b) => b.exercice - a.exercice);
 }
 
 /**

@@ -57,7 +57,8 @@ import { EmissionStatsService, EmissionStats, StatsMode } from '../../../service
 import { DispatchStore } from '../../../shared/dispatch/dispatch-store';
 import { libelleEcran } from '../../../shared/dispatch/regles-dispatch';
 import {
-  totauxLocaux, totauxLocauxParEtablissement, mesuresLocalesModifiees$
+  totauxLocaux, totauxLocauxParEtablissement, mesuresLocalesModifiees$,
+  mesuresIncompletes, exercicesRenseignes
 } from '../../../shared/dispatch/mesures-locales';
 import { PerimetreOrganisation } from '../../../core/perimetre';
 import { BilanCarboneService } from '../../../core/bilan-carbone.service';
@@ -1281,6 +1282,47 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.chargerStats();
   }
 
+  /**
+   * Mesures saisies que l'exercice consulté écarte.
+   *
+   * <p>Un tableau de bord vide ne dit pas si la collecte reste à faire ou si la
+   * donnée est rangée sous un autre millésime. Les deux appellent des gestes
+   * opposés — saisir, ou changer d'exercice — et rien ne les distinguait.</p>
+   *
+   * <p>Les dates ne sont pas touchées pour autant : dater d'office ces lignes
+   * sur l'exercice regardé les ferait compter dans <em>tous</em> les millésimes
+   * à la fois, et deux exercices cesseraient d'être comparables.</p>
+   *
+   * @returns `null` quand l'exercice consulté porte des mesures, ou qu'aucune
+   *          n'est enregistrée nulle part.
+   */
+  get mesuresSurAutresExercices(): { exercices: string; lignes: number } | null {
+    const exercice = this.entityService.filter.year ?? null;
+    if (exercice === null) return null;
+    if (totauxLocaux(exercice, this.organisationActive).length) return null;
+
+    const ailleurs = exercicesRenseignes(this.organisationActive)
+      .filter(a => a.exercice !== exercice);
+    if (!ailleurs.length) return null;
+
+    return {
+      exercices: ailleurs.map(a => String(a.exercice)).join(', '),
+      lignes: ailleurs.reduce((somme, a) => somme + a.lignes, 0)
+    };
+  }
+
+  /**
+   * Mesures qui portent une quantité sans produire d'émission.
+   *
+   * <p>Leur facteur n'est pas résolu. Elles ne bloquent aucun calcul : le bilan
+   * se fait sans elles. Mais un poste à zéro se lit comme une collecte à
+   * lancer, alors que la donnée est là et qu'il ne manque qu'un facteur.</p>
+   */
+  get mesuresSansFacteur(): number {
+    return mesuresIncompletes(
+      this.entityService.filter.year ?? null, this.organisationActive).length;
+  }
+
   /** Recharge les agrégats depuis la base pour le périmètre courant. */
   chargerStats(): void {
     const f = this.entityService.filter;
@@ -1476,11 +1518,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
         detail: locaux
       });
 
+      // Un relevé vide énumérait des causes possibles sans dire laquelle
+      // s'appliquait. Les deux sont vérifiables : on les vérifie.
       if (!locaux.length) {
+        const ailleurs = exercicesRenseignes(this.organisationActive);
+
+        if (ailleurs.length) {
+          console.warn(
+            `[dashboard] Aucune mesure sur l'exercice ${exercice ?? '(tous)'}, mais `
+            + `${ailleurs.reduce((s, a) => s + a.lignes, 0)} ligne(s) sur : `
+            + ailleurs.map(a => `${a.exercice} (${a.lignes})`).join(', ')
+            + '. La donnée est saisie, sur un autre millésime.'
+          );
+        } else {
+          console.warn(
+            '[dashboard] Aucune mesure enregistrée dans les écrans pour cette société. '
+            + 'La collecte reste à faire.'
+          );
+        }
+      }
+
+      // Une ligne qui porte une quantité sans émission n'est pas une catégorie
+      // non collectée : le facteur lui manque, et rien ne l'en distinguait.
+      const incompletes = mesuresIncompletes(exercice, this.organisationActive);
+      if (incompletes.length) {
         console.warn(
-          '[dashboard] Aucune mesure locale retenue. Causes possibles : aucune saisie '
-          + `enregistrée, ou des lignes hors de l'exercice ${exercice ?? '(tous)'}, `
-          + 'ou des lignes dont le facteur reste non résolu (émission à 0).'
+          `[dashboard] ${incompletes.length} mesure(s) saisie(s) sans émission : `
+          + 'leur facteur reste à affecter.',
+          incompletes.map(m => `${m.categorie} — ${m.libelle} (${m.quantite})`)
         );
       }
     }
@@ -2389,27 +2454,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Les <select> du template renvoient des chaînes : on normalise en nombre
-  // pour que les comparaisons avec les ids de l'API (numériques) soient justes.
-  onFilialeChange(filialeId: number | string): void {
-    const id = filialeId === 'ALL' ? 'ALL' : Number(filialeId);
-    this.selectedFilialeId = id;
-    this.selectedUsineId = 'ALL';
-    this.usines = [];
-
-    if (id !== 'ALL') {
-      this.organizationService.getUsinesByFiliale(id).subscribe({
-        next: (data) => {
-          this.usines = data;
-          this.cdr.markForCheck();
-        },
-        error: (err) => console.error('Erreur lors du chargement des usines', err)
-      });
-    }
-  }
-
+  /**
+   * Change d'usine, en passant par le périmètre global.
+   *
+   * <p>Le choix n'était retenu qu'ici : le tableau de bord affichait l'usine
+   * choisie pendant que {@link chargerStats} continuait d'interroger le serveur
+   * sur celle du filtre global, et que la trace rapportait l'ancienne. Deux
+   * sélections en parallèle pour une seule décision — c'est le filtre de
+   * l'en-tête qui fait foi, et {@code selectedUsineId} en revient par le flux.
+   * </p>
+   *
+   * <p>Le sélecteur du template rend des chaînes : la valeur est ramenée en
+   * nombre pour que la comparaison avec les identifiants de l'API tienne.</p>
+   */
   onUsineChange(usineId: number | string): void {
-    this.selectedUsineId = usineId === 'ALL' ? 'ALL' : Number(usineId);
+    this.entityService.selectUsine(usineId === 'ALL' ? null : Number(usineId));
   }
 
   onAnneeChange(annee: number): void {
