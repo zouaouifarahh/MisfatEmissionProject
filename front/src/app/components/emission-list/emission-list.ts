@@ -24,6 +24,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 // Extension locale de l'interface pour autoriser la propriété nomFacteurDetaille et referenceCode
 export interface ExtendedEmissionFactor extends EmissionFactor {
@@ -75,7 +76,7 @@ export interface Emission {
 @Component({
   selector: 'app-emission-list',
   standalone: true,
-  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './emission-list.html',
   styleUrl: './emission-list.css'
@@ -492,6 +493,8 @@ export class EmissionListComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.etablissementsList, this.filiales.length);

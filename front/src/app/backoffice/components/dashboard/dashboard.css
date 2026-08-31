@@ -2209,17 +2209,28 @@
     opacity: 0.75;
 }
 
+/* Étiquettes de jalon et de cible : ancrées à GAUCHE et posées AU-DESSUS de
+   leur trait. Ancrées à droite, elles tombaient sur le dernier point de la
+   courbe — l'exercice le plus récent, celui qu'on regarde en premier — et leur
+   `nowrap` les faisait déborder de la carte. À gauche, elles longent l'axe des
+   ordonnées, là où le tracé part du bas. La largeur est bornée pour qu'un
+   libellé long se coupe plutôt que de sortir du cadre. */
 .hist-jalon-etiquette {
     position: absolute;
-    right: 6px;
-    transform: translateY(-50%);
+    left: 4px;
+    transform: translateY(-100%);
+    margin-top: -3px;
+    max-width: calc(100% - 8px);
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 9.5px;
     font-weight: 600;
     color: #2A6E96;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.88);
     padding: 1px 5px;
     border-radius: 4px;
     white-space: nowrap;
+    pointer-events: none;
 }
 
 /* Listes d'affectation du rôle et du périmètre, dans le tableau des demandes. */
@@ -2932,6 +2943,10 @@
     white-space: nowrap;
 }
 
+/* Pas de remplissage ici : les marqueurs sont posés en pourcentage et se
+   résolvent sur la boîte de remplissage. En ajouter décalerait chaque point de
+   la courbe qu'il est censé désigner. La respiration à droite est prise par la
+   carte, non par la zone de tracé. */
 .hist-toile { position: relative; flex: 1; min-height: 168px; }
 
 /* `preserveAspectRatio: none` étire le tracé sur toute la hauteur disponible ;
@@ -2947,10 +2962,18 @@
     stroke-dasharray: 6 5;
 }
 
+/* La cible est ancrée à gauche comme les jalons, mais décalée d'un cran
+   supplémentaire vers le haut : sa valeur et un jalon voisin peuvent tomber sur
+   la même ordonnée, et deux étiquettes superposées ne se lisent ni l'une ni
+   l'autre. */
 .hist-cible-etiquette {
     position: absolute;
-    right: 2px;
-    transform: translateY(-125%);
+    left: 4px;
+    transform: translateY(-100%);
+    margin-top: -15px;
+    max-width: calc(100% - 8px);
+    overflow: hidden;
+    text-overflow: ellipsis;
     background: rgba(255, 255, 255, 0.88);
     border-radius: 4px;
     padding: 1px 6px;

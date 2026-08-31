@@ -18,6 +18,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 /** Ligne d'achat de bien ou service, catégorie 1 du Scope 3. */
 export interface EmissionAchat {
@@ -92,7 +93,7 @@ const CLE_STOCKAGE = 'listeEmissionsAchats';
 @Component({
   selector: 'app-biens-services',
   standalone: true,
-  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './biens-services.html',
   styleUrl: './biens-services.css'
@@ -464,6 +465,8 @@ export class BiensServicesComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);

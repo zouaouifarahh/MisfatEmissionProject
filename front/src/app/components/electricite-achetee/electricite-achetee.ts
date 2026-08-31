@@ -24,6 +24,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 /** Ligne de consommation d'électricité achetée. */
 export interface EmissionElectricite {
@@ -80,7 +81,7 @@ const CLE_STOCKAGE = 'listeEmissionsElectricite';
 @Component({
   selector: 'app-electricite-achetee',
   standalone: true,
-  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './electricite-achetee.html',
   styleUrl: './electricite-achetee.css'
@@ -310,6 +311,8 @@ export class ElectriciteAcheteeComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);

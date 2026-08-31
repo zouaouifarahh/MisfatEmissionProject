@@ -22,6 +22,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 export interface ExtendedEmissionFactor extends EmissionFactor {
   referenceCode?: string;       // Ex: MS1COC, MS1COV, MS2ENDI
@@ -66,7 +67,7 @@ export interface Emission {
 @Component({
   selector: 'app-combustion-vehicules',
   standalone: true,
-  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './combustion-vehicules.html',
   styleUrl: './combustion-vehicules.css'
@@ -586,6 +587,8 @@ export class CombustionVehiculesComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.etablissementsList, this.filiales.length);

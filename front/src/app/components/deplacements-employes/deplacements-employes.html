@@ -96,6 +96,13 @@
     <div class="table-container">
       <!-- Ce que le cloisonnement a mis de cote. Un tableau qui retrecit sans
            explication se lit comme une perte de donnees. -->
+      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
+           comptait deja ; cet ecran les niait. -->
+      <app-mesures-serveur
+        [numeroGhg]="7"
+        [exercice]="exerciceActif"
+        [organisation]="perimetreAffiche"></app-mesures-serveur>
+
       <p class="note-perimetre" *ngIf="messagePerimetre"
          style="margin: 0 0 10px; padding: 9px 13px; border-radius: 8px;
                 background: #F4F6F9; border: 1px solid #DFE4EC;

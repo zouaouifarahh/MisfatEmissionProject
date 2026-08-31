@@ -23,6 +23,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 /** Ligne de mesure de fuite de fluide frigorigène. */
 export interface EmissionRefrigerant {
@@ -69,7 +70,7 @@ const CLE_STOCKAGE = 'listeEmissionsRefrigerants';
 @Component({
   selector: 'app-emissions-refrigerants',
   standalone: true,
-  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './emissions-refrigerants.html',
   styleUrl: './emissions-refrigerants.css'
@@ -303,6 +304,8 @@ export class EmissionsRefrigerantsComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);

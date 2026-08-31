@@ -28,6 +28,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -95,7 +96,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-actifs-loues-amont',
   standalone: true,
-  imports: [FiltreMasseComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './actifs-loues-amont.html',
   styleUrl: './actifs-loues-amont.css'
@@ -333,6 +334,8 @@ export class ActifsLouesAmontComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);

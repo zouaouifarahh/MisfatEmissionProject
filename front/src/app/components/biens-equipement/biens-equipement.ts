@@ -14,6 +14,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 /** Ligne d'acquisition de bien d'équipement, catégorie 2 du Scope 3. */
 export interface EmissionBienEquipement {
@@ -75,7 +76,7 @@ const LIBELLE_CATEGORIE = 'Biens d\'équipement';
 @Component({
   selector: 'app-biens-equipement',
   standalone: true,
-  imports: [FiltreMasseComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './biens-equipement.html',
   styleUrl: './biens-equipement.css'
@@ -437,6 +438,8 @@ export class BiensEquipementComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);

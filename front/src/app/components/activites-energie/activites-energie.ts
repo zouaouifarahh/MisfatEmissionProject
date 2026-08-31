@@ -19,6 +19,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre, messagePerimetre
 } from '../../shared/ui/perimetre-ecran';
+import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
 /** Ligne d'activité liée à l'énergie, catégorie 3 du Scope 3. */
 export interface EmissionEnergie {
@@ -73,7 +74,7 @@ const LIBELLE_CATEGORIE = 'Activités liées à l\'énergie';
 @Component({
   selector: 'app-activites-energie',
   standalone: true,
-  imports: [FiltreMasseComponent, CommonModule, FormsModule],
+  imports: [MesuresServeurComponent, FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './activites-energie.html',
   styleUrl: './activites-energie.css'
@@ -353,6 +354,8 @@ export class ActivitesEnergieComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
+  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
       this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);
