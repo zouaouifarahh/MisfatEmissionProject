@@ -177,13 +177,12 @@ const ETAT_VIDE: EtatDispatch = {
 /** Aucune ligne active : référence stable, pour ne pas invalider les mémoires. */
 const AUCUNE_LIGNE: LigneValorisee[] = [];
 
-/** Exercice deviné du nom du classeur, à défaut de choix explicite. */
-export function exerciceDepuisNom(nom: string): number | null {
-  const trouve = String(nom ?? '').match(/(20\d{2})/);
-  if (!trouve) return null;
-  const annee = Number(trouve[1]);
-  return annee >= 2000 && annee <= 2100 ? annee : null;
-}
+// La clé de stockage et la lecture du millésime vivent à part, sans dépendance :
+// les reprises de démarrage en ont besoin, et les importer d'ici ferait entrer
+// tout le magasin dans le graphe du noyau. Elles sont réexportées pour que
+// l'interface publique du magasin ne bouge pas.
+import { CLE_STOCKAGE, exerciceDepuisNom } from './cle-dispatch';
+export { CLE_STOCKAGE, exerciceDepuisNom };
 
 /**
  * Plafond de plausibilité d'un facteur monétaire, en kgCO₂e par unité de devise.
@@ -202,9 +201,6 @@ export const FACTEUR_MONETAIRE_MAX = 100;
 export function facteurPlausible(facteur: number): boolean {
   return Number.isFinite(facteur) && facteur > 0 && facteur <= FACTEUR_MONETAIRE_MAX;
 }
-
-/** Clé de persistance de la répartition, relue à chaque démarrage. */
-export const CLE_STOCKAGE = 'misfat_dispatched_lines';
 
 /** Ancienne clé, relue une dernière fois puis effacée. */
 const CLE_HERITEE = 'repartitionGlobaleMisfat';

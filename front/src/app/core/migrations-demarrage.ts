@@ -1,6 +1,9 @@
 import { CLES_PAR_CATEGORIE, signalerMesuresLocalesModifiees } from '../shared/dispatch/mesures-locales';
 import { migrationFaite, marquerMigration } from './appariement-referentiel';
 import {
+  CLE_STOCKAGE as CLE_DISPATCH, exerciceDepuisNom
+} from '../shared/dispatch/cle-dispatch';
+import {
   MARQUEUR_RECALCUL_ECHELLE, recalculerEchelle, LigneRecalculable
 } from '../components/transport-amont/recalcul-echelle';
 
@@ -223,6 +226,114 @@ export function messagePurge(): string {
     + 'revaloriser.';
 }
 
+/** Marqueur de la reprise du millésime de la répartition, versionné. */
+export const MARQUEUR_EXERCICE_CLASSEUR = 'misfat_exercice_classeur_v1';
+
+/**
+ * Rattache la répartition importée à l'exercice que son classeur documente.
+ *
+ * <p>« BG MISFAT 2025.xlsx » solde l'exercice 2025 : le nom du fichier le dit,
+ * et l'import le lit désormais. Mais une répartition importée avant cette
+ * lecture porte l'année consultée au moment de l'import — 2026 pour un classeur
+ * de 2025 —, et le cloisonnement l'écarte alors du bilan 2025 tout entier.</p>
+ *
+ * <p>La reprise ne devine rien : elle relit le millésime dans le nom du fichier,
+ * qui est une donnée et non une déduction. Sans année dans le nom, elle ne
+ * touche à rien — inventer un exercice serait pire que d'en laisser un faux, qui
+ * au moins se voit.</p>
+ *
+ * @returns 1 si la répartition a été rattachée, 0 sinon.
+ */
+function rattacherClasseurAuMillesime(): number {
+  if (migrationFaite(MARQUEUR_EXERCICE_CLASSEUR)) return 0;
+
+  let etat: { fichier?: string; exercice?: number | null };
+
+  try {
+    const brut = localStorage.getItem(CLE_DISPATCH);
+    if (!brut) { marquerMigration(MARQUEUR_EXERCICE_CLASSEUR); return 0; }
+    etat = JSON.parse(brut);
+  } catch {
+    marquerMigration(MARQUEUR_EXERCICE_CLASSEUR);
+    return 0;
+  }
+
+  const duNom = exerciceDepuisNom(String(etat?.fichier ?? ''));
+  if (duNom === null || duNom === etat?.exercice) {
+    marquerMigration(MARQUEUR_EXERCICE_CLASSEUR);
+    return 0;
+  }
+
+  try {
+    localStorage.setItem(CLE_DISPATCH, JSON.stringify({ ...etat, exercice: duNom }));
+  } catch {
+    return 0;
+  }
+
+  bilanClasseur.fichier = String(etat?.fichier ?? '');
+  bilanClasseur.avant = etat?.exercice ?? null;
+  bilanClasseur.apres = duNom;
+
+  marquerMigration(MARQUEUR_EXERCICE_CLASSEUR);
+  return 1;
+}
+
+/** Compte rendu du rattachement, pour le bandeau du tableau de bord. */
+export const bilanClasseur: { fichier: string; avant: number | null; apres: number | null } = {
+  fichier: '', avant: null, apres: null
+};
+
+/** Message rendu à l'utilisateur quand la répartition a changé d'exercice. */
+export function messageClasseur(): string {
+  if (bilanClasseur.apres === null) return '';
+
+  return `La répartition importée de « ${bilanClasseur.fichier} » était rattachée à `
+    + `${bilanClasseur.avant ?? 'aucun exercice'} : elle est désormais portée par l'exercice `
+    + `${bilanClasseur.apres}, que son nom de classeur documente.`;
+}
+
+/**
+ * Vide les données locales et laisse l'application repartir à neuf.
+ *
+ * <p>Destinée aux essais : le stockage du navigateur accumule les saisies, les
+ * répartitions et les marqueurs de reprise, et une seule ligne aberrante suffit
+ * à fausser tout un bilan. Rien ne permettait de repartir proprement sans vider
+ * le stockage à la main, clé par clé.</p>
+ *
+ * <p>Elle efface les mesures des dix-neuf écrans, la répartition importée et les
+ * marqueurs de reprise — de sorte que celles-ci rejouent au prochain démarrage.
+ * Elle ne touche ni à la session, ni au référentiel, qui vivent en base : ce
+ * n'est pas au navigateur de les effacer.</p>
+ *
+ * <p>Accessible à la console sous {@code misfat.reinitialiserDonneesLocales()}.
+ * Elle ne recharge pas la page d'elle-même : c'est à l'appelant de décider,
+ * et un rechargement d'office masquerait le compte rendu qu'elle rend.</p>
+ *
+ * @returns le nombre de clés effacées.
+ */
+export function reinitialiserDonneesLocales(): number {
+  if (typeof localStorage === 'undefined') return 0;
+
+  const cles = new Set<string>([...Object.values(CLES_PAR_CATEGORIE), CLE_DISPATCH]);
+
+  // Les marqueurs de reprise partent avec : les garder ferait tenir pour jouées
+  // des reprises dont les données viennent d'être effacées.
+  for (let i = 0; i < localStorage.length; i++) {
+    const cle = localStorage.key(i);
+    if (cle && cle.startsWith('misfat_')) cles.add(cle);
+  }
+
+  let effacees = 0;
+  for (const cle of cles) {
+    if (localStorage.getItem(cle) === null) continue;
+    localStorage.removeItem(cle);
+    effacees++;
+  }
+
+  signalerMesuresLocalesModifiees();
+  return effacees;
+}
+
 /**
  * Joue les reprises en attente sur le stockage du navigateur.
  *
@@ -254,6 +365,19 @@ export function jouerMigrationsDeDemarrage(): number {
     reprises += neutraliserEmissionsAberrantes();
   } catch (erreur) {
     console.error('[migrations] neutralisation des émissions aberrantes interrompue', erreur);
+  }
+
+  try {
+    reprises += rattacherClasseurAuMillesime();
+  } catch (erreur) {
+    console.error('[migrations] rattachement du classeur à son millésime interrompu', erreur);
+  }
+
+  // Utilitaire de remise à zéro, offert à la console pour les essais. Exposé
+  // ici plutôt que par un bouton : effacer les saisies n'est pas une action
+  // qu'une interface doit rendre facile.
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as Record<string, unknown>)['misfat'] = { reinitialiserDonneesLocales };
   }
 
   // Les vues qui agrègent le stockage doivent repartir des valeurs reprises,

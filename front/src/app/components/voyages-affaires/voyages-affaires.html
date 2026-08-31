@@ -93,6 +93,14 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
+      <!-- Ce que le cloisonnement a mis de cote. Un tableau qui retrecit sans
+           explication se lit comme une perte de donnees. -->
+      <p class="note-perimetre" *ngIf="messagePerimetre"
+         style="margin: 0 0 10px; padding: 9px 13px; border-radius: 8px;
+                background: #F4F6F9; border: 1px solid #DFE4EC;
+                color: #4A5568; font-size: 12.5px; line-height: 1.5;">
+        <span aria-hidden="true">🔒</span> {{ messagePerimetre }}
+      </p>
       <table class="data-table">
         <thead>
           <tr>

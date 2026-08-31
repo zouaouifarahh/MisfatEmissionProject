@@ -20,6 +20,10 @@ import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import {
   SourceDisponible, sourcesDuReferentiel, sourcesHorsReferentiel
 } from '../../shared/ui/sources-emission';
+import { PerimetreOrganisation } from '../../core/perimetre';
+import {
+  perimetreOrganisation, trierParPerimetre, messagePerimetre
+} from '../../shared/ui/perimetre-ecran';
 
 // Extension locale de l'interface pour autoriser la propriété nomFacteurDetaille et referenceCode
 export interface ExtendedEmissionFactor extends EmissionFactor {
@@ -53,6 +57,15 @@ export interface Emission {
   emissionCalculee: number;
   hypothese: 'Estimation' | 'Réelle';
   descriptionHypothese?: string;
+  /**
+   * Societe proprietaire de la mesure.
+   *
+   * <p>Seul rattachement certain : le nom d'usine est une donnee de
+   * saisie, et plusieurs ecrans n'en demandent aucune. Les lignes
+   * anterieures n'en portent pas, et restent affichees faute de
+   * pouvoir dire a qui elles appartiennent.</p>
+   */
+  societeId?: number | null;
   creeLe: string;
   databaseSource?: string; 
   /** Provenance : renseignée pour les seules lignes issues de la ventilation. */
@@ -403,6 +416,7 @@ export class EmissionListComponent implements OnInit {
 
     this.entityService.filter$.subscribe(filtre => {
       this.societeActiveId = filtre.entityId;
+      this.exerciceActif = filtre.year ?? null;
       this.majPerimetre();
     });
   }
@@ -474,8 +488,34 @@ export class EmissionListComponent implements OnInit {
     }
   }
 
+  /** Exercice consulte, impose au tableau comme au tableau de bord. */
+  exerciceActif: number | null = null;
+
+  /** Perimetre organisationnel que les lignes doivent respecter. */
+  private get perimetreActif(): PerimetreOrganisation {
+    return perimetreOrganisation(
+      this.societeActiveId, this.etablissementsList, this.filiales.length);
+  }
+
+  /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
+  private get triPerimetre() {
+    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+  }
+
+  /** Lignes du perimetre consulte : societe ET exercice. */
+  get lignesDuPerimetre() { return this.triPerimetre.retenues; }
+
+  /**
+   * Ce que le perimetre a mis de cote, dit sous le tableau.
+   *
+   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
+   */
+  get messagePerimetre(): string {
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+  }
+
   get emissionsFiltrees(): Emission[] {
-    let list = this.toutesLignes.filter(item => {
+    let list = this.lignesDuPerimetre.filter(item => {
       // Filtre métier : le critère que cet écran documente.
       if (this.filtreMetier !== 'Tous' && item.emissionSource !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
@@ -694,6 +734,7 @@ genererCodeReference() {
             dateFin: convertirDate(aDate),
             emissionCalculee: calculEmission,
             hypothese: hypothese,
+            societeId: this.societeActiveId,
             creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy') || '',
             databaseSource: sourceDefaut
           };
@@ -1040,6 +1081,7 @@ genererCodeReference() {
         emissionCalculee: calcul,
         hypothese: this.formModel.hypothese,
         descriptionHypothese: this.formModel.descriptionHypothese,
+        societeId: this.societeActiveId,
         creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy') || '',
         databaseSource: this.formModel.databaseSource
       };

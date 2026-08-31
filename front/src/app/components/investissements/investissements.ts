@@ -31,6 +31,10 @@ import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersImmobilisation } from '../../shared/dispatch/adaptateurs-mesure';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { periodeLisible } from '../../shared/ui/periode-lisible';
+import { PerimetreOrganisation } from '../../core/perimetre';
+import {
+  perimetreOrganisation, trierParPerimetre, messagePerimetre
+} from '../../shared/ui/perimetre-ecran';
 
 /** Immobilisation valorisée, catégorie 15 du Scope 3. */
 export interface EmissionInvestissement {
@@ -65,6 +69,15 @@ export interface EmissionInvestissement {
   /** Periode couverte par la mesure, au format ISO. */
   dateDebut: string;
   dateFin: string;
+  /**
+   * Societe proprietaire de la mesure.
+   *
+   * <p>Seul rattachement certain : le nom d'usine est une donnee de
+   * saisie, et plusieurs ecrans n'en demandent aucune. Les lignes
+   * anterieures n'en portent pas, et restent affichees faute de
+   * pouvoir dire a qui elles appartiennent.</p>
+   */
+  societeId?: number | null;
   creeLe: string;
   /** Provenance : renseignée pour les seules lignes issues de la ventilation. */
   sourceData?: string;
@@ -215,6 +228,7 @@ export class InvestissementsComponent implements OnInit {
       this.entityService.filter$.subscribe({
         next: filtre => {
           this.societeActiveId = filtre?.entityId ?? null;
+          this.exerciceActif = filtre?.year ?? null;
           this.majPerimetre();
         },
         error: () => this.signalerEchec('Périmètre organisationnel indisponible.')
@@ -400,10 +414,36 @@ export class InvestissementsComponent implements OnInit {
 
   // ---------- Tableau et pagination ----------
 
+  /** Exercice consulte, impose au tableau comme au tableau de bord. */
+  exerciceActif: number | null = null;
+
+  /** Perimetre organisationnel que les lignes doivent respecter. */
+  private get perimetreActif(): PerimetreOrganisation {
+    return perimetreOrganisation(
+      this.societeActiveId, [], this.filiales.length);
+  }
+
+  /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
+  private get triPerimetre() {
+    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+  }
+
+  /** Lignes du perimetre consulte : societe ET exercice. */
+  get lignesDuPerimetre() { return this.triPerimetre.retenues; }
+
+  /**
+   * Ce que le perimetre a mis de cote, dit sous le tableau.
+   *
+   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
+   */
+  get messagePerimetre(): string {
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+  }
+
   get emissionsFiltrees(): EmissionInvestissement[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
-    const liste = this.toutesLignes.filter(item => {
+    const liste = this.lignesDuPerimetre.filter(item => {
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
       if (this.filtreCategorie !== 'Toutes' && item.categorieCarbone !== this.filtreCategorie) return false;
       if (this.filtreStatut === 'Validé' && item.replique) return false;
@@ -620,6 +660,7 @@ export class InvestissementsComponent implements OnInit {
       emissionCalculee: calculerEmissionCapex(m.montant, facteur.valeur),
       dateDebut: this.formModel.dateDebut,
       dateFin: this.formModel.dateFin,
+      societeId: this.societeActiveId,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -784,6 +825,7 @@ export class InvestissementsComponent implements OnInit {
             emissionCalculee: calculerEmissionCapex(ligne.montant, facteur.valeur),
             dateDebut: '',
             dateFin: '',
+            societeId: this.societeActiveId,
             creeLe: horodatage
           };
         });

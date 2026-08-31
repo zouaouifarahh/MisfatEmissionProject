@@ -68,7 +68,7 @@ import { ReportFiltersService } from '../../../core/report-filters.service';
 import { TCo2ePipe } from '../../../shared/tco2e.pipe';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
 import { RecalculFacteursService } from '../../../shared/dispatch/recalcul-facteurs';
-import { messagePurge } from '../../../core/migrations-demarrage';
+import { messagePurge, messageClasseur } from '../../../core/migrations-demarrage';
 
 /**
  * Ligne du tableau de suivi de saisie.
@@ -2229,7 +2229,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Les reprises de démarrage ont déjà tourné : si l'une a neutralisé des
     // lignes, l'utilisateur doit l'apprendre ici et non le déduire d'un total
     // qui a bougé sans explication.
-    this.messageRecalcul = messagePurge();
+    this.messageRecalcul = [messagePurge(), messageClasseur()].filter(Boolean).join(' ');
 
     // Les cours sont chargés une fois pour toute la console : c'est eux qui
     // ramènent au dinar les facteurs libellés en euros ou en dollars, et deux

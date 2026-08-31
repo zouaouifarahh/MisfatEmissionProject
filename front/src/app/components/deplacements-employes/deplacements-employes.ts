@@ -24,6 +24,10 @@ import {
 } from '../../shared/mobilite/modes-transport';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { periodeLisible } from '../../shared/ui/periode-lisible';
+import { PerimetreOrganisation } from '../../core/perimetre';
+import {
+  perimetreOrganisation, trierParPerimetre, messagePerimetre
+} from '../../shared/ui/perimetre-ecran';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -64,6 +68,15 @@ export interface EmissionDeplacement {
   /** Periode couverte par la mesure, au format ISO. */
   dateDebut: string;
   dateFin: string;
+  /**
+   * Societe proprietaire de la mesure.
+   *
+   * <p>Seul rattachement certain : le nom d'usine est une donnee de
+   * saisie, et plusieurs ecrans n'en demandent aucune. Les lignes
+   * anterieures n'en portent pas, et restent affichees faute de
+   * pouvoir dire a qui elles appartiennent.</p>
+   */
+  societeId?: number | null;
   creeLe: string;
 }
 
@@ -206,6 +219,7 @@ export class DeplacementsEmployesComponent implements OnInit {
       this.entityService.filter$.subscribe({
         next: filtre => {
           this.societeActiveId = filtre?.entityId ?? null;
+          this.exerciceActif = filtre?.year ?? null;
           this.majPerimetre();
         },
         error: () => this.signalerEchec('Périmètre organisationnel indisponible.')
@@ -308,10 +322,36 @@ export class DeplacementsEmployesComponent implements OnInit {
     this.sauvegarder();
   }
 
+  /** Exercice consulte, impose au tableau comme au tableau de bord. */
+  exerciceActif: number | null = null;
+
+  /** Perimetre organisationnel que les lignes doivent respecter. */
+  private get perimetreActif(): PerimetreOrganisation {
+    return perimetreOrganisation(
+      this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);
+  }
+
+  /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
+  private get triPerimetre() {
+    return trierParPerimetre(this.listeEmissions, this.exerciceActif, this.perimetreActif);
+  }
+
+  /** Lignes du perimetre consulte : societe ET exercice. */
+  get lignesDuPerimetre() { return this.triPerimetre.retenues; }
+
+  /**
+   * Ce que le perimetre a mis de cote, dit sous le tableau.
+   *
+   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
+   */
+  get messagePerimetre(): string {
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+  }
+
   get emissionsFiltrees(): EmissionDeplacement[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
-    const liste = this.listeEmissions.filter(item => {
+    const liste = this.lignesDuPerimetre.filter(item => {
       // Filtre métier : le critère que cet écran documente.
       if (this.filtreMetier !== 'Tous' && item.mode !== this.filtreMetier) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
@@ -594,6 +634,7 @@ export class DeplacementsEmployesComponent implements OnInit {
       emissionCalculee: calculerEmission(kmAnnuels, facteur.valeur),
       dateDebut: this.formModel.dateDebut,
       dateFin: this.formModel.dateFin,
+      societeId: this.societeActiveId,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -762,6 +803,7 @@ export class DeplacementsEmployesComponent implements OnInit {
             emissionCalculee: calculerEmission(brute.kmAnnuels, facteur.valeur),
             dateDebut: '',
             dateFin: '',
+            societeId: this.societeActiveId,
             creeLe: horodatage
           };
         });

@@ -20,6 +20,10 @@ import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersMesure } from '../../shared/dispatch/adaptateurs-mesure';
 import { emissionKg, quantiteVersUniteFacteur } from '../../core/unites-carbone';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { PerimetreOrganisation } from '../../core/perimetre';
+import {
+  perimetreOrganisation, trierParPerimetre, messagePerimetre
+} from '../../shared/ui/perimetre-ecran';
 
 /** Ligne de consommation d'électricité achetée. */
 export interface EmissionElectricite {
@@ -42,6 +46,15 @@ export interface EmissionElectricite {
   emissionCalculee: number;
   hypothese: 'Estimation' | 'Réelle';
   descriptionHypothese?: string;
+  /**
+   * Societe proprietaire de la mesure.
+   *
+   * <p>Seul rattachement certain : le nom d'usine est une donnee de
+   * saisie, et plusieurs ecrans n'en demandent aucune. Les lignes
+   * anterieures n'en portent pas, et restent affichees faute de
+   * pouvoir dire a qui elles appartiennent.</p>
+   */
+  societeId?: number | null;
   creeLe: string;
   /** Base documentaire du facteur retenu, telle que stockée en MSSQL. */
   databaseSource?: string;
@@ -177,6 +190,7 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
     this.entityService.filter$.subscribe(filtre => {
       this.societeActiveId = filtre.entityId;
+      this.exerciceActif = filtre.year ?? null;
       this.majPerimetre();
     });
   }
@@ -292,10 +306,36 @@ export class ElectriciteAcheteeComponent implements OnInit {
     }
   }
 
+  /** Exercice consulte, impose au tableau comme au tableau de bord. */
+  exerciceActif: number | null = null;
+
+  /** Perimetre organisationnel que les lignes doivent respecter. */
+  private get perimetreActif(): PerimetreOrganisation {
+    return perimetreOrganisation(
+      this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);
+  }
+
+  /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
+  private get triPerimetre() {
+    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+  }
+
+  /** Lignes du perimetre consulte : societe ET exercice. */
+  get lignesDuPerimetre() { return this.triPerimetre.retenues; }
+
+  /**
+   * Ce que le perimetre a mis de cote, dit sous le tableau.
+   *
+   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
+   */
+  get messagePerimetre(): string {
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+  }
+
   get emissionsFiltrees(): EmissionElectricite[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
-    const liste = this.toutesLignes.filter(item => {
+    const liste = this.lignesDuPerimetre.filter(item => {
       // Filtre métier : le critère que cet écran documente.
       if (this.filtreMetier !== 'Tous' && item.emissionSource !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
@@ -549,6 +589,7 @@ export class ElectriciteAcheteeComponent implements OnInit {
       emissionCalculee: this.emissionPrevisionnelle,
       hypothese: m.hypothese,
       descriptionHypothese: m.descriptionHypothese,
+      societeId: this.societeActiveId,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? '',
       databaseSource: m.databaseSource
     };
@@ -716,6 +757,7 @@ export class ElectriciteAcheteeComponent implements OnInit {
             dateFin: this.texteDate(valeur('Date fin')),
             emissionCalculee: emission,
             hypothese: /estim/i.test(String(valeur('Hypothese') ?? '')) ? 'Estimation' : 'Réelle',
+            societeId: this.societeActiveId,
             creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? '',
             databaseSource: facteur.databaseSource
           });

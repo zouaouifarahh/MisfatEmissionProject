@@ -130,6 +130,33 @@ export function releveDeLExercice(ligne: Record<string, unknown>, annee: number 
   return exercices.length > 0 && exercices.includes(annee);
 }
 
+/**
+ * Société portée par la ligne, si elle en porte une.
+ *
+ * <p>Les lignes enregistrées avant l'estampillage n'en portent pas : elles
+ * retombent sur le rapprochement par établissement, et à défaut restent sans
+ * rattachement — état que les écrans annoncent plutôt que de le trancher.</p>
+ */
+export function societeDeLaLigne(ligne: Record<string, unknown>): number | null {
+  const brut = ligne['societeId'];
+  if (brut === null || brut === undefined || brut === '') return null;
+
+  const societe = Number(brut);
+  return Number.isFinite(societe) && societe > 0 ? societe : null;
+}
+
+/**
+ * La ligne peut-elle être rattachée à une société ?
+ *
+ * <p>Ni société estampillée, ni établissement nommé : rien ne permet de dire à
+ * qui elle appartient. L'écran la compte à part pour pouvoir le dire — la
+ * masquer sans un mot la ferait passer pour perdue.</p>
+ */
+export function ligneRattachable(ligne: Record<string, unknown>): boolean {
+  return societeDeLaLigne(ligne) !== null
+    || String(ligne['etablissement'] ?? '').trim().length > 0;
+}
+
 /** Périmètre organisationnel résolu : les établissements de la société retenue. */
 export interface PerimetreOrganisation {
   /** Société retenue ; `null` en vue consolidée groupe. */
@@ -161,6 +188,13 @@ export const ORGANISATION_GROUPE: PerimetreOrganisation = {
 export function releveDeLaSociete(ligne: Record<string, unknown>,
                                   organisation: PerimetreOrganisation): boolean {
   if (organisation.entityId === null) return true;
+
+  // La société portée par la ligne fait foi, quand elle en porte une. C'est le
+  // seul rattachement certain : le nom d'usine est une donnée de saisie, et
+  // plusieurs écrans — franchises, investissements — n'en demandent aucune.
+  // Sans ce degré, leurs lignes ne pourraient jamais être cloisonnées.
+  const societe = societeDeLaLigne(ligne);
+  if (societe !== null) return societe === organisation.entityId;
 
   const etablissement = String(ligne['etablissement'] ?? '').trim();
 

@@ -27,6 +27,10 @@ import {
   ETABLISSEMENT_DEFAUT, DEVISE_DEFAUT
 } from './aval-facteur';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { PerimetreOrganisation } from '../../core/perimetre';
+import {
+  perimetreOrganisation, trierParPerimetre, messagePerimetre
+} from '../../shared/ui/perimetre-ecran';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -67,6 +71,15 @@ export interface EmissionAval {
   baseAppliquee: string;
   origineFacteur: OrigineFacteur;
   emissionCalculee: number;
+  /**
+   * Societe proprietaire de la mesure.
+   *
+   * <p>Seul rattachement certain : le nom d'usine est une donnee de
+   * saisie, et plusieurs ecrans n'en demandent aucune. Les lignes
+   * anterieures n'en portent pas, et restent affichees faute de
+   * pouvoir dire a qui elles appartiennent.</p>
+   */
+  societeId?: number | null;
   creeLe: string;
 }
 
@@ -210,6 +223,7 @@ export class TransportAvalComponent implements OnInit {
       this.entityService.filter$.subscribe({
         next: filtre => {
           this.societeActiveId = filtre?.entityId ?? null;
+          this.exerciceActif = filtre?.year ?? null;
           this.majPerimetre();
         },
         error: () => this.signalerEchec('Périmètre organisationnel indisponible.')
@@ -328,10 +342,36 @@ export class TransportAvalComponent implements OnInit {
     }
   }
 
+  /** Exercice consulte, impose au tableau comme au tableau de bord. */
+  exerciceActif: number | null = null;
+
+  /** Perimetre organisationnel que les lignes doivent respecter. */
+  private get perimetreActif(): PerimetreOrganisation {
+    return perimetreOrganisation(
+      this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);
+  }
+
+  /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
+  private get triPerimetre() {
+    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+  }
+
+  /** Lignes du perimetre consulte : societe ET exercice. */
+  get lignesDuPerimetre() { return this.triPerimetre.retenues; }
+
+  /**
+   * Ce que le perimetre a mis de cote, dit sous le tableau.
+   *
+   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
+   */
+  get messagePerimetre(): string {
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+  }
+
   get emissionsFiltrees(): EmissionAval[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
-    const liste = this.toutesLignes.filter(item => {
+    const liste = this.lignesDuPerimetre.filter(item => {
       // Filtre métier : le critère que cet écran documente.
       if (this.filtreMetier !== 'Tous' && item.mode !== this.filtreMetier) return false;
       if (!statutRetenu(item, this.filtreStatut)) return false;
@@ -623,6 +663,7 @@ export class TransportAvalComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmissionFret(quantite, facteur.valeur),
+      societeId: this.societeActiveId,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
 
@@ -803,6 +844,7 @@ export class TransportAvalComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionFret(brute.quantite, facteur.valeur),
+            societeId: this.societeActiveId,
             creeLe: horodatage
           };
         });
@@ -943,6 +985,7 @@ export class TransportAvalComponent implements OnInit {
         emissionCalculee: ligne.emissionKg,
         dateDebut: annee + '-01-01',
         dateFin: annee + '-12-31',
+        societeId: this.societeActiveId,
         creeLe: '',
         sourceData: SOURCE_VENTILATION
     }) as unknown as EmissionAval);

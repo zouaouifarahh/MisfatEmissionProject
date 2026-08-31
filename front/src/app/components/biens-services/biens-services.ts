@@ -14,6 +14,10 @@ import { KpisCategorieComponent, CarteKpi, tauxCouvertureReferentiel, statutRete
 import { DispatchStore } from '../../shared/dispatch/dispatch-store';
 import { lignesVentileesPour, adapterVersAchat } from '../../shared/dispatch/adaptateurs-mesure';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
+import { PerimetreOrganisation } from '../../core/perimetre';
+import {
+  perimetreOrganisation, trierParPerimetre, messagePerimetre
+} from '../../shared/ui/perimetre-ecran';
 
 /** Ligne d'achat de bien ou service, catégorie 1 du Scope 3. */
 export interface EmissionAchat {
@@ -56,6 +60,15 @@ export interface EmissionAchat {
    * — numéro de compte, catégorie carbone ou libellé reconnu.</p>
    */
   descriptionHypothese?: string;
+  /**
+   * Societe proprietaire de la mesure.
+   *
+   * <p>Seul rattachement certain : le nom d'usine est une donnee de
+   * saisie, et plusieurs ecrans n'en demandent aucune. Les lignes
+   * anterieures n'en portent pas, et restent affichees faute de
+   * pouvoir dire a qui elles appartiennent.</p>
+   */
+  societeId?: number | null;
   creeLe: string;
   databaseSource?: string;
   /** Provenance : renseignée pour les seules lignes issues de la ventilation. */
@@ -192,6 +205,7 @@ export class BiensServicesComponent implements OnInit {
 
     this.entityService.filter$.subscribe(filtre => {
       this.societeActiveId = filtre.entityId;
+      this.exerciceActif = filtre.year ?? null;
       this.majPerimetre();
     });
   }
@@ -446,10 +460,36 @@ export class BiensServicesComponent implements OnInit {
     }
   }
 
+  /** Exercice consulte, impose au tableau comme au tableau de bord. */
+  exerciceActif: number | null = null;
+
+  /** Perimetre organisationnel que les lignes doivent respecter. */
+  private get perimetreActif(): PerimetreOrganisation {
+    return perimetreOrganisation(
+      this.societeActiveId, this.usinesDisponibles.map(u => u.nom), this.filiales.length);
+  }
+
+  /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
+  private get triPerimetre() {
+    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+  }
+
+  /** Lignes du perimetre consulte : societe ET exercice. */
+  get lignesDuPerimetre() { return this.triPerimetre.retenues; }
+
+  /**
+   * Ce que le perimetre a mis de cote, dit sous le tableau.
+   *
+   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
+   */
+  get messagePerimetre(): string {
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+  }
+
   get emissionsFiltrees(): EmissionAchat[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
 
-    const liste = this.toutesLignes.filter(item => {
+    const liste = this.lignesDuPerimetre.filter(item => {
       // Filtre métier : le critère que cet écran documente.
       if (this.filtreMetier !== 'Tous' && item.categorieCarbone !== this.filtreMetier) return false;
       if (!provenanceRetenue(item, this.filtreProvenance)) return false;
@@ -667,6 +707,7 @@ export class BiensServicesComponent implements OnInit {
       dateFin: m.dateFin,
       emissionCalculee: m.quantite * m.facteur,
       hypothese: m.hypothese,
+      societeId: this.societeActiveId,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? '',
       databaseSource: m.databaseSource
     };
@@ -845,6 +886,7 @@ export class BiensServicesComponent implements OnInit {
             dateFin: this.texteDate(valeur('Date fin')),
             emissionCalculee: quantite * facteur.factorValue,
             hypothese: 'Réelle',
+            societeId: this.societeActiveId,
             creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? '',
             databaseSource: facteur.databaseSource
           });
