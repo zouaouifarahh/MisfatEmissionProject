@@ -697,9 +697,12 @@
                 </span>
                 <span class="hk-unite">{{ variation.hausse ? 'en hausse' : 'en baisse' }}</span>
               </ng-container>
+              <!-- Un exercice ouvert n'est pas comparable : sa collecte est
+                   partielle, et le pourcentage dirait l'avancement de la saisie
+                   plutôt que l'évolution des émissions. -->
               <ng-template #pasDeVariation>
-                <span class="hk-valeur hk-vide">—</span>
-                <span class="hk-unite">Aucun exercice antérieur collecté</span>
+                <span class="hk-valeur hk-vide">{{ exerciceEnCours ? '⏳' : '—' }}</span>
+                <span class="hk-unite">{{ motifSansVariation }}</span>
               </ng-template>
             </div>
 
@@ -782,8 +785,13 @@
 
                 </svg>
 
-                <span class="hist-jalon-etiquette" *ngFor="let jalon of jalonsHistorique"
-                      [style.top.%]="(jalon.y / svgHaut) * 100">{{ jalon.libelle }}</span>
+                <!-- Une seule liste d'étiquettes, écartées entre elles : deux
+                     trajectoires proches y écrivaient leurs libellés l'un sur
+                     l'autre, et aucun des deux ne se lisait. -->
+                <span class="hist-jalon-etiquette"
+                      *ngFor="let etiquette of etiquettesHistorique"
+                      [class.hist-etiquette-cible]="etiquette.cible"
+                      [style.top.%]="(etiquette.y / svgHaut) * 100">{{ etiquette.libelle }}</span>
 
                 <!-- Repères de la courbe supérieure, posés en HTML : la zone de
                      dessin est étirée, un cercle SVG y deviendrait une ellipse. -->
@@ -797,8 +805,8 @@
                         [title]="'Exercice ' + marqueur.annee + ' — ' + (historique[i].total | number:'1.0-0') + ' ' + uniteStats">
                 </button>
 
-                <span class="hist-cible-etiquette" *ngIf="cibleHistorique as cible"
-                      [style.top.%]="(cible.y / svgHaut) * 100">{{ cible.libelle }}</span>
+                <!-- La cible est étiquetée par la liste ci-dessus, avec les
+                     jalons : deux rendus séparés ne pouvaient pas s'éviter. -->
               </div>
 
               <!-- Axe des abscisses : un exercice par repère, cliquable -->

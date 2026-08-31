@@ -145,15 +145,62 @@ describe('DashboardComponent — historique pluriannuel', () => {
     expect(moitie.y).toBeCloseTo(hautZone + (basZone - hautZone) / 2, 1);
   });
 
-  it('trace la trajectoire cible à 30 % sous le premier exercice', () => {
+  it('laisse de l\'air au-dessus du plus grand exercice', () => {
+    // L'échelle s'arrêtait exactement sur le plus grand exercice : son point
+    // culminant se posait sur la marge haute, et le marqueur qui le désigne —
+    // un disque centré sur l'ordonnée — s'y trouvait coupé de moitié. Le
+    // sommet touchait le bord, ce qui se lit comme un tracé tronqué.
+    const composant = monter().componentInstance;
+
+    const plusHaut = Math.min(...composant.marqueursHistorique.map(m => m.y));
+    expect(plusHaut).toBeGreaterThan(16);
+
+    // Le repère du haut porte le plafond, non le maximum collecté : 120 tCO₂e
+    // au plus fort exercice, une échelle qui monte à 140.
+    const sommet = composant.grilleHistorique[0];
+    expect(sommet.libelle).toBe(composant.formatCompact(140));
+  });
+
+  it('arrondit le plafond plutôt que de le laisser au décimal près', () => {
+    // « 140 » se lit, « 134,4 » se déchiffre. L'arrondi porte la marge au-delà
+    // des douze pour cent visés, jamais en deçà.
+    const composant = monter().componentInstance;
+    const sommet = Number(composant.grilleHistorique[0].libelle.replace(',', '.'));
+
+    expect(sommet).toBeGreaterThanOrEqual(120 * 1.1);
+    expect(sommet % 10).toBe(0);
+  });
+
+  it('trace une seule trajectoire cible pour 2030', () => {
+    // Le graphique portait deux objectifs pour cette même année : un « −30 % »
+    // générique et le jalon SBTi « −50 % ». Deux cibles pour un millésime ne
+    // sont pas une redondance d'affichage — c'est une trajectoire dont on ne
+    // sait plus laquelle engage. Seule celle du jalon SBTi subsiste.
     const fixture = monter();
-    const cible = fixture.componentInstance.cibleHistorique!;
+    const composant = fixture.componentInstance;
+    const cible = composant.cibleHistorique!;
 
-    // Premier exercice collecté : 2024, 100 tCO₂e. La cible vaut 70 tCO₂e.
-    expect(cible.valeur).toBeCloseTo(70, 6);
-    expect(cible.libelle).toContain('Cible −30 % (2030)');
+    // Premier exercice collecté : 2024, 100 tCO₂e. La cible vaut 50 tCO₂e.
+    expect(cible.valeur).toBeCloseTo(50, 6);
+    expect(cible.libelle).toContain('Cible SBTi −50 % (2030)');
 
+    expect(composant.jalonsHistorique.map(j => j.annee)).not.toContain(2030);
     expect((fixture.nativeElement as HTMLElement).querySelector('line.hist-cible')).toBeTruthy();
+  });
+
+  it('écarte les étiquettes de trajectoire qui se recouvriraient', () => {
+    // Un jalon à −25 % et une cible à −50 % peuvent tomber à quelques unités
+    // l'un de l'autre sur une échelle écrasée : leurs libellés s'écrivaient
+    // alors l'un sur l'autre, et aucun des deux ne se lisait.
+    const composant = monter().componentInstance;
+    const etiquettes = composant.etiquettesHistorique;
+
+    expect(etiquettes.length).toBeGreaterThan(1);
+
+    const ordonnees = etiquettes.map(e => e.y).sort((a, b) => a - b);
+    for (let i = 1; i < ordonnees.length; i++) {
+      expect(ordonnees[i] - ordonnees[i - 1]).toBeGreaterThanOrEqual(15.9);
+    }
   });
 
   it('rend chaque repère cliquable pour changer d\'exercice', () => {
@@ -206,14 +253,32 @@ describe('DashboardComponent — historique pluriannuel', () => {
       expect(composant.formatCompact(1_000_000)).toBe('1,00 M');
     });
 
-    it('chiffre la variation et son sens', () => {
+    it('ne chiffre aucune variation sur un exercice encore ouvert', () => {
+      // 2026 est EN_COURS : sa collecte est partielle par construction. La
+      // comparer à une année close rapporte l'avancement de la saisie et non
+      // l'évolution des émissions — c'est ce qui affichait « −100 % » sur un
+      // exercice à peine commencé, un chiffre qui se lit comme un effondrement.
       const composant = monter().componentInstance;
 
-      // 2026 (60 t) contre 2025 (120 t) : moitié moins.
+      expect(composant.exerciceEnCours).toBe(true);
+      expect(composant.variationCarte).toBeNull();
+      expect(composant.motifSansVariation).toContain('Collecte en cours');
+    });
+
+    it('chiffre la variation dès que l\'exercice est clos', () => {
+      const fixture = monter();
+      const composant = fixture.componentInstance;
+
+      composant.choisirAnnee(2025);
+      servirTout();
+      fixture.detectChanges();
+
+      // 2025 (120 t) contre 2024 (100 t) : un cinquième de plus.
       const variation = composant.variationCarte!;
-      expect(variation.pct).toBeCloseTo(-50, 6);
-      expect(variation.precedent).toBe(2025);
-      expect(variation.hausse).toBe(false);
+      expect(composant.exerciceEnCours).toBe(false);
+      expect(variation.pct).toBeCloseTo(20, 6);
+      expect(variation.precedent).toBe(2024);
+      expect(variation.hausse).toBe(true);
     });
 
     it('nomme le scope dominant et sa part', () => {
@@ -258,14 +323,16 @@ describe('DashboardComponent — historique pluriannuel', () => {
       expect(analyse).toContain('électricité achetée');
     });
 
-    it('chiffre la variation par rapport à l\'exercice précédent', () => {
+    it('annonce la collecte en cours plutôt qu\'une baisse qui n\'existe pas', () => {
+      // Sur un exercice ouvert, « en baisse de 50 % » fabriquerait une bonne
+      // nouvelle : ce n'est pas l'empreinte qui a diminué, c'est la saisie qui
+      // n'est pas finie.
       const composant = monter().componentInstance;
 
-      // 2026 (60 t) contre 2025 (120 t) : moitié moins.
-      expect(composant.analyseVariation).toContain('baisse de 50,0 %');
-      expect(composant.analyseVariation).toContain('par rapport à 2025');
-      expect(composant.analyseVariation).toContain("amélioration de l'intensité carbone");
-      expect(composant.iconeVariation).toBe('📉');
+      expect(composant.analyseVariation).toContain('encore ouvert');
+      expect(composant.analyseVariation).toContain('attend la clôture');
+      expect(composant.analyseVariation).not.toContain('baisse');
+      expect(composant.iconeVariation).toBe('⏳');
     });
 
     it('inverse la lecture quand les émissions progressent', () => {

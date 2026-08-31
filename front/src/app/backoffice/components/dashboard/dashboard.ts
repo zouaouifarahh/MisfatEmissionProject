@@ -611,13 +611,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
    */
   readonly svgLarg = 600;
   readonly svgHaut = 260;
+
+  /**
+   * Réduction visée pour 2030, en pourcentage de l'exercice de référence.
+   *
+   * <p>Alignée sur le jalon SBTi de 2030. Le graphique portait auparavant deux
+   * objectifs distincts pour cette même année, et rien ne disait lequel
+   * engageait.</p>
+   */
+  private static readonly CIBLE_2030_PCT = 50;
+
+  /**
+   * Écart minimal entre deux étiquettes de trajectoire, en unités du dessin.
+   *
+   * <p>Une étiquette occupe une douzaine d'unités de hauteur à l'échelle du
+   * tracé. En deçà, deux libellés se recouvrent et aucun ne se lit.</p>
+   */
+  private static readonly ECART_MIN_ETIQUETTES = 16;
+
+  /** Air laissé au-dessus du plus grand exercice, en part de sa valeur. */
+  private static readonly MARGE_ECHELLE = 0.12;
   private readonly margeHaut = 16;
   private readonly margeBas = 12;
 
   /**
    * Empreinte de l'exercice le plus chargé ; échelle du graphique.
    *
-   * <p>La cible n'entre pas dans le calcul : elle vaut 70 % du premier
+   * <p>La cible n'entre pas dans le calcul : elle vaut la moitie du premier
    * exercice et lui est donc toujours inférieure. L'y faire entrer créerait
    * surtout un cycle, l'ordonnée de la cible dépendant elle-même de cette
    * échelle.</p>
@@ -626,16 +646,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return Math.max(...this.historique.map(p => p.total), 0);
   }
 
+  /**
+   * Plafond de l'échelle verticale : le plus grand exercice, et de l'air.
+   *
+   * <p>L'échelle s'arrêtait exactement sur le plus grand exercice. Son point
+   * culminant se posait donc sur la marge haute, et le marqueur qui le
+   * désigne — un disque centré sur l'ordonnée — s'y trouvait coupé de moitié.
+   * Le sommet de la courbe touchait le bord, ce qui se lit comme un tracé
+   * tronqué plutôt que comme un maximum atteint.</p>
+   *
+   * <p>Le plafond est arrondi au cran supérieur de son ordre de grandeur :
+   * « 19 k » se lit, « 18,29 k » se déchiffre. L'arrondi porte la marge au-delà
+   * des douze pour cent demandés, jamais en deçà.</p>
+   */
+  private get plafondHistorique(): number {
+    const max = this.maxHistorique;
+    if (max <= 0) return 0;
+
+    const avecMarge = max * (1 + DashboardComponent.MARGE_ECHELLE);
+    const pas = Math.pow(10, Math.floor(Math.log10(avecMarge)) - 1);
+
+    return pas > 0 ? Math.ceil(avecMarge / pas) * pas : avecMarge;
+  }
+
   private xPour(index: number): number {
     const n = this.historique.length;
     return n <= 1 ? this.svgLarg / 2 : (index * this.svgLarg) / (n - 1);
   }
 
   private yPour(valeur: number): number {
-    const max = this.maxHistorique;
+    const plafond = this.plafondHistorique;
     const utile = this.svgHaut - this.margeHaut - this.margeBas;
-    if (max <= 0) return this.svgHaut - this.margeBas;
-    return this.margeHaut + (1 - valeur / max) * utile;
+    if (plafond <= 0) return this.svgHaut - this.margeBas;
+    return this.margeHaut + (1 - valeur / plafond) * utile;
   }
 
   /** Position horizontale d'un exercice, en pourcentage de la largeur. */
@@ -709,17 +752,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   /** Repères horizontaux et leur valeur, pour donner l'échelle. */
   get grilleHistorique(): { y: number; libelle: string }[] {
-    const max = this.maxHistorique;
-    if (max <= 0) return [];
+    // Les repères se posent sur le plafond, non sur le plus grand exercice :
+    // gradués sur le maximum, ils annonçaient une échelle qui s'arrêtait là où
+    // la courbe culminait, et le sommet paraissait tronqué.
+    const plafond = this.plafondHistorique;
+    if (plafond <= 0) return [];
 
     return [1, 0.66, 0.33, 0].map(part => ({
-      y: +this.yPour(max * part).toFixed(2),
-      libelle: this.formatCompact(max * part)
+      y: +this.yPour(plafond * part).toFixed(2),
+      libelle: this.formatCompact(plafond * part)
     }));
   }
 
   /**
-   * Trajectoire cible : 30 % sous l'empreinte du premier exercice collecté.
+   * Trajectoire cible : la moitié de l'empreinte du premier exercice collecté.
    *
    * <p>Elle est rendue à plat, au niveau à atteindre, plutôt qu'en pente vers
    * 2030 : l'axe s'arrête au dernier exercice connu, et prolonger le trait
@@ -729,12 +775,53 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const references = this.historique.filter(point => point.total > 0);
     if (references.length < 1) return null;
 
-    const valeur = references[0].total * 0.7;
+    // La cible est celle de 2030, et c'est la seule. Le graphique en portait
+    // deux pour cette année-là — un « −30 % » générique et le jalon SBTi
+    // « −50 % » — qui se contredisaient et dont les étiquettes se recouvraient.
+    // Deux objectifs pour un même millésime ne sont pas une redondance
+    // d'affichage : c'est une trajectoire dont on ne sait plus laquelle engage.
+    const valeur = references[0].total * (1 - DashboardComponent.CIBLE_2030_PCT / 100);
     return {
       valeur,
       y: +this.yPour(valeur).toFixed(2),
-      libelle: `Cible −30 % (2030) · ${this.formatCompact(valeur)}`
+      libelle: `Cible SBTi −${DashboardComponent.CIBLE_2030_PCT} % (2030) · ${this.formatCompact(valeur)}`
     };
+  }
+
+  /**
+   * Étiquettes des trajectoires, écartées pour rester lisibles.
+   *
+   * <p>Cible et jalons sont posés à l'ordonnée de leur trait. Deux trajectoires
+   * proches — un jalon à −25 % et une cible à −30 % ne sont séparés que de cinq
+   * points de l'échelle — y écrivaient leurs libellés l'un sur l'autre, et
+   * aucun des deux ne se lisait.</p>
+   *
+   * <p>L'écartement remonte les étiquettes du haut vers le haut, jamais vers le
+   * bas : une étiquette descendue passerait sous son propre trait et
+   * désignerait celui d'en dessous.</p>
+   */
+  get etiquettesHistorique(): { y: number; libelle: string; cible: boolean }[] {
+    const brutes: { y: number; libelle: string; cible: boolean }[] = [];
+
+    const cible = this.cibleHistorique;
+    if (cible) brutes.push({ y: cible.y, libelle: cible.libelle, cible: true });
+
+    for (const jalon of this.jalonsHistorique) {
+      brutes.push({ y: jalon.y, libelle: jalon.libelle, cible: false });
+    }
+
+    // Du bas vers le haut : chaque étiquette cède la place à la précédente.
+    brutes.sort((a, b) => b.y - a.y);
+
+    let plancher = Number.POSITIVE_INFINITY;
+    for (const etiquette of brutes) {
+      if (plancher - etiquette.y < DashboardComponent.ECART_MIN_ETIQUETTES) {
+        etiquette.y = plancher - DashboardComponent.ECART_MIN_ETIQUETTES;
+      }
+      plancher = etiquette.y;
+    }
+
+    return brutes;
   }
 
   /** Points de la courbe supérieure, marqués sur chaque exercice. */
@@ -770,9 +857,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * carte reste alors vide plutôt que d'annoncer une progression qui ne
    * mesurerait que l'avancement de la collecte.</p>
    */
+  /**
+   * L'exercice consulté est-il encore ouvert à la collecte ?
+   *
+   * <p>Le statut vient du référentiel des exercices, où il est tenu à jour.
+   * Le déduire de l'année civile serait faux : un exercice se clôture quand la
+   * collecte est arrêtée, pas au 31 décembre.</p>
+   */
+  get exerciceEnCours(): boolean {
+    const courant = this.pointCourant;
+    if (!courant) return false;
+
+    return this.annees.some(a => a.valeur === courant.annee && a.statut === 'EN_COURS');
+  }
+
+  /**
+   * Écart avec l'exercice précédent, quand la comparaison a un sens.
+   *
+   * <p>Un exercice encore ouvert n'est pas comparable : sa collecte est
+   * partielle par construction. Rapporter huit tonnes déjà saisies aux
+   * trente-deux mille de l'année close donnait « −100 % », un chiffre qui se
+   * lit comme un effondrement des émissions alors qu'il ne dit que l'avancement
+   * de la saisie. Un indicateur faux est pire qu'un indicateur absent : il est
+   * cité en comité.</p>
+   */
   get variationCarte(): { pct: number; precedent: number; hausse: boolean } | null {
     const courant = this.pointCourant;
     if (!courant || courant.total <= 0) return null;
+    if (this.exerciceEnCours) return null;
 
     const anterieurs = this.historique.filter(p => p.annee < courant.annee && p.total > 0);
     if (!anterieurs.length) return null;
@@ -782,6 +894,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!Number.isFinite(pct)) return null;
 
     return { pct, precedent: precedent.annee, hausse: pct >= 0 };
+  }
+
+  /**
+   * Pourquoi la variation n'est pas chiffrée, dit à la place du chiffre.
+   *
+   * <p>Un tiret sans explication laisse croire à une panne. Les deux causes
+   * appellent des lectures opposées : un exercice ouvert se comparera plus
+   * tard, un premier exercice ne se comparera jamais.</p>
+   */
+  get motifSansVariation(): string {
+    if (this.exerciceEnCours) {
+      return 'Collecte en cours — la comparaison attend la clôture';
+    }
+    return 'Aucun exercice antérieur collecté';
   }
 
   /** Scope majoritaire de l'exercice consulté, tel que la carte l'annonce. */
@@ -844,12 +970,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!references.length) return [];
 
     const base = references[0].total;
-    const maximum = this.maxHistorique;
+    const plafond = this.plafondHistorique;
 
-    return [
-      { annee: 2028, pct: 25 },
-      { annee: 2030, pct: 50 }
-    ]
+    // 2030 n'est plus un jalon : c'est la cible, tracée en pointillé et
+    // étiquetée par elle. L'y laisser rendait deux annotations pour la même
+    // année, l'une contredisant l'autre.
+    return [{ annee: 2028, pct: 25 }]
       .map(jalon => {
         const valeur = base * (1 - jalon.pct / 100);
         return {
@@ -860,7 +986,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           valeur
         };
       })
-      .filter(jalon => jalon.valeur <= maximum)
+      .filter(jalon => jalon.valeur <= plafond)
       .map(({ annee, pct, y, libelle }) => ({ annee, pct, y, libelle }));
   }
 
@@ -1214,6 +1340,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const courant = this.historique.find(p => p.annee === this.selectedAnnee);
     if (!courant || courant.total <= 0) return '';
 
+    // Même règle que la carte : un exercice ouvert n'est pas comparable, et
+    // annoncer une « baisse de 100 % » sur une collecte à peine commencée
+    // fabriquerait une bonne nouvelle qui n'existe pas.
+    if (this.exerciceEnCours) {
+      return `L'exercice ${courant.annee} est encore ouvert : la comparaison avec `
+        + 'l\'année précédente attend la clôture de la collecte.';
+    }
+
     const anterieurs = this.historique.filter(p => p.annee < courant.annee && p.total > 0);
     if (!anterieurs.length) return '';
 
@@ -1230,8 +1364,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       + `${precedent.annee}, ${lecture}.`;
   }
 
-  /** Flèche du bandeau d'analyse : elle suit le sens de la variation. */
+  /**
+   * Flèche du bandeau d'analyse : elle suit le sens de la variation.
+   *
+   * <p>Un exercice ouvert n'a pas de sens à suivre : la flèche descendante y
+   * annoncerait une baisse que rien n'établit.</p>
+   */
   get iconeVariation(): string {
+    if (this.exerciceEnCours) return '⏳';
     return this.analyseVariation.includes('hausse') ? '📈' : '📉';
   }
 
