@@ -28,6 +28,7 @@ import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -799,6 +800,12 @@ export class TransformationProduitsComponent implements OnInit {
         }
 
         const horodatage = this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? '';
+        // Le classeur ne documente pas de periode : la ligne recoit celle de
+        // l'exercice consulte au moment de l'import. C'est une decision prise
+        // une fois et inscrite sur la ligne, non un repli calcule a chaque
+        // affichage — qui, lui, ferait remonter la meme ligne sur tous les
+        // millesimes.
+        const periodeImport = periodeDeLExercice(this.exerciceActif);
         let replis = 0;
         let sansFacteur = 0;
         let procedesInconnus = 0;
@@ -839,8 +846,8 @@ export class TransformationProduitsComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionProcede(brute.grandeur, facteur.valeur),
-            dateDebut: '',
-            dateFin: '',
+            dateDebut: periodeImport.dateDebut,
+            dateFin: periodeImport.dateFin,
             societeId: this.societeActiveId,
             creeLe: horodatage
           };

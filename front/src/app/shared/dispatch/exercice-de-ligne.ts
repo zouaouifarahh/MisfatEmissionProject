@@ -109,3 +109,22 @@ export function exerciceRetenu(
 ): number | null {
   return exerciceDeCellule(dateLigne) ?? exerciceDuClasseur ?? exerciceConsulte;
 }
+
+/**
+ * Période couvrant un exercice entier, au format ISO.
+ *
+ * <p>Posée sur une ligne importée dont le classeur ne documente aucune date.
+ * L'exercice retenu est celui que l'exploitant consulte au moment de l'import :
+ * c'est une décision, prise une fois et inscrite sur la ligne, et non un repli
+ * calculé à l'affichage. La différence n'est pas théorique — un repli
+ * d'affichage ferait remonter la même ligne sur chaque millésime consulté, et
+ * deux exercices cesseraient d'être comparables.</p>
+ *
+ * <p>Sans exercice consulté — la vue pluriannuelle —, aucune période n'est
+ * posée : la ligne retombera sur sa date de création, faute de mieux.</p>
+ */
+export function periodeDeLExercice(exercice: number | null): { dateDebut: string; dateFin: string } {
+  if (exercice === null) return { dateDebut: '', dateFin: '' };
+
+  return { dateDebut: `${exercice}-01-01`, dateFin: `${exercice}-12-31` };
+}

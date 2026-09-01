@@ -82,12 +82,37 @@ export function memeEtablissement(gauche: string | null | undefined,
   return a.join('') === b.join('');
 }
 
-/** Année d'une date au format ISO `AAAA-MM-JJ` ; `null` si la date manque. */
+/**
+ * Année portée par une date, quelle que soit son écriture.
+ *
+ * <p>Deux formes cohabitent dans les données. Les périodes saisies sont en
+ * écriture ISO, l'année en tête — c'est ce que rend un champ `type="date"`. Les
+ * horodatages de création, eux, sont posés par le pipe `date` d'Angular en
+ * écriture française : « 15/03/2026 09:12 », l'année en troisième position.</p>
+ *
+ * <p>Seule la première était lue. Le repli documenté — « à défaut de période, la
+ * date de création sert de rattachement » — ne fonctionnait donc pour aucune
+ * ligne : toutes portent un horodatage français. Une ligne sans période n'avait
+ * aucun exercice et se trouvait écartée de <strong>tout</strong> bilan daté,
+ * quel que soit le millésime consulté. C'est ce qui laissait des écrans vides
+ * sous une bannière annonçant des milliers de lignes.</p>
+ *
+ * @returns l'année, ou `null` si la valeur n'en documente aucune.
+ */
 export function anneeDeDate(valeur: unknown): number | null {
-  const trouve = String(valeur ?? '').trim().match(/^(\d{4})/);
-  if (!trouve) return null;
-  const annee = Number(trouve[1]);
-  return annee >= 1900 && annee <= 2200 ? annee : null;
+  const texte = String(valeur ?? '').trim();
+  if (!texte) return null;
+
+  // Écriture ISO : l'année ouvre la chaîne.
+  const iso = /^(\d{4})/.exec(texte);
+
+  // Écriture française : l'année vient après le jour et le mois. Le millésime
+  // sur deux chiffres n'est pas repris — « 15/03/26 » se lirait aussi bien
+  // 1926 que 2026, et trancher daterait la ligne au jugé.
+  const francaise = /^\d{1,2}[/-]\d{1,2}[/-](\d{4})\b/.exec(texte);
+
+  const annee = Number(iso?.[1] ?? francaise?.[1]);
+  return Number.isFinite(annee) && annee >= 1900 && annee <= 2200 ? annee : null;
 }
 
 /**

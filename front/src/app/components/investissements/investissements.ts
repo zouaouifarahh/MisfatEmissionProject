@@ -36,6 +36,7 @@ import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
 
 /** Immobilisation valorisée, catégorie 15 du Scope 3. */
 export interface EmissionInvestissement {
@@ -788,6 +789,12 @@ export class InvestissementsComponent implements OnInit {
         }
 
         const horodatage = this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? '';
+        // Le classeur ne documente pas de periode : la ligne recoit celle de
+        // l'exercice consulte au moment de l'import. C'est une decision prise
+        // une fois et inscrite sur la ligne, non un repli calcule a chaque
+        // affichage — qui, lui, ferait remonter la meme ligne sur tous les
+        // millesimes.
+        const periodeImport = periodeDeLExercice(this.exerciceActif);
 
         const ajoutees: EmissionInvestissement[] = lecture.lignes.map((ligne, index) => {
           // La référence carbone du classeur prime sur la catégorie : elle
@@ -819,8 +826,8 @@ export class InvestissementsComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionCapex(ligne.montant, facteur.valeur),
-            dateDebut: '',
-            dateFin: '',
+            dateDebut: periodeImport.dateDebut,
+            dateFin: periodeImport.dateFin,
             societeId: this.societeActiveId,
             creeLe: horodatage
           };
