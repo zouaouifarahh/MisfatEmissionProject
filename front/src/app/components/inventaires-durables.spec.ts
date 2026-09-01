@@ -5,32 +5,28 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+import { InvestissementsComponent } from './investissements/investissements';
 import { BiensEquipementComponent } from './biens-equipement/biens-equipement';
 import { ActifsLouesAmontComponent } from './actifs-loues-amont/actifs-loues-amont';
 import { ActifsLouesAvalComponent } from './actifs-loues-aval/actifs-loues-aval';
 import { CLES_PAR_CATEGORIE } from '../shared/dispatch/mesures-locales';
 
 /**
- * Inventaires durables : tous les exercices, toujours.
+ * Étanchéité de l'exercice sur les écrans d'inventaire.
  *
- * <p>Quatre catégories ne tiennent pas un flux annuel mais un patrimoine : les
- * investissements, les biens d'équipement, et les actifs loués en amont comme
- * en aval. Un matériel acquis en 2019 reste en service en 2026 ; un bail court
- * d'une année sur l'autre. Les masquer parce que l'en-tête affiche un autre
- * millésime revient à nier qu'on les détient.</p>
+ * <p>Ces quatre écrans — investissements, biens d'équipement, actifs loués en
+ * amont et en aval — ont brièvement montré leur inventaire entier, quel que soit
+ * l'exercice de l'en-tête. L'exploitante a tranché : l'étanchéité par année vaut
+ * pour les quinze catégories comme pour ces quatre-là, sans exception.</p>
  *
- * <p>Les catégories de flux — achats, transport, déchets, déplacements — gardent
- * leur cloisonnement annuel : une consommation appartient à l'exercice qu'elle
- * documente, et l'y rattacher est le fondement du bilan.</p>
- *
- * <p>Conséquence assumée : le total de ces quatre écrans ne s'accorde plus avec
- * celui du tableau de bord pour un exercice donné. Les deux chiffres sont
- * justes, ils ne répondent pas à la même question.</p>
+ * <p>Ces bancs verrouillent le retour à la règle commune. Ils existent parce que
+ * l'écart a eu lieu : sans eux, rien n'empêcherait de le refaire.</p>
  */
-describe('Inventaires durables — indépendants de l\'exercice consulté', () => {
+describe('Écrans d\'inventaire — étanchéité de l\'exercice', () => {
 
-  /** Écrans levés, avec la clé de stockage que chacun relit. */
-  const DURABLES: { nom: string; composant: Type<unknown>; cle: string }[] = [
+  const ECRANS: { nom: string; composant: Type<unknown>; cle: string }[] = [
+    { nom: 'C15 — investissements', composant: InvestissementsComponent,
+      cle: CLES_PAR_CATEGORIE['investissements'] },
     { nom: 'C2 — biens d\'équipement', composant: BiensEquipementComponent,
       cle: CLES_PAR_CATEGORIE['biens-equipement'] },
     { nom: 'C8 — actifs loués amont', composant: ActifsLouesAmontComponent,
@@ -39,9 +35,9 @@ describe('Inventaires durables — indépendants de l\'exercice consulté', () =
       cle: CLES_PAR_CATEGORIE['actifs-loues-aval'] }
   ];
 
-  /** Quatre lignes, quatre exercices : une seule correspond à celui consulté. */
-  const inventaire = () => [2019, 2024, 2025, 2026].map((annee, i) => ({
-    id: i + 1, reference: 'ACT' + i, designation: 'Actif ' + i,
+  /** Une ligne par exercice : le tri doit n'en retenir qu'une à la fois. */
+  const inventaire = () => [2024, 2025, 2026].map((annee, i) => ({
+    id: i + 1, reference: 'ACT' + i, numeroImmo: 'IMMO' + i, designation: 'Actif ' + i,
     quantite: 100, montant: 100, facteur: 0.25, emissionCalculee: 25,
     dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31`, creeLe: ''
   }));
@@ -53,7 +49,7 @@ describe('Inventaires durables — indépendants de l\'exercice consulté', () =
     fixtures = [];
   });
 
-  for (const ecran of DURABLES) {
+  for (const ecran of ECRANS) {
     describe(ecran.nom, () => {
 
       beforeEach(async () => {
@@ -82,30 +78,37 @@ describe('Inventaires durables — indépendants de l\'exercice consulté', () =
         return fixture.componentInstance as Record<string, unknown>;
       }
 
-      it('retient l\'inventaire entier, quel que soit l\'exercice consulté', () => {
+      it('ne retient que les lignes de l\'exercice consulté', () => {
         const composant = monter();
 
-        for (const annee of [2019, 2024, 2025, 2026]) {
+        for (const annee of [2024, 2025, 2026]) {
           composant['exerciceActif'] = annee;
-          expect((composant['lignesDuPerimetre'] as unknown[]).length).toBe(4);
+          expect((composant['lignesDuPerimetre'] as unknown[]).length).toBe(1);
         }
       });
 
-      it('ne parle plus d\'exercice sous le tableau', () => {
+      it('ne rend rien sur un exercice qu\'aucune ligne ne documente', () => {
         const composant = monter();
-        composant['exerciceActif'] = 2026;
+        composant['exerciceActif'] = 2019;
 
-        expect(String(composant['messagePerimetre'])).not.toContain('autre exercice');
+        expect(composant['lignesDuPerimetre']).toHaveLength(0);
       });
 
-      it('passe le même périmètre au panneau des mesures serveur', () => {
-        // Sans cela, le tableau montrerait tout l'inventaire pendant que le
-        // panneau du serveur n'en montrerait qu'une annee : deux moities d'un
-        // meme ecran en desaccord.
+      it('rend tout en vue pluriannuelle', () => {
+        // « Tous les exercices » porte `null` : c'est le seul chemin vers
+        // l'inventaire complet, et il est explicite.
         const composant = monter();
-        composant['exerciceActif'] = 2026;
+        composant['exerciceActif'] = null;
 
-        expect(composant['exercicePourPanneau']).toBeNull();
+        expect((composant['lignesDuPerimetre'] as unknown[]).length).toBe(3);
+      });
+
+      it('n\'annonce plus rien sous le tableau', () => {
+        // Le cadenas est retire : le filtre de l'en-tete s'applique
+        // naturellement, sans message d'avertissement.
+        const composant = monter();
+
+        expect(composant['messagePerimetre']).toBeUndefined();
       });
     });
   }

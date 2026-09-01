@@ -193,8 +193,6 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
-      <!-- Ce que le cloisonnement a mis de cote. Un tableau qui retrecit sans
-           explication se lit comme une perte de donnees. -->
       <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
            comptait deja ; cet ecran les niait. -->
       <!-- Aucun exercice imposé : l'inventaire des immobilisations est un
@@ -203,15 +201,9 @@
            reviendrait à nier qu'on le possède. -->
       <app-mesures-serveur
         [numeroGhg]="15"
-        [exercice]="exercicePourPanneau"
+        [exercice]="exerciceActif"
         [organisation]="perimetreAffiche"></app-mesures-serveur>
 
-      <p class="note-perimetre" *ngIf="messagePerimetre"
-         style="margin: 0 0 10px; padding: 9px 13px; border-radius: 8px;
-                background: #F4F6F9; border: 1px solid #DFE4EC;
-                color: #4A5568; font-size: 12.5px; line-height: 1.5;">
-        <span aria-hidden="true">🔒</span> {{ messagePerimetre }}
-      </p>
       <table class="data-table">
         <thead>
           <tr>

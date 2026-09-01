@@ -33,7 +33,7 @@ import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { periodeLisible } from '../../shared/ui/periode-lisible';
 import { PerimetreOrganisation } from '../../core/perimetre';
 import {
-  perimetreOrganisation, trierParPerimetre, messagePerimetre
+  perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
@@ -418,27 +418,10 @@ export class InvestissementsComponent implements OnInit {
   /** Exercice consulte, impose au tableau comme au tableau de bord. */
   exerciceActif: number | null = null;
 
-  /**
-   * Exercice imposé au tableau : aucun.
-   *
-   * <p>Cet écran tient l'inventaire des immobilisations, qui n'est pas un
-   * relevé d'exercice mais un patrimoine : un actif acquis en 2019 reste
-   * détenu en 2026, et le masquer parce que l'en-tête affiche un autre
-   * millésime revient à nier qu'on le possède. Le cloisonnement par exercice
-   * est donc levé ici, sur décision de l'exploitante, et sur ce seul écran.</p>
-   *
-   * <p>Conséquence assumée, et qu'il faut connaître : le total affiché sur cet
-   * écran ne s'accorde plus avec celui du tableau de bord pour un exercice
-   * donné. Le tableau de bord, lui, continue de ventiler chaque ligne sur
-   * l'année qu'elle documente.</p>
-   */
-  private readonly exercicePourLeTableau: number | null = null;
 
   /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
   get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
 
-  /** Exercice passé au panneau des mesures serveur : aucun, comme au tableau. */
-  get exercicePourPanneau(): number | null { return this.exercicePourLeTableau; }
 
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
@@ -447,23 +430,11 @@ export class InvestissementsComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.toutesLignes, this.exercicePourLeTableau, this.perimetreActif);
+    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
   get lignesDuPerimetre() { return this.triPerimetre.retenues; }
-
-  /**
-   * Ce que le perimetre a mis de cote, dit sous le tableau.
-   *
-   * <p>Un tableau qui rétrécit sans explication se lit comme une perte. Le
-   * cadenas ne parlera plus d'exercice — l'inventaire les couvre tous — mais il
-   * reste pour la société : une ligne du Maroc écartée d'une vue Tunisie doit
-   * se dire, faute de quoi le tri redeviendrait silencieux.</p>
-   */
-  get messagePerimetre(): string {
-    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exercicePourLeTableau);
-  }
 
   get emissionsFiltrees(): EmissionInvestissement[] {
     const terme = this.rechercheTexte.trim().toLowerCase();

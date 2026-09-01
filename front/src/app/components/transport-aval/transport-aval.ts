@@ -29,7 +29,7 @@ import {
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { PerimetreOrganisation } from '../../core/perimetre';
 import {
-  perimetreOrganisation, trierParPerimetre, messagePerimetre
+  perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
@@ -366,15 +366,6 @@ export class TransportAvalComponent implements OnInit {
 
   /** Lignes du perimetre consulte : societe ET exercice. */
   get lignesDuPerimetre() { return this.triPerimetre.retenues; }
-
-  /**
-   * Ce que le perimetre a mis de cote, dit sous le tableau.
-   *
-   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
-   */
-  get messagePerimetre(): string {
-    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
-  }
 
   get emissionsFiltrees(): EmissionAval[] {
     const terme = this.rechercheTexte.trim().toLowerCase();

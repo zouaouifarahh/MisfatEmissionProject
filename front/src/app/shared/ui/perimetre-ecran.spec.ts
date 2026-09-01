@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-  perimetreOrganisation, trierParPerimetre, messagePerimetre
+  perimetreOrganisation, trierParPerimetre
 } from './perimetre-ecran';
 
 /**
@@ -137,32 +137,6 @@ describe('Tableaux de mesure — cloisonnement société et exercice', () => {
       const tri = trierParPerimetre([ligne({})], 2025, seule);
 
       expect(tri.retenues).toHaveLength(1);
-    });
-  });
-
-  describe('compte rendu', () => {
-
-    it('dit ce qui a été écarté et pourquoi', () => {
-      const tri = trierParPerimetre(
-        [ligne({ societeId: 2 }), ligne({ societeId: 1, dateDebut: '2026-01-01', dateFin: '' })],
-        2025, TUNISIE);
-
-      const message = messagePerimetre(tri, 'MISFAT TUNISIE', 2025);
-      expect(message).toContain('1 ligne(s) relèvent d\'une autre société');
-      expect(message).toContain('autre exercice que 2025');
-    });
-
-    it('signale les lignes qu\'il n\'a pas pu rattacher', () => {
-      const tri = trierParPerimetre([ligne({})], 2025, TUNISIE);
-
-      expect(messagePerimetre(tri, 'MISFAT TUNISIE', 2025))
-        .toContain('ne portent aucune société');
-    });
-
-    it('se tait quand rien n\'a été écarté', () => {
-      const tri = trierParPerimetre([ligne({ societeId: 1 })], 2025, TUNISIE);
-
-      expect(messagePerimetre(tri, 'MISFAT TUNISIE', 2025)).toBe('');
     });
   });
 });

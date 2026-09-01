@@ -79,8 +79,6 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
-      <!-- Ce que le cloisonnement a mis de cote. Un tableau qui retrecit sans
-           explication se lit comme une perte de donnees. -->
       <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
            comptait deja ; cet ecran les niait. -->
       <app-mesures-serveur
@@ -88,12 +86,6 @@
         [exercice]="exerciceActif"
         [organisation]="perimetreAffiche"></app-mesures-serveur>
 
-      <p class="note-perimetre" *ngIf="messagePerimetre"
-         style="margin: 0 0 10px; padding: 9px 13px; border-radius: 8px;
-                background: #F4F6F9; border: 1px solid #DFE4EC;
-                color: #4A5568; font-size: 12.5px; line-height: 1.5;">
-        <span aria-hidden="true">🔒</span> {{ messagePerimetre }}
-      </p>
       <table class="data-table">
         <thead>
           <tr>
@@ -115,7 +107,7 @@
         </thead>
 
         <tbody>
-          <tr *ngFor="let item of emissionsFiltrees">
+          <tr *ngFor="let item of emissionsPage">
             <td>{{ item.etablissement }}</td>
             <td>
               <span class="type-badge" *ngIf="item.sourceData"
@@ -169,6 +161,29 @@
           </tr>
         </tfoot>
       </table>
+    </div>
+
+    <!-- Pagination : cet ecran porte cent onze mille lignes d'achats. Les
+         monter toutes dans le document figeait la page avant d'avoir fini. -->
+    <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
+      <span class="pagination-info">
+        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(1)">«</button>
+        <button class="btn-page" [disabled]="pageCourante <= 1" (click)="allerPage(pageCourante - 1)">‹</button>
+        <span class="page-courante">Page {{ pageCourante }} / {{ nombrePages }}</span>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(pageCourante + 1)">›</button>
+        <button class="btn-page" [disabled]="pageCourante >= nombrePages" (click)="allerPage(nombrePages)">»</button>
+      </div>
+
+      <label class="pagination-taille">
+        Lignes par page
+        <select [(ngModel)]="taillePage" (ngModelChange)="changerTaillePage()">
+          <option *ngFor="let t of taillesPage" [ngValue]="t">{{ t }}</option>
+        </select>
+      </label>
     </div>
   </div>
 

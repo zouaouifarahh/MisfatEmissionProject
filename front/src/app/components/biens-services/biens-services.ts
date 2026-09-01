@@ -16,7 +16,7 @@ import { lignesVentileesPour, adapterVersAchat } from '../../shared/dispatch/ada
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { PerimetreOrganisation } from '../../core/perimetre';
 import {
-  perimetreOrganisation, trierParPerimetre, messagePerimetre
+  perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 
@@ -479,15 +479,6 @@ export class BiensServicesComponent implements OnInit {
 
   /** Lignes du perimetre consulte : societe ET exercice. */
   get lignesDuPerimetre() { return this.triPerimetre.retenues; }
-
-  /**
-   * Ce que le perimetre a mis de cote, dit sous le tableau.
-   *
-   * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
-   */
-  get messagePerimetre(): string {
-    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
-  }
 
   get emissionsFiltrees(): EmissionAchat[] {
     const terme = this.rechercheTexte.trim().toLowerCase();
@@ -1005,6 +996,54 @@ export class BiensServicesComponent implements OnInit {
    * capté pour que le tableau et les indicateurs se recalculent ensemble.</p>
    */
   onFiltreChange(): void {
+    // Un filtre resserré peut rendre la page courante vide : on revient au
+    // début plutôt que d'afficher un tableau blanc sur une page qui n'existe
+    // plus.
+    this.pageCourante = 1;
+  }
+
+  // ---------- Pagination ----------
+
+  /**
+   * Tailles de page proposées.
+   *
+   * <p>Cet écran porte le plus gros volume de l'application — cent onze mille
+   * lignes d'achats sur un exercice. Il les rendait toutes d'un coup : autant
+   * de lignes de tableau dans le document, que le navigateur doit disposer,
+   * peindre et garder en mémoire. La page se figeait avant d'avoir fini.</p>
+   */
+  readonly taillesPage = [20, 50, 100];
+  taillePage = 50;
+  pageCourante = 1;
+
+  get nombrePages(): number {
+    return Math.max(1, Math.ceil(this.emissionsFiltrees.length / this.taillePage));
+  }
+
+  /** Lignes de la page courante, seules montées dans le document. */
+  get emissionsPage(): EmissionAchat[] {
+    const liste = this.emissionsFiltrees;
+    const page = Math.min(this.pageCourante, this.nombrePages);
+    const debut = (page - 1) * this.taillePage;
+    return liste.slice(debut, debut + this.taillePage);
+  }
+
+  get premierIndexPage(): number {
+    return this.emissionsFiltrees.length ? (this.pageCourante - 1) * this.taillePage + 1 : 0;
+  }
+
+  get dernierIndexPage(): number {
+    return Math.min(this.pageCourante * this.taillePage, this.emissionsFiltrees.length);
+  }
+
+  allerPage(page: number): void {
+    this.pageCourante = Math.min(Math.max(1, page), this.nombrePages);
+    this.cdr.detectChanges();
+  }
+
+  changerTaillePage(): void {
+    this.pageCourante = 1;
+    this.cdr.detectChanges();
   }
 
 
