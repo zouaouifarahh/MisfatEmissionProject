@@ -439,6 +439,22 @@ export class BiensEquipementComponent implements OnInit {
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
   /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
+  /**
+   * Exercice impose au tableau : aucun.
+   *
+   * <p>Les biens d'equipement sont des immobilisations : un materiel acquis en 2019 reste en service, et un inventaire ne se lit pas exercice par exercice.
+   * Le masquer parce que l'en-tete affiche un autre millesime reviendrait a
+   * nier qu'on le detient. Le cloisonnement par exercice est donc leve ici,
+   * sur decision de l'exploitante.</p>
+   *
+   * <p>Consequence assumee : le total de cet ecran ne s'accorde plus avec
+   * celui du tableau de bord pour un exercice donne. Le tableau de bord, lui,
+   * continue de ventiler chaque ligne sur l'annee qu'elle documente.</p>
+   */
+  private readonly exercicePourLeTableau: number | null = null;
+
+  /** Exercice passe au panneau des mesures serveur : aucun, comme au tableau. */
+  get exercicePourPanneau(): number | null { return this.exercicePourLeTableau; }
   get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
@@ -447,7 +463,7 @@ export class BiensEquipementComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.listeEmissions, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre(this.listeEmissions, this.exercicePourLeTableau, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -459,7 +475,7 @@ export class BiensEquipementComponent implements OnInit {
    * <p>Un tableau qui retrecit sans explication se lit comme une perte.</p>
    */
   get messagePerimetre(): string {
-    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exerciceActif);
+    return messagePerimetre(this.triPerimetre, this.societeActiveLabel, this.exercicePourLeTableau);
   }
 
   get emissionsFiltrees(): EmissionBienEquipement[] {
