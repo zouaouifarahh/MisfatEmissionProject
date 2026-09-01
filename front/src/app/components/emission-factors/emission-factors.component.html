@@ -194,23 +194,42 @@
         </label>
         <label class="field">
           <span>Unité <em>*</em></span>
-          <input type="text" placeholder="L, kg, kWh, Km…" [(ngModel)]="nouveau.unit" name="unit">
+          <!-- Suggestions plutôt que menu fermé : le référentiel documente des
+               grandeurs que la liste n'épuise pas — au mètre linéaire, à la
+               pièce — et les interdire déciderait aujourd'hui de ce qu'il
+               contiendra demain. -->
+          <input type="text" list="unites-proposees"
+                 [placeholder]="nouveau.dataType === 'MONETAIRE' ? 'TND, EUR…' : 'kg, L, kWh, km…'"
+                 [(ngModel)]="nouveau.unit" name="unit">
+          <datalist id="unites-proposees">
+            <option *ngFor="let u of unitesProposees(nouveau.dataType)" [value]="u"></option>
+          </datalist>
         </label>
       </div>
 
       <div class="field-row">
         <label class="field">
           <span>Type de donnée</span>
-          <select [(ngModel)]="nouveau.dataType" name="dataType">
+          <select [(ngModel)]="nouveau.dataType" name="dataType"
+                  (ngModelChange)="onTypeDonneeChange()">
             <option value="PHYSIQUE">Physique</option>
             <option value="MONETAIRE">Monétaire</option>
           </select>
         </label>
         <label class="field" *ngIf="nouveau.dataType === 'MONETAIRE'">
           <span>Devise</span>
-          <input type="text" placeholder="TND, EUR…" [(ngModel)]="nouveau.currency" name="currency">
+          <select [(ngModel)]="nouveau.currency" name="currency"
+                  (ngModelChange)="onDeviseChange()">
+            <option *ngFor="let d of unitesMonetaires" [value]="d">{{ d }}</option>
+          </select>
         </label>
       </div>
+
+      <!-- Un facteur monétaire libellé « kg », ou un facteur physique libellé
+           « TND », multiplie une quantité par un ratio qui ne la documente pas.
+           Le résultat n'a alors aucune borne : c'est ainsi qu'un poste a pesé
+           quinze millions de tonnes sur un exercice. -->
+      <p class="champ-alerte" *ngIf="alerteUnite">⚠️ {{ alerteUnite }}</p>
 
       <div class="field-row">
         <label class="field">

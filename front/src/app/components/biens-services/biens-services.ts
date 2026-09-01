@@ -19,6 +19,7 @@ import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
 
 /** Ligne d'achat de bien ou service, catégorie 1 du Scope 3. */
 export interface EmissionAchat {
@@ -829,6 +830,12 @@ export class BiensServicesComponent implements OnInit {
         const sansFacteur = new Set<string>();
         let ignorees = 0;
 
+        // Période de repli pour les lignes que le classeur ne date pas. Elle est
+        // décidée ici, une fois, et inscrite sur chaque ligne : un repli calculé
+        // à l'affichage ferait au contraire remonter la même ligne sur tous les
+        // millésimes consultés.
+        const periodeImport = periodeDeLExercice(this.exerciceActif);
+
         lignes.forEach((ligne, index) => {
           const valeur = (cle: string) => {
             const trouve = Object.keys(ligne).find(k => this.normaliser(k) === this.normaliser(cle));
@@ -876,8 +883,14 @@ export class BiensServicesComponent implements OnInit {
             unite: monetaire
               ? (String(valeur('Devise') ?? this.deviseActive).trim() || this.deviseActive)
               : (String(valeur('Unité') ?? facteur.unit).trim() || facteur.unit),
-            dateDebut: this.texteDate(valeur('Date debut')),
-            dateFin: this.texteDate(valeur('Date fin')),
+            // La colonne de date prime ; à défaut, la ligne reçoit la période de
+            // l'exercice consulté au moment de l'import. Sans ce repli, elle
+            // n'avait aucune période et retombait sur sa date de création —
+            // donc sur l'année de l'import. Un export d'achats 2025 versé en
+            // 2026 devenait invisible pour qui consulte 2025, alors même que
+            // l'import venait d'annoncer trente-sept mille lignes.
+            dateDebut: this.texteDate(valeur('Date debut')) || periodeImport.dateDebut,
+            dateFin: this.texteDate(valeur('Date fin')) || periodeImport.dateFin,
             emissionCalculee: quantite * facteur.factorValue,
             hypothese: 'Réelle',
             societeId: this.societeActiveId,

@@ -7,6 +7,10 @@ import {
   ReferentialService, FactorRow, CategoryWithSources, SourceSansFacteur, aplatirEnLignes
 } from '../../services/referential.service';
 import { OriginBadgeComponent } from '../../shared/origin-badge/origin-badge.component';
+import {
+  UNITES_MONETAIRES, unitesProposees, uniteCoherente, facteurPlausible,
+  FACTEUR_MONETAIRE_MAX
+} from '../../shared/ui/unites-mesure';
 
 /**
  * Référentiel des facteurs d'émission : recherche, filtres, pagination et
@@ -61,6 +65,61 @@ export class EmissionFactorsComponent implements OnInit {
     /** Validité telle que publiée : « Current », « From 2024-01-01 »… */
     validityLabel: ''
   };
+
+  /** Unités suggérées, selon que le facteur est physique ou monétaire. */
+  readonly unitesProposees = unitesProposees;
+
+  /** Devises admises comme unité d'un facteur monétaire. */
+  readonly unitesMonetaires = UNITES_MONETAIRES;
+
+  /**
+   * Ce qui cloche dans le couple unité / type de donnée, ou la chaîne vide.
+   *
+   * <p>Le champ d'unité était libre : rien n'empêchait d'enregistrer un facteur
+   * monétaire libellé « kg ». Le calcul multipliait alors un montant par un
+   * ratio qui documente une masse, et le résultat n'avait aucune borne — c'est
+   * ainsi qu'un poste a pesé quinze millions de tonnes sur un exercice.</p>
+   *
+   * <p>L'alerte avertit sans bloquer : elle nomme ce qui ne va pas et laisse
+   * l'exploitant décider. Un référentiel n'a pas à refuser une saisie qu'il ne
+   * comprend pas ; il doit dire qu'il ne la comprend pas.</p>
+   */
+  get alerteUnite(): string {
+    const { unit, dataType, factorValue } = this.nouveau;
+    if (!unit) return '';
+
+    if (!uniteCoherente(unit, dataType)) {
+      return dataType === 'MONETAIRE'
+        ? `« ${unit} » n'est pas une devise : un facteur monétaire se libelle en TND, EUR, USD…`
+        : `« ${unit} » est une devise, mais ce facteur est déclaré physique.`;
+    }
+
+    if (factorValue !== null && !facteurPlausible(factorValue, dataType)) {
+      return `Un facteur monétaire au-delà de ${FACTEUR_MONETAIRE_MAX} kgCO₂e par unité de `
+        + `devise ne correspond à aucune base publiée : vérifiez la valeur.`;
+    }
+
+    return '';
+  }
+
+  /**
+   * Accorde l'unité au type de donnée quand celui-ci change.
+   *
+   * <p>Passer un facteur en monétaire sans toucher à son unité laissait « kg »
+   * sur un ratio par dinar. L'unité suit donc la devise, seule unité qu'un
+   * facteur monétaire puisse porter.</p>
+   */
+  onTypeDonneeChange(): void {
+    if (this.nouveau.dataType !== 'MONETAIRE') return;
+
+    if (!this.nouveau.currency) this.nouveau.currency = UNITES_MONETAIRES[0];
+    this.nouveau.unit = this.nouveau.currency;
+  }
+
+  /** La devise fait l'unité : les deux ne peuvent pas diverger. */
+  onDeviseChange(): void {
+    if (this.nouveau.dataType === 'MONETAIRE') this.nouveau.unit = this.nouveau.currency;
+  }
 
   /**
    * Bases documentaires déjà présentes dans le référentiel.
