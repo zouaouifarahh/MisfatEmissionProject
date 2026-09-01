@@ -283,6 +283,28 @@ describe('DashboardComponent — historique pluriannuel', () => {
       expect(composant.motifSansVariation).toContain('Collecte en cours');
     });
 
+    it('tient l\'annee civile en cours pour ouverte, meme declaree close', () => {
+      // La base declare « CLOTUREE » sur tous ses exercices, l'annee courante
+      // comprise. Sans ce garde-fou, la carte comparait les quelques tonnes
+      // deja saisies au total de l'annee precedente et annoncait « −100 % »,
+      // une chute qui n'a jamais eu lieu.
+      const fixture = monter();
+      const composant = fixture.componentInstance;
+      const enCours = new Date().getFullYear();
+
+      composant.annees = [{ id: 9, valeur: enCours, statut: 'CLOTUREE' }];
+      composant.historique = [
+        { annee: enCours - 1, scope1: 0, scope2: 0, scope3: 120, total: 120, h1: 0, h2: 0, h3: 0 },
+        { annee: enCours, scope1: 0, scope2: 0, scope3: 8, total: 8, h1: 0, h2: 0, h3: 0 }
+      ];
+      composant.choisirAnnee(enCours);
+      fixture.detectChanges();
+
+      expect(composant.exerciceEnCours).toBe(true);
+      expect(composant.variationCarte).toBeNull();
+      expect(composant.motifSansVariation).toContain('Collecte en cours');
+    });
+
     it('tient l\'exercice pour ouvert tant que son statut est inconnu', () => {
       // Le referentiel des exercices repond apres le premier rendu. Tant qu'il
       // se tait, chiffrer une variation revient a comparer a une annee dont on

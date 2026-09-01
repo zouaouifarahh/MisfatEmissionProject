@@ -612,6 +612,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }));
 
       this.chargementHistorique = false;
+
+      // Relevé posé ici, et non dans la fusion des mesures d'écran : celle-ci
+      // sort par le haut quand aucune saisie n'est retenue, et la trace ne
+      // s'exécutait alors jamais — précisément sur le périmètre où l'on
+      // cherchait à comprendre l'échelle. Un diagnostic qui se tait quand la
+      // donnée manque ne diagnostique rien.
+      if (isDevMode()) {
+        console.log('[dashboard] Echelle du graphique :', {
+          exercices: this.historique.map(p => ({
+            annee: p.annee, total: Math.round(p.total),
+            s1: Math.round(p.scope1), s2: Math.round(p.scope2), s3: Math.round(p.scope3)
+          })),
+          maximum: Math.round(this.maxHistorique),
+          plafondAxeY: Math.round(this.plafondHistorique),
+          margeAppliquee: DashboardComponent.MARGE_ECHELLE,
+          exerciceEnCours: this.exerciceEnCours,
+          statutsConnus: this.annees.map(a => `${a.valeur}:${a.statut}`)
+        });
+      }
+
       this.cdr.markForCheck();
     });
   }
@@ -898,15 +918,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const courant = this.pointCourant;
     if (!courant) return false;
 
+    // L'année civile en cours ne peut pas être soldée, quoi qu'en dise le
+    // référentiel : il reste des mois à collecter. Ce n'est pas une déduction
+    // de calendrier — un exercice révolu peut rester ouvert longtemps —, c'est
+    // l'inverse, et il est sûr. La base déclare ici « CLOTUREE » sur tous ses
+    // exercices, 2026 compris : sans ce garde-fou, la carte comparait huit
+    // tonnes déjà saisies aux seize mille de l'année précédente et annonçait
+    // « −100 % », une chute qui n'a jamais eu lieu.
+    if (courant.annee >= new Date().getFullYear()) return true;
+
     const declare = this.annees.find(a => a.valeur === courant.annee);
 
-    // Statut inconnu — le référentiel des exercices n'a pas encore répondu, ou
-    // n'a pas répondu du tout : l'exercice est tenu pour ouvert. C'est le sens
-    // du doute. Le tenir pour clos ferait chiffrer une variation contre une
-    // année dont on ignore si la collecte est finie, et c'est précisément le
-    // « −100 % » qu'on cherche à ne plus afficher — il apparaissait le temps
-    // que la liste des exercices revienne, et restait pour de bon si l'appel
-    // échouait.
+    // Statut inconnu — le référentiel n'a pas encore répondu, ou n'a pas
+    // répondu du tout : l'exercice est tenu pour ouvert. C'est le sens du
+    // doute, et un indicateur absent vaut mieux qu'un indicateur faux.
     if (!declare) return true;
 
     return declare.statut === 'EN_COURS';
@@ -1773,14 +1798,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Le calcul est terminé : on force le rendu plutôt que d'attendre un cycle
     // que rien ne garantit après une réponse réseau.
     this.cdr.detectChanges();
-
-    if (isDevMode()) {
-      console.log('[dashboard] Echelle du graphique :', {
-        exercices: this.historique.map(p => ({ annee: p.annee, total: Math.round(p.total) })),
-        maximum: Math.round(this.maxHistorique),
-        plafondAxeY: Math.round(this.plafondHistorique)
-      });
-    }
 
     return fusion;
   }
