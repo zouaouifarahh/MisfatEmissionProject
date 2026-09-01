@@ -182,6 +182,7 @@ const AUCUNE_LIGNE: LigneValorisee[] = [];
 // tout le magasin dans le graphe du noyau. Elles sont réexportées pour que
 // l'interface publique du magasin ne bouge pas.
 import { CLE_STOCKAGE, exerciceDepuisNom } from './cle-dispatch';
+import { signalerMesuresLocalesModifiees } from './mesures-locales';
 export { CLE_STOCKAGE, exerciceDepuisNom };
 
 /**
@@ -275,7 +276,49 @@ export class DispatchStore {
    * lecture ne doit pas déplacer le périmètre que l'autre observe.</p>
    */
   lignesPour(exercice: number | null, entityId: number | null): LigneValorisee[] {
-    return this.concernePerimetre(exercice, entityId) ? this.etat.value.lignes : AUCUNE_LIGNE;
+    const etat = this.etat.value;
+
+    // La société reste un critère de lot : le classeur est importé pour une
+    // société, et ses lignes n'en portent pas d'autre.
+    if (entityId !== null && etat.entityId !== null && etat.entityId !== entityId) {
+      return AUCUNE_LIGNE;
+    }
+
+    if (exercice === null) return etat.lignes;
+
+    // L'exercice, lui, se juge ligne par ligne. Un classeur pluriannuel — une
+    // base d'immobilisations couvrant 2024, 2025 et 2026 — était écarté en bloc
+    // dès qu'on consultait une autre année que celle de son nom de fichier :
+    // ses lignes de 2024 n'alimentaient jamais 2024, et se déversaient toutes
+    // sur le millésime du fichier. Le total restait plausible sous une année
+    // qu'il ne documentait pas, ce qui est plus insidieux qu'une absence.
+    const retenues = etat.lignes.filter(
+      ligne => (ligne.exercice ?? etat.exercice ?? exercice) === exercice
+    );
+
+    return retenues.length ? retenues : AUCUNE_LIGNE;
+  }
+
+  /**
+   * Exercices que la répartition documente, du plus récent au plus ancien.
+   *
+   * <p>Rendu à l'écran d'import : un classeur pluriannuel doit annoncer ce
+   * qu'il couvre, faute de quoi l'utilisateur ne peut pas savoir si ses lignes
+   * de 2024 ont bien été lues.</p>
+   */
+  exercicesCouverts(): { exercice: number; lignes: number }[] {
+    const etat = this.etat.value;
+    const parExercice = new Map<number, number>();
+
+    for (const ligne of etat.lignes) {
+      const exercice = ligne.exercice ?? etat.exercice;
+      if (exercice === null || exercice === undefined) continue;
+      parExercice.set(exercice, (parExercice.get(exercice) ?? 0) + 1);
+    }
+
+    return [...parExercice.entries()]
+      .map(([exercice, lignes]) => ({ exercice, lignes }))
+      .sort((a, b) => b.exercice - a.exercice);
   }
 
   /**
@@ -292,9 +335,7 @@ export class DispatchStore {
       return this.etat.value.lignes;
     }
 
-    return this.concernePerimetre(this.exerciceActif, this.entiteActive)
-      ? this.etat.value.lignes
-      : AUCUNE_LIGNE;
+    return this.lignesPour(this.exerciceActif, this.entiteActive);
   }
 
   /**
@@ -312,9 +353,17 @@ export class DispatchStore {
    */
   emissionKgHorsPerimetre(): number {
     const lignes = this.etat.value.lignes;
-    if (!lignes.length || this.lignesActives.length) return 0;
+    if (!lignes.length) return 0;
 
-    return lignes.reduce((somme, ligne) => somme + (Number(ligne.emissionKg) || 0), 0);
+    // Le décompte se fait par différence, et non plus tout ou rien : depuis que
+    // l'exercice se juge ligne par ligne, un classeur pluriannuel peut être
+    // retenu pour partie. Dire « rien n'est compté » serait alors faux.
+    const retenues = new Set(this.lignesActives);
+    if (retenues.size === lignes.length) return 0;
+
+    return lignes
+      .filter(ligne => !retenues.has(ligne))
+      .reduce((somme, ligne) => somme + (Number(ligne.emissionKg) || 0), 0);
   }
 
   /**
@@ -331,6 +380,7 @@ export class DispatchStore {
 
     this.etat.next({ ...this.etat.value, exercice });
     this.persister();
+    this.annoncer();
   }
 
   /** Prend acte du périmètre consulté et rediffuse la répartition. */
@@ -589,6 +639,24 @@ export class DispatchStore {
   publier(etat: Omit<EtatDispatch, 'lignes'> & { lignes: LigneValorisee[] }): void {
     this.etat.next({ ...etat });
     this.persister();
+    this.annoncer();
+  }
+
+  /**
+   * Prévient les vues qui agrègent la répartition.
+   *
+   * <p>Le magasin diffusait son état à ses propres abonnés — les écrans de
+   * catégorie —, mais le tableau de bord n'écoute que le signal des mesures. Un
+   * import restait donc invisible sur ses cartes et sa courbe jusqu'au prochain
+   * changement de filtre : les totaux affichés dataient d'avant le classeur
+   * qu'on venait de verser.</p>
+   *
+   * <p>Le signal ne porte rien : les vues relisent, et c'est le magasin qui
+   * fait foi. Porter un délta obligerait à le tenir juste, et un délta faux est
+   * pire qu'une relecture.</p>
+   */
+  private annoncer(): void {
+    signalerMesuresLocalesModifiees();
   }
 
   /**

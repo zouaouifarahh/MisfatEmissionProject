@@ -235,6 +235,18 @@
           </select>
         </div>
 
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="ae-debut">Période — de *</label>
+            <input id="ae-debut" type="date" [(ngModel)]="formModel.dateDebut">
+          </div>
+          <div class="form-group flex-1">
+            <label for="ae-fin">Période — à *</label>
+            <input id="ae-fin" type="date" [(ngModel)]="formModel.dateFin">
+          </div>
+        </div>
+
         <!-- Récapitulatif temps réel -->
         <div class="live-preview-box" *ngIf="facteurSelectionne">
           <div class="preview-title">Facteur actif</div>
@@ -247,17 +259,6 @@
           <div class="preview-total">
             Émissions estimées
             <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="ae-debut">Période — de *</label>
-            <input id="ae-debut" type="date" [(ngModel)]="formModel.dateDebut">
-          </div>
-          <div class="form-group flex-1">
-            <label for="ae-fin">Période — à *</label>
-            <input id="ae-fin" type="date" [(ngModel)]="formModel.dateFin">
           </div>
         </div>
 

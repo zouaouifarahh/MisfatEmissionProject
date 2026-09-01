@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import {
   COLONNES_VALEUR, nettoyerNombre, normaliserTexte, valeurPrioritaire
 } from './nombre-comptable';
+import { exerciceDeCellule } from './exercice-de-ligne';
 
 import {
   EcranDestination, CodeScope, NatureDocument, dispatcherLigne, estCategorieAbsente
@@ -30,6 +31,20 @@ export interface LigneDispatchee {
   categorieAbsente: boolean;
   reference: string;
   quantite: number;
+  /**
+   * Exercice documenté par la ligne, lu dans sa colonne de date.
+   *
+   * <p>`null` quand le classeur n'en porte pas : le rattachement retombe alors
+   * sur le millésime du fichier, puis sur l'exercice consulté. Un inventaire
+   * pluriannuel — une base d'immobilisations couvrant 2024, 2025 et 2026 —
+   * alimente ainsi chaque millésime qu'il documente, au lieu de se déverser en
+   * bloc sur une seule année.</p>
+   *
+   * <p>Optionnel : les répartitions persistées avant cette lecture n'en portent
+   * pas, et les rejeter viderait le magasin d'un rafraîchissement à l'autre.
+   * Absent vaut comme `null` — le repli s'applique.</p>
+   */
+  exercice?: number | null;
   /** Intitulé de la colonne dont la valeur a été retenue. */
   colonneValeur: string;
   colonnesEcartees: string[];
@@ -78,10 +93,23 @@ const SYNONYMES_IDENTITE: Record<string, string[]> = {
     'categorie carbone', 'categorie ghg', 'categorie', 'type materiau', 'famille'
   ],
   reference: ['reference', 'reference carbone', 'code article', 'codearticle', 'code'],
-  type: ['type']
+  type: ['type'],
+  /**
+   * Colonne de date, d'où l'exercice de chaque ligne se lit.
+   *
+   * <p>Les intitulés vont du plus précis au plus général : une base
+   * d'immobilisations nomme sa colonne « date d'acquisition », une balance
+   * « date d'écriture », un relevé « période ». Le plus général — « annee » —
+   * vient en dernier pour qu'une colonne mieux nommée l'emporte.</p>
+   */
+  date: [
+    'date acquisition', 'date d acquisition', 'date operation', 'date d operation',
+    'date ecriture', 'date d ecriture', 'date facture', 'date mesure', 'date de mesure',
+    'date debut', 'date de debut', 'periode', 'date', 'exercice', 'annee'
+  ]
 };
 
-const ORDRE_IDENTITE = ['categorieCarbone', 'mainAccount', 'reference', 'type', 'nom'];
+const ORDRE_IDENTITE = ['categorieCarbone', 'mainAccount', 'reference', 'type', 'date', 'nom'];
 
 /** Libellés de cumul fermant une extraction comptable. */
 const LIBELLES_TOTAL = /^(total|totaux|cumul|sous total|somme|grand total)\b/;
@@ -265,6 +293,11 @@ export function lireFeuilleDispatch(
       categorieAbsente: estCategorieAbsente(categorieTexte),
       reference,
       quantite: retenue.valeur,
+      // Exercice lu sur la ligne même : un inventaire pluriannuel doit alimenter
+      // chaque millésime qu'il documente, et non se déverser en bloc sur celui
+      // du nom de fichier. `null` quand la ligne ne porte pas de date — le repli
+      // appartient au magasin, qui connaît le classeur et le périmètre.
+      exercice: exerciceDeCellule(cellule(ligne, 'date')),
       colonneValeur: retenue.colonne,
       colonnesEcartees: retenue.colonnesEcartees,
       ecran: routage.ecran,

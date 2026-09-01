@@ -356,6 +356,20 @@
           <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
         </div>
 
+      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
+           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
+           bilan 2025 sans que rien ne le signale. -->
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="utp-debut">Période — de *</label>
+          <input id="utp-debut" type="date" name="utpDateDebut" [(ngModel)]="formModel.dateDebut">
+        </div>
+        <div class="form-group flex-1">
+          <label for="utp-fin">Période — à *</label>
+          <input id="utp-fin" type="date" name="utpDateFin" [(ngModel)]="formModel.dateFin">
+        </div>
+      </div>
+
         <!-- CALCULATRICE EN DIRECT -->
         <div class="formule-box">
           <div class="formule-titre">
@@ -411,19 +425,6 @@
         </div>
       </div>
 
-      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
-           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
-           bilan 2025 sans que rien ne le signale. -->
-      <div class="form-row">
-        <div class="form-group flex-1">
-          <label for="utp-debut">Période — de *</label>
-          <input id="utp-debut" type="date" name="utpDateDebut" [(ngModel)]="formModel.dateDebut">
-        </div>
-        <div class="form-group flex-1">
-          <label for="utp-fin">Période — à *</label>
-          <input id="utp-fin" type="date" name="utpDateFin" [(ngModel)]="formModel.dateFin">
-        </div>
-      </div>
 
       <div class="modal-footer">
         <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>

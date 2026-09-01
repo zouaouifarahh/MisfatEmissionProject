@@ -433,6 +433,18 @@
           <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
         </div>
 
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="vo-debut">Date de début *</label>
+            <input id="vo-debut" type="date" [(ngModel)]="formModel.dateDebut">
+          </div>
+          <div class="form-group flex-1">
+            <label for="vo-fin">Date de fin *</label>
+            <input id="vo-fin" type="date" [(ngModel)]="formModel.dateFin">
+          </div>
+        </div>
+
         <!-- Récapitulatif temps réel -->
         <div class="live-preview-box" *ngIf="facteurSelectionne">
           <div class="preview-title">Facteur rapproché automatiquement</div>
@@ -451,17 +463,6 @@
           <div class="preview-total">
             Émissions estimées
             <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="vo-debut">Date de début *</label>
-            <input id="vo-debut" type="date" [(ngModel)]="formModel.dateDebut">
-          </div>
-          <div class="form-group flex-1">
-            <label for="vo-fin">Date de fin *</label>
-            <input id="vo-fin" type="date" [(ngModel)]="formModel.dateFin">
           </div>
         </div>
       </div>

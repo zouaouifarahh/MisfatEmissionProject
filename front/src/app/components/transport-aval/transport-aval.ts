@@ -81,6 +81,9 @@ export interface EmissionAval {
    * pouvoir dire a qui elles appartiennent.</p>
    */
   societeId?: number | null;
+  /** Periode couverte par l'expedition, au format ISO. */
+  dateDebut: string;
+  dateFin: string;
   creeLe: string;
 }
 
@@ -186,7 +189,9 @@ export class TransportAvalComponent implements OnInit {
     poidsTonnes: null as number | null,
     distanceKm: null as number | null,
     montant: null as number | null,
-    devise: DEVISE_DEFAUT
+    devise: DEVISE_DEFAUT,
+    dateDebut: '',
+    dateFin: ''
   };
 
   constructor(
@@ -492,7 +497,9 @@ export class TransportAvalComponent implements OnInit {
         poidsTonnes: emission.poidsTonnes,
         distanceKm: emission.distanceKm,
         montant: emission.montant,
-        devise: emission.devise
+        devise: emission.devise,
+        dateDebut: emission.dateDebut ?? '',
+        dateFin: emission.dateFin ?? ''
       };
     } else {
       this.isEdition = false;
@@ -509,7 +516,9 @@ export class TransportAvalComponent implements OnInit {
         poidsTonnes: null,
         distanceKm: null,
         montant: null,
-        devise: this.deviseActive
+        devise: this.deviseActive,
+        dateDebut: '',
+        dateFin: ''
       };
     }
 
@@ -666,6 +675,8 @@ export class TransportAvalComponent implements OnInit {
       baseAppliquee: facteur.baseAppliquee,
       origineFacteur: facteur.origine,
       emissionCalculee: calculerEmissionFret(quantite, facteur.valeur),
+      dateDebut: this.formModel.dateDebut,
+      dateFin: this.formModel.dateFin,
       societeId: this.societeActiveId,
       creeLe: this.datePipe.transform(new Date(), 'dd/MM/yyyy HH:mm') ?? ''
     };
@@ -847,6 +858,10 @@ export class TransportAvalComponent implements OnInit {
             baseAppliquee: facteur.baseAppliquee,
             origineFacteur: facteur.origine,
             emissionCalculee: calculerEmissionFret(brute.quantite, facteur.valeur),
+            // Le classeur ne documente pas de période : l'inventer daterait la
+            // ligne au jugé. Elle retombe sur sa date de création, comme avant.
+            dateDebut: '',
+            dateFin: '',
             societeId: this.societeActiveId,
             creeLe: horodatage
           };

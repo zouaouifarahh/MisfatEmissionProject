@@ -370,6 +370,18 @@
                  placeholder="Ex : Estimé à 1 T sur l'exercice, stock non pesé">
         </div>
 
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="de-debut">Période — de *</label>
+            <input id="de-debut" type="date" [(ngModel)]="formModel.dateDebut">
+          </div>
+          <div class="form-group flex-1">
+            <label for="de-fin">Période — à *</label>
+            <input id="de-fin" type="date" [(ngModel)]="formModel.dateFin">
+          </div>
+        </div>
+
         <!-- Récapitulatif temps réel -->
         <div class="live-preview-box" *ngIf="facteurSelectionne">
           <div class="preview-title">Facteur rapproché automatiquement</div>
@@ -387,17 +399,6 @@
           <div class="preview-total">
             Émissions estimées
             <strong>{{ emissionPrevisionnelle | number:'1.0-2' }} kgCO₂e</strong>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="de-debut">Période — de *</label>
-            <input id="de-debut" type="date" [(ngModel)]="formModel.dateDebut">
-          </div>
-          <div class="form-group flex-1">
-            <label for="de-fin">Période — à *</label>
-            <input id="de-fin" type="date" [(ngModel)]="formModel.dateFin">
           </div>
         </div>
       </div>

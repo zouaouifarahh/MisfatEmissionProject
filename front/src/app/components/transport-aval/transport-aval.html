@@ -368,6 +368,21 @@
           <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
         </div>
 
+        <!-- Période couverte par l'expédition. Cet écran était le seul des
+             dix-neuf à n'en demander aucune : ses lignes retombaient sur leur
+             date de création, et une expédition de 2025 saisie en 2026 comptait
+             pour 2026. -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="av-debut">Période — de *</label>
+            <input id="av-debut" type="date" name="avDateDebut" [(ngModel)]="formModel.dateDebut">
+          </div>
+          <div class="form-group flex-1">
+            <label for="av-fin">Période — à *</label>
+            <input id="av-fin" type="date" name="avDateFin" [(ngModel)]="formModel.dateFin">
+          </div>
+        </div>
+
         <!-- BOX DE CALCUL EN DIRECT -->
         <div class="formule-box">
           <div class="formule-titre">

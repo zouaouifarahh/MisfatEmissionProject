@@ -374,6 +374,20 @@
           <small class="field-hint">Repris de la base retenue ; modifiable si le cas l'exige.</small>
         </div>
 
+      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
+           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
+           bilan 2025 sans que rien ne le signale. -->
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="ala-debut">Période — de *</label>
+          <input id="ala-debut" type="date" name="alaDateDebut" [(ngModel)]="formModel.dateDebut">
+        </div>
+        <div class="form-group flex-1">
+          <label for="ala-fin">Période — à *</label>
+          <input id="ala-fin" type="date" name="alaDateFin" [(ngModel)]="formModel.dateFin">
+        </div>
+      </div>
+
         <!-- BOX DE CALCUL EN DIRECT -->
         <div class="formule-box">
           <div class="formule-titre">
@@ -435,19 +449,6 @@
         </div>
       </div>
 
-      <!-- Periode couverte. Sans elle, la mesure est rattachee a son annee
-           de saisie : une donnee 2025 enregistree en 2026 disparaissait du
-           bilan 2025 sans que rien ne le signale. -->
-      <div class="form-row">
-        <div class="form-group flex-1">
-          <label for="ala-debut">Période — de *</label>
-          <input id="ala-debut" type="date" name="alaDateDebut" [(ngModel)]="formModel.dateDebut">
-        </div>
-        <div class="form-group flex-1">
-          <label for="ala-fin">Période — à *</label>
-          <input id="ala-fin" type="date" name="alaDateFin" [(ngModel)]="formModel.dateFin">
-        </div>
-      </div>
 
       <div class="modal-footer">
         <button type="button" class="btn-cancel" (click)="fermerModale()">× Annuler</button>
