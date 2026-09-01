@@ -13,15 +13,23 @@
  * décider aujourd'hui de ce que le référentiel documentera demain.</p>
  */
 
-/** Unités physiques usuelles, groupées par grandeur mesurée. */
+/**
+ * Unités physiques essentielles, groupées par grandeur mesurée.
+ *
+ * <p>Six unités, arrêtées par l'exploitante : ce sont celles que les sources
+ * MISFAT emploient réellement. Une liste plus longue — mégawattheures, gigajoules,
+ * hectares, tonnes-kilomètres — allongeait le menu de grandeurs qu'aucune source
+ * ne porte, et rendait plus difficile de trouver celles qui servent.</p>
+ *
+ * <p>La création d'un <em>facteur</em>, elle, reste ouverte : son champ d'unité
+ * est une liste de suggestions et non un menu fermé, car le référentiel
+ * documente des grandeurs que cette liste n'épuise pas.</p>
+ */
 export const UNITES_PHYSIQUES: { grandeur: string; unites: string[] }[] = [
-  { grandeur: 'Masse', unites: ['kg', 't', 'g'] },
-  { grandeur: 'Volume', unites: ['L', 'm3', 'hL'] },
-  { grandeur: 'Énergie', unites: ['kWh', 'MWh', 'GJ', 'therm'] },
-  { grandeur: 'Distance', unites: ['km', 'm'] },
-  { grandeur: 'Transport', unites: ['t.km', 'p.km'] },
-  { grandeur: 'Surface', unites: ['m2', 'ha'] },
-  { grandeur: 'Décompte', unites: ['unité', 'pièce', 'nuitée', 'repas'] }
+  { grandeur: 'Masse', unites: ['kg', 't'] },
+  { grandeur: 'Volume', unites: ['L', 'm3'] },
+  { grandeur: 'Énergie', unites: ['kWh'] },
+  { grandeur: 'Distance', unites: ['km'] }
 ];
 
 /**

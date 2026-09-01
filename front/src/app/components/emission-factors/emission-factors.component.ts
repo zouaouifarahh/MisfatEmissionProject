@@ -207,10 +207,35 @@ export class EmissionFactorsComponent implements OnInit {
     });
   }
 
+  /**
+   * Ouvre le formulaire sur une référence, unité et type accordés.
+   *
+   * <p>L'unité de la source était reprise, mais le type de donnée restait sur
+   * sa valeur d'ouverture — « Physique ». Affecter un facteur à une source en
+   * dinars ouvrait donc un formulaire qui se contredisait lui-même, et
+   * l'utilisateur devait corriger à la main un décalage que rien ne
+   * justifiait.</p>
+   *
+   * <p>Le type se déduit de l'unité : une devise ne documente qu'un ratio
+   * monétaire, une grandeur qu'un ratio physique. Aucune des deux lectures
+   * n'est ambiguë, et laisser le choix à l'utilisateur ne ferait qu'inviter
+   * l'erreur.</p>
+   */
   private ouvrirSurLaReference(carbonReferenceId: number, unite: string | null): void {
     this.ouvrirFormulaire();
     this.nouveau.carbonReferenceId = carbonReferenceId;
-    this.nouveau.unit = unite ?? '';
+
+    const declaree = String(unite ?? '').trim();
+    this.nouveau.unit = declaree;
+
+    if (UNITES_MONETAIRES.includes(declaree.toUpperCase())) {
+      this.nouveau.dataType = 'MONETAIRE';
+      this.nouveau.currency = declaree.toUpperCase();
+    } else if (declaree) {
+      this.nouveau.dataType = 'PHYSIQUE';
+      this.nouveau.currency = '';
+    }
+
     this.cdr.markForCheck();
   }
 

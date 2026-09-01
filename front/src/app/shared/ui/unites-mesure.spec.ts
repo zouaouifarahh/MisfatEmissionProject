@@ -23,13 +23,11 @@ describe('Unités d\'un facteur d\'émission', () => {
       expect(unitesProposees('MONETAIRE')[0]).toBe('TND');
     });
 
-    it('propose des grandeurs pour un facteur physique', () => {
-      const unites = unitesProposees('PHYSIQUE');
-
-      expect(unites).toContain('kg');
-      expect(unites).toContain('kWh');
-      expect(unites).toContain('t.km');
-      expect(unites).not.toContain('TND');
+    it('propose les grandeurs essentielles pour un facteur physique', () => {
+      // Six unités, arrêtées par l'exploitante : celles que les sources MISFAT
+      // emploient réellement. Une liste plus longue allongeait le menu de
+      // grandeurs qu'aucune source ne porte.
+      expect(unitesProposees('PHYSIQUE')).toEqual(['kg', 't', 'L', 'm3', 'kWh', 'km']);
     });
 
     it('ne mélange jamais les deux', () => {

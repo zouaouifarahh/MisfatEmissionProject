@@ -137,45 +137,88 @@ export class ReferentielCarboneComponent implements OnInit {
       : 'PHYSIQUE';
   }
 
+  /**
+   * Nomenclature de l'écran, et le nom que la base emploie pour chaque poste.
+   *
+   * <p>{@code nom} est ce que l'utilisateur lit ; {@code nomReferentiel} est ce
+   * qui part au serveur. Les deux diffèrent, et c'est la raison d'être de ce
+   * champ : le serveur résout la catégorie <strong>par son nom exact</strong> et
+   * la crée si elle manque. Envoyer « Investissements » là où la base porte
+   * « Category 15: Investments » fabriquait donc une catégorie parallèle, et le
+   * facteur qu'on venait de créer atterrissait dans un poste jumeau, invisible
+   * depuis celui qu'on regardait. La sauvegarde réussissait ; c'est le
+   * classement qui était faux.</p>
+   *
+   * <p>« Combustion dans les établissements » n'a pas d'équivalent anglais en
+   * base : son libellé français y est déjà la référence, et le mapper
+   * l'enverrait vers une catégorie qui n'existe pas.</p>
+   */
   scopesData = [
     {
       id: 'SCOPE_1',
       name: '🌱 Scope 1 · Direct',
       categories: [
         { id: 'combustion-etablissements', nom: 'Combustion dans les établissements', icone: '🏭' },
-        { id: 'combustion-vehicules', nom: 'Combustion des véhicules', icone: '🚗' },
-        { id: 'emissions-refrigerants', nom: 'Émissions de réfrigérants', icone: '❄️' }
+        { id: 'combustion-vehicules', nom: 'Combustion des véhicules', icone: '🚗',
+          nomReferentiel: 'Company owned cars' },
+        { id: 'emissions-refrigerants', nom: 'Émissions de réfrigérants', icone: '❄️',
+          nomReferentiel: 'Refrigerant gas loss and other fugitive emissions' }
       ]
     },
     {
       id: 'SCOPE_2',
       name: '⚡ Scope 2 · Indirect Énergie',
       categories: [
-        { id: 'electricite-achetee', nom: 'Électricité achetée', icone: '💡' }
+        { id: 'electricite-achetee', nom: 'Électricité achetée', icone: '💡',
+          nomReferentiel: 'Energy' }
       ]
     },
     {
       id: 'SCOPE_3',
       name: '📦 Scope 3 · Chaîne de valeur',
       categories: [
-        { id: 'biens-services', nom: 'Biens et services achetés', icone: '📦' },
-        { id: 'biens-equipement', nom: 'Biens d\'équipement', icone: '🏗️' },
-        { id: 'energie', nom: 'Activités liées à l\'énergie', icone: '⛽' },
-        { id: 'transport-amont', nom: 'Transport en amont', icone: '🚚' },
-        { id: 'dechets', nom: 'Déchets', icone: '🗑️' },
-        { id: 'voyages-affaires', nom: 'Voyages d\'affaires', icone: '✈️' },
-        { id: 'deplacements-employes', nom: 'Déplacements des employés', icone: '🚌' },
-        { id: 'actifs-loues-amont', nom: 'Actifs loués en amont', icone: '🏢' },
-        { id: 'transport-aval', nom: 'Transport en aval', icone: '🚛' },
-        { id: 'transformation-produits', nom: 'Transformation des produits', icone: '🏭' },
-        { id: 'utilisation-produits', nom: 'Utilisation des produits', icone: '🛒' },
-        { id: 'fin-de-vie', nom: 'Fin de vie des produits', icone: '♻️' },
-        { id: 'actifs-loues-aval', nom: 'Actifs loués en aval', icone: '🏢' },
-        { id: 'franchises', nom: 'Franchises', icone: '🤝' },
-        { id: 'investissements', nom: 'Investissements', icone: '💰' }
+        { id: 'biens-services', nom: 'Biens et services achetés', icone: '📦',
+          nomReferentiel: 'Category 1: PG&S - GCP' },
+        { id: 'biens-equipement', nom: 'Biens d\'équipement', icone: '🏗️',
+          nomReferentiel: 'Category 2: Capital Goods' },
+        { id: 'energie', nom: 'Activités liées à l\'énergie', icone: '⛽',
+          nomReferentiel: 'Category 3: Fuel- and energy-related activities' },
+        { id: 'transport-amont', nom: 'Transport en amont', icone: '🚚',
+          nomReferentiel: 'Category 4: Upstream transportation and distribution' },
+        { id: 'dechets', nom: 'Déchets', icone: '🗑️',
+          nomReferentiel: 'Category 5: Waste Generated in Operations' },
+        { id: 'voyages-affaires', nom: 'Voyages d\'affaires', icone: '✈️',
+          nomReferentiel: 'Category 6: Business Travel' },
+        { id: 'deplacements-employes', nom: 'Déplacements des employés', icone: '🚌',
+          nomReferentiel: 'Category 7: Employee Commuting' },
+        { id: 'actifs-loues-amont', nom: 'Actifs loués en amont', icone: '🏢',
+          nomReferentiel: 'Category 8: Upstream leased assets' },
+        { id: 'transport-aval', nom: 'Transport en aval', icone: '🚛',
+          nomReferentiel: 'Category 9: Shipping' },
+        { id: 'transformation-produits', nom: 'Transformation des produits', icone: '🏭',
+          nomReferentiel: 'Category 10: Processing of sold products' },
+        { id: 'utilisation-produits', nom: 'Utilisation des produits', icone: '🛒',
+          nomReferentiel: 'Category 11: Use of sold products' },
+        { id: 'fin-de-vie', nom: 'Fin de vie des produits', icone: '♻️',
+          nomReferentiel: 'Category 12: End-of-life treatment of sold products' },
+        { id: 'actifs-loues-aval', nom: 'Actifs loués en aval', icone: '🏢',
+          nomReferentiel: 'Category 13: Downstream leased assets' },
+        { id: 'franchises', nom: 'Franchises', icone: '🤝',
+          nomReferentiel: 'Category 14: Franchises' },
+        { id: 'investissements', nom: 'Investissements', icone: '💰',
+          nomReferentiel: 'Category 15: Investments' }
       ]
     }
   ];
+
+  /** Nom que la base emploie pour la catégorie choisie au formulaire. */
+  private nomEnBase(libelleAffiche: string): string {
+    const trouvee = this.scopesData
+      .flatMap(s => s.categories)
+      .find(c => c.nom === libelleAffiche) as { nomReferentiel?: string } | undefined;
+
+    return trouvee?.nomReferentiel ?? libelleAffiche;
+  }
 
   categoriesDisponibles: { id: string; nom: string; icone?: string }[] = [];
 
@@ -417,7 +460,9 @@ export class ReferentielCarboneComponent implements OnInit {
     const payload: EmissionSource = {
       referenceCode: refCode,
       scope: this.selectedScopeTab,
-      category: this.nouvelleSource.category,
+      // Le nom que la base emploie, non celui qu'on affiche : le serveur résout
+      // la catégorie par son nom exact et la crée si elle manque.
+      category: this.nomEnBase(this.nouvelleSource.category),
       sourceName: sName,
       defaultUnit: this.nouvelleSource.defaultUnit || 'kg'
     };
