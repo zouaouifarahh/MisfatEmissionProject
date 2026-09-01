@@ -9,7 +9,24 @@ import { FacteurDetaille } from '../../services/referential.service';
  */
 
 /** Famille carbone rattachée à une immobilisation. */
-export type CategorieCarbone =
+/**
+ * Famille carbone d'une immobilisation.
+ *
+ * <p>Le type était une union fermée de cinq familles. Il commandait à la fois
+ * la liste offerte à la saisie et l'appariement du facteur : une source créée au
+ * référentiel — « INVEST1 » — n'y figurant pas, elle était introuvable au menu
+ * et aucun facteur ne pouvait la viser. Le référentiel pouvait s'enrichir ; cet
+ * écran, non.</p>
+ *
+ * <p>Le type est désormais ouvert. Les cinq familles subsistent comme
+ * <em>signatures de reconnaissance</em> : elles servent à ranger les cellules
+ * d'un classeur importé, où « Aluminium metal products » doit tomber sur la
+ * bonne famille. Elles ne décident plus de ce que l'écran propose.</p>
+ */
+export type CategorieCarbone = string;
+
+/** Familles de reconnaissance, employées à l'import d'un classeur. */
+export type FamilleCarbone =
   | 'Alum / Aluminium'
   | 'Inox / Stainless Steel'
   | 'Air-Conditioning & Heating'
@@ -165,12 +182,25 @@ export function classerFacteursCapex(
   critere: CritereFacteurCapex
 ): FacteurDetaille[] {
 
-  const definition = definitionCategorie(critere.categorie);
-  if (!definition || !Array.isArray(facteurs) || !facteurs.length) return [];
+  if (!Array.isArray(facteurs) || !facteurs.length) return [];
 
-  return facteurs
-    .filter(f => (f.dataType ?? '').toUpperCase() === 'MONETAIRE')
-    .filter(f => definition.signature.test(f.typeName ?? ''))
+  const monetaires = facteurs.filter(f => (f.dataType ?? '').toUpperCase() === 'MONETAIRE');
+
+  // Premier degré : le libellé du référentiel lui-même. C'est le cas d'une
+  // catégorie choisie dans la liste, qui vient désormais de la base — une
+  // source créée au référentiel doit pouvoir être visée par son propre nom,
+  // sans qu'aucun motif écrit dans le code ait à la prévoir.
+  const cle = normaliserTexte(critere.categorie);
+  const parLibelle = monetaires.filter(f => normaliserTexte(f.typeName) === cle);
+
+  // Second degré : la famille de reconnaissance, pour les lignes importées d'un
+  // classeur dont la cellule ne nomme pas une source du référentiel.
+  const definition = definitionCategorie(critere.categorie);
+  const retenus = parLibelle.length
+    ? parLibelle
+    : (definition ? monetaires.filter(f => definition.signature.test(f.typeName ?? '')) : []);
+
+  return retenus
     .map(facteur => {
       let note = 100;
       // Une acquisition libellée en dinars se valorise par un facteur en dinars.

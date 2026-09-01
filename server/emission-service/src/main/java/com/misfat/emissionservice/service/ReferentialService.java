@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** Vues agrégées du référentiel carbone pour l'interface de saisie. */
@@ -183,14 +185,7 @@ public class ReferentialService {
                 .orElseThrow(() -> new IllegalStateException(
                         "Scope inconnu : " + source.getScope()));
 
-        Category categorie = categoryRepository
-                .findByNameIgnoreCaseAndScopeId(source.getCategory(), scope.getId())
-                .orElseGet(() -> {
-                    Category nouvelle = new Category();
-                    nouvelle.setName(source.getCategory());
-                    nouvelle.setScope(scope);
-                    return categoryRepository.save(nouvelle);
-                });
+        Category categorie = resoudreCategorie(source.getCategory(), scope);
 
         CarbonReference reference = new CarbonReference();
         reference.setReferenceCode(source.getReferenceCode());
@@ -200,6 +195,77 @@ public class ReferentialService {
 
         return carbonReferenceRepository.save(reference);
     }
+
+    /**
+     * Résout la catégorie d'une source, par son numéro GHG avant son nom.
+     *
+     * <p>La résolution se faisait par nom exact, et créait la catégorie quand
+     * il ne correspondait à rien. Un écran envoyant « Investissements » là où la
+     * base porte « Category 15: Investments » fabriquait donc une catégorie
+     * jumelle : la source y était rattachée, son facteur y atterrissait, et
+     * l'ensemble devenait invisible depuis la catégorie que l'on consultait.
+     * L'enregistrement n'échouait jamais — c'est le classement qui était faux,
+     * ce qui est plus trompeur, car rien ne le signale.</p>
+     *
+     * <p>Le numéro de catégorie est le seul repère univoque entre les deux
+     * nomenclatures. Il est cherché en premier ; le nom ne sert qu'à défaut, et
+     * la création reste le dernier recours — un scope 1 ou 2 n'a pas de numéro,
+     * et une catégorie neuve doit rester possible.</p>
+     */
+    private Category resoudreCategorie(String nomDemande, Scope scope) {
+        Integer numero = numeroGhg(nomDemande);
+
+        if (numero != null) {
+            Optional<Category> parNumero = categoryRepository.findAll().stream()
+                    .filter(c -> c.getScope() != null
+                            && Objects.equals(c.getScope().getId(), scope.getId()))
+                    .filter(c -> numero.equals(numeroGhg(c.getName())))
+                    .findFirst();
+
+            if (parNumero.isPresent()) {
+                return parNumero.get();
+            }
+        }
+
+        return categoryRepository
+                .findByNameIgnoreCaseAndScopeId(nomDemande, scope.getId())
+                .orElseGet(() -> {
+                    Category nouvelle = new Category();
+                    nouvelle.setName(nomDemande);
+                    nouvelle.setScope(scope);
+                    return categoryRepository.save(nouvelle);
+                });
+    }
+
+    /**
+     * Numéro de catégorie GHG porté par un libellé, ou {@code null}.
+     *
+     * <p>Reconnaît « Category 15: Investments » comme « Categorie 15 » ou
+     * « C15 ». Le code court n'est retenu que s'il occupe tout le libellé :
+     * sinon « C15 » capterait n'importe quel intitulé commençant par un C suivi
+     * de chiffres.</p>
+     */
+    private static Integer numeroGhg(String libelle) {
+        if (libelle == null) {
+            return null;
+        }
+
+        String cle = libelle.trim().toLowerCase();
+
+        Matcher complet = MOTIF_CATEGORIE_GHG.matcher(cle);
+        if (complet.find()) {
+            return Integer.valueOf(complet.group(1));
+        }
+
+        Matcher court = MOTIF_CODE_COURT.matcher(cle);
+        return court.matches() ? Integer.valueOf(court.group(1)) : null;
+    }
+
+    private static final Pattern MOTIF_CATEGORIE_GHG =
+            Pattern.compile("^categor(?:y|ie)\\s*(\\d{1,2})\\b");
+
+    private static final Pattern MOTIF_CODE_COURT =
+            Pattern.compile("^c\\s*(\\d{1,2})$");
 
     /** Code comparable : sans espaces, en capitales. */
     private static String normaliser(String code) {

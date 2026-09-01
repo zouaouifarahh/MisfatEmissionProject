@@ -148,7 +148,20 @@ export class InvestissementsComponent implements OnInit {
   toastMessage = '';
   toastSecondaire = '';
 
-  readonly categoriesCarbone = CATEGORIES;
+  /**
+   * Catégories offertes à la saisie, relevées dans le référentiel.
+   *
+   * <p>Elles venaient d'une liste écrite dans le code : cinq familles, et rien
+   * d'autre. Une source créée au référentiel — « INVEST1 » — n'y figurait donc
+   * jamais, et aucun facteur ne pouvait la viser. Le référentiel pouvait
+   * s'enrichir ; cet écran, non.</p>
+   *
+   * <p>Les familles subsistent en fin de liste : elles nomment les lignes déjà
+   * importées, dont la cellule d'origine ne désigne aucune source du
+   * référentiel. Les retirer rendrait ces lignes inéditables.</p>
+   */
+  categoriesCarbone: string[] = [...CATEGORIES];
+
   readonly categorieRepli = CATEGORIE_REPLI;
   readonly classeBadgeCategorie = classeBadgeCategorie;
   readonly emojiCategorie = emojiCategorie;
@@ -252,6 +265,11 @@ export class InvestissementsComponent implements OnInit {
     this.referentialService.getFactorsByCategory(MOTIF_CATEGORIE).subscribe({
       next: facteurs => {
         this.facteursDisponibles = Array.isArray(facteurs) ? facteurs : [];
+
+        // Les catégories offertes viennent de la base, non d'une liste écrite :
+        // une source créée au référentiel doit se proposer d'elle-même, sans
+        // qu'aucun code ait à la prévoir.
+        this.releverCategories();
 
         // Le référentiel est là : les lignes déjà saisies peuvent être
         // rapprochées à nouveau de leur facteur officiel.
@@ -566,6 +584,44 @@ export class InvestissementsComponent implements OnInit {
     // saisi pour l'entrée précédente resterait appliqué à la nouvelle.
     this.facteurApplique = this.facteurDeLaBase.valeur;
     this.cdr.detectChanges();
+  }
+
+  /**
+   * Recompose la liste des catégories à partir du référentiel.
+   *
+   * <p>Les libellés de la base ouvrent la liste, dans l'ordre alphabétique. Les
+   * familles de reconnaissance la ferment : elles nomment les lignes importées
+   * dont la cellule d'origine ne désigne aucune source du référentiel, et les
+   * retirer rendrait ces lignes inéditables.</p>
+   *
+   * <p>Le rapprochement se fait sans accents ni casse : « Investissements » et
+   * « investissements » ne doivent pas occuper deux entrées.</p>
+   */
+  private releverCategories(): void {
+    const parCle = new Map<string, string>();
+
+    for (const facteur of this.facteursDisponibles) {
+      const libelle = String(facteur.typeName ?? '').trim();
+      if (!libelle) continue;
+      parCle.set(this.clefCategorie(libelle), libelle);
+    }
+
+    const duReferentiel = [...parCle.values()].sort((a, b) => a.localeCompare(b, 'fr'));
+
+    for (const famille of CATEGORIES) {
+      if (!parCle.has(this.clefCategorie(famille))) duReferentiel.push(famille);
+    }
+
+    this.categoriesCarbone = duReferentiel;
+  }
+
+  /** Forme comparable d'un libellé : sans accents, sans ponctuation, en minuscules. */
+  private clefCategorie(valeur: string): string {
+    return valeur
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '')
+      .toLowerCase();
   }
 
   private majFacteursCompatibles(): void {
