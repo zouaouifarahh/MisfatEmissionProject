@@ -734,9 +734,15 @@
                       [style.top.%]="(repere.y / svgHaut) * 100">{{ repere.libelle }}</span>
               </div>
 
-              <div class="hist-toile">
+              <div class="hist-toile" #toileHistorique>
+                <!-- Le repère épouse la taille réelle de la zone : une unité
+                     vaut un pixel, et le cadrage n'a plus rien à corriger.
+                     `preserveAspectRatio="none"` étirait un repère fixe sur un
+                     cadre d'un tout autre rapport : les ordonnées restaient
+                     justes, mais les pentes s'aplatissaient et les marqueurs
+                     s'ovalisaient selon la largeur de la fenêtre. -->
                 <svg [attr.viewBox]="'0 0 ' + svgLarg + ' ' + svgHaut"
-                     preserveAspectRatio="none" role="img"
+                     role="img"
                      aria-label="Évolution empilée des émissions par scope">
                   <defs>
                     <linearGradient id="degrade-s1" x1="0" y1="0" x2="0" y2="1">

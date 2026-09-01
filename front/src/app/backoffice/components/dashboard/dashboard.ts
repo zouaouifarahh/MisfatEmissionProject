@@ -1,4 +1,7 @@
-﻿import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject, isDevMode } from '@angular/core';
+﻿import {
+  AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit,
+  ViewChild, inject, isDevMode
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -184,7 +187,7 @@ interface PointHistorique {
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /**
    * Abonnements de la console, résiliés à sa fermeture.
@@ -196,8 +199,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
    */
   private readonly abonnements = new Subscription();
 
+  /**
+   * La zone de dessin existe : le repère peut s'accorder à ses pixels.
+   *
+   * <p>Le graphique n'est rendu que lorsque l'historique porte un exercice
+   * chiffré : la zone peut donc n'apparaître qu'après une réponse réseau, et
+   * l'accord est retenté à chaque chargement.</p>
+   */
+  ngAfterViewInit(): void {
+    this.suivreLaToile();
+  }
+
   ngOnDestroy(): void {
     this.abonnements.unsubscribe();
+    this.observateurToile?.disconnect();
   }
 
   /**
@@ -648,12 +663,57 @@ export class DashboardComponent implements OnInit, OnDestroy {
    *
    * <p>Le graphique est un SVG et non une toile : il se rend côté serveur au
    * pré-rendu, s'imprime sans dépendre d'une option du navigateur, et n'ajoute
-   * aucune librairie au paquet. La zone est étirée par la feuille de style,
-   * les tracés portant {@code non-scaling-stroke} pour que l'étirement
-   * n'épaississe pas les courbes.</p>
+   * aucune librairie au paquet.</p>
+   *
+   * <p>Le repère épouse la taille réelle de la zone de dessin : une unité vaut
+   * un pixel. Il était fixe, et la feuille de style étirait le tracé sur un
+   * cadre d'un tout autre rapport — {@code preserveAspectRatio="none"}. Les
+   * ordonnées restaient justes, mais le dessin, lui, était déformé : une pente
+   * s'aplatissait ou se redressait selon la largeur de la fenêtre, et un
+   * marqueur rond devenait ovale. Rien ne le disait, et la géométrie affichée
+   * cessait d'être celle qu'on avait calculée.</p>
+   *
+   * <p>Les valeurs ci-dessous servent de repli : au pré-rendu, où aucune
+   * mesure n'est possible, et avant le premier calcul de mise en page.</p>
    */
-  readonly svgLarg = 600;
-  readonly svgHaut = 260;
+  svgLarg = 600;
+  svgHaut = 260;
+
+  /** Zone de dessin, mesurée pour accorder le repère à ses pixels. */
+  @ViewChild('toileHistorique') private toileHistorique?: ElementRef<HTMLElement>;
+
+  private observateurToile?: ResizeObserver;
+
+  /**
+   * Accorde le repère du SVG aux dimensions réelles de sa zone.
+   *
+   * <p>Sans observateur, un redimensionnement de la fenêtre laisserait le
+   * repère sur ses anciennes valeurs et rétablirait la déformation qu'on vient
+   * d'ôter — l'étirement reviendrait par la porte du cadrage.</p>
+   */
+  private suivreLaToile(): void {
+    const toile = this.toileHistorique?.nativeElement;
+    if (!toile || typeof ResizeObserver === 'undefined') return;
+
+    const mesurer = () => {
+      const largeur = Math.round(toile.clientWidth);
+      const hauteur = Math.round(toile.clientHeight);
+
+      // Une zone non encore disposée mesure zéro : garder le repli vaut mieux
+      // qu'un repère nul, qui ferait disparaître le tracé.
+      if (largeur < 1 || hauteur < 1) return;
+      if (largeur === this.svgLarg && hauteur === this.svgHaut) return;
+
+      this.svgLarg = largeur;
+      this.svgHaut = hauteur;
+      this.cdr.markForCheck();
+      this.cdr.detectChanges();
+    };
+
+    mesurer();
+    this.observateurToile = new ResizeObserver(mesurer);
+    this.observateurToile.observe(toile);
+  }
 
   /**
    * Réduction visée pour 2030, en pourcentage de l'exercice de référence.
@@ -681,8 +741,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * la marge elle-même, et l'arrondi ne fait que l'augmenter.</p>
    */
   private static readonly MARGE_ECHELLE = 0.15;
-  private readonly margeHaut = 16;
-  private readonly margeBas = 12;
+  /**
+   * Air réservé en haut de la zone de dessin, en unités du tracé.
+   *
+   * <p>Trente unités : le marqueur du point culminant est un disque centré sur
+   * son ordonnée, et seize ne suffisaient pas à le loger entier. Cette marge
+   * s'ajoute au plafond de l'échelle, qui laisse déjà quinze pour cent au-dessus
+   * du plus grand exercice — la première tient le dessin à distance du bord, le
+   * second tient la donnée à distance du haut de l'échelle. Les deux répondent
+   * à des questions différentes.</p>
+   *
+   * <p>Publiques : les bancs lisent ces marges plutôt que de les réécrire, un
+   * chiffre recopié dans un test cessant d'en être la vérification.</p>
+   */
+  readonly margeHaut = 30;
+  readonly margeBas = 12;
 
   /**
    * Empreinte de l'exercice le plus chargé ; échelle du graphique.
@@ -744,19 +817,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * page : le rendu reste souple sans jamais dépasser les points mesurés, ce
    * qu'une spline plus libre ferait sur une série en dents de scie.</p>
    */
-  private segmentsLisses(points: { x: number; y: number }[]): string {
-    let trace = '';
-    for (let i = 0; i < points.length - 1; i++) {
-      const milieu = +((points[i].x + points[i + 1].x) / 2).toFixed(2);
-      trace += ` C ${milieu} ${points[i].y}, ${milieu} ${points[i + 1].y},`
-        + ` ${points[i + 1].x} ${points[i + 1].y}`;
-    }
-    return trace;
+  /**
+   * Segments d'un point au suivant, en ligne droite.
+   *
+   * <p>Le tracé passait par des cubiques à tangente horizontale : chaque point
+   * y était un sommet plat, et la courbe s'arrondissait entre deux mesures. Sur
+   * une série où trois exercices valent zéro, un culmine à seize mille tonnes
+   * et le dernier retombe à huit, cela dessinait une cloche — une forme qui
+   * suggère une montée et une décrue progressives là où la donnée ne dit qu'un
+   * exercice collecté entre des exercices vides.</p>
+   *
+   * <p>La ligne brisée n'invente rien entre deux points : elle relie ce qui est
+   * mesuré, et laisse voir que l'entre-deux n'est pas documenté.</p>
+   */
+  private segments(points: { x: number; y: number }[]): string {
+    return points.slice(1).map(point => ` L ${point.x} ${point.y}`).join('');
   }
 
-  private lisser(points: { x: number; y: number }[]): string {
+  /** Chemin d'un niveau, du premier point au dernier. */
+  private tracer(points: { x: number; y: number }[]): string {
     if (!points.length) return '';
-    return `M ${points[0].x} ${points[0].y}${this.segmentsLisses(points)}`;
+    return `M ${points[0].x} ${points[0].y}${this.segments(points)}`;
   }
 
   /** Points d'un niveau d'empilement, cumul des scopes jusqu'au rang demandé. */
@@ -793,9 +874,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       return {
         ...definition,
-        ligne: this.lisser(haut),
-        aire: `${this.lisser(haut)} L ${retour[0].x} ${retour[0].y}`
-          + `${this.segmentsLisses(retour)} Z`
+        ligne: this.tracer(haut),
+        aire: `${this.tracer(haut)} L ${retour[0].x} ${retour[0].y}`
+          + `${this.segments(retour)} Z`
       };
     });
   }

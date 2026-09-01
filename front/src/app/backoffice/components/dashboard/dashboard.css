@@ -2215,23 +2215,31 @@
    `nowrap` les faisait déborder de la carte. À gauche, elles longent l'axe des
    ordonnées, là où le tracé part du bas. La largeur est bornée pour qu'un
    libellé long se coupe plutôt que de sortir du cadre. */
+/* Étiquettes de trajectoire, CENTRÉES sur leur trait — même convention que les
+   graduations de l'axe des ordonnées.
+
+   Posées entièrement au-dessus du trait, elles mentaient sur l'ordre : une
+   étiquette de 11,99 k dont le trait tombe à y=101,5 s'affichait, une fois
+   remontée de sa propre hauteur, vers y=91 — soit au-dessus de la graduation
+   12,54 k qui, elle, est centrée à y=94,9. Deux repères correctement projetés
+   se lisaient donc dans le mauvais ordre, par la seule faute de leur ancrage.
+
+   Le fond est opaque : centrée, l'étiquette recouvre le pointillé qu'elle
+   nomme, et doit le masquer plutôt que de se lire à travers. */
 .hist-jalon-etiquette {
     position: absolute;
-    /* Retrait franc du bord : collée à gauche, l'étiquette venait buter contre
-       les graduations de l'axe des ordonnées, et son premier mot s'y perdait.
-       La zone de tracé commence déjà 42 px après le bord de la carte ; ces
-       28 px de plus posent l'étiquette à 70 px du bord, franchement au-dessus
-       du tracé, là où rien ne la coupe. */
+    /* La zone de tracé commence déjà 42 px après le bord de la carte ; ces
+       28 px de plus posent l'étiquette à 70 px du bord, dégagée de l'axe. */
     left: 28px;
-    transform: translateY(-100%);
-    margin-top: -3px;
+    transform: translateY(-50%);
     max-width: calc(100% - 36px);
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 9.5px;
     font-weight: 600;
     color: #2A6E96;
-    background: rgba(255, 255, 255, 0.88);
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
     padding: 1px 5px;
     border-radius: 4px;
     white-space: nowrap;
@@ -2954,8 +2962,8 @@
    carte, non par la zone de tracé. */
 .hist-toile { position: relative; flex: 1; min-height: 168px; }
 
-/* `preserveAspectRatio: none` étire le tracé sur toute la hauteur disponible ;
-   les traits gardent leur épaisseur grâce à `non-scaling-stroke`. */
+/* Le repère du SVG est accordé aux pixels de cette zone : le tracé la remplit
+   sans étirement, et une unité de dessin y vaut un pixel d'écran. */
 .hist-toile svg { display: block; width: 100%; height: 100%; }
 
 .hist-grille { stroke: var(--line-soft); stroke-width: 1; }

@@ -123,7 +123,10 @@ describe('DashboardComponent — historique pluriannuel', () => {
     const aires = composant.airesHistorique;
     expect(aires.map(a => a.id)).toEqual(['s1', 's2', 's3']);
     expect(aires.every(a => a.aire.startsWith('M') && a.aire.endsWith('Z'))).toBe(true);
-    expect(aires.every(a => a.ligne.includes(' C '))).toBe(true);
+    // Segments droits : le lissage dessinait une cloche entre un exercice à
+    // zéro et son voisin chargé, montant et redescendant là où la donnée ne
+    // documente rien.
+    expect(aires.every(a => a.ligne.includes(' L '))).toBe(true);
 
     const hote: HTMLElement = fixture.nativeElement;
     expect(hote.querySelectorAll('.hist-toile svg linearGradient')).toHaveLength(3);
@@ -142,8 +145,86 @@ describe('DashboardComponent — historique pluriannuel', () => {
 
     // 2026 pèse la moitié : son ordonnée est au milieu de la zone utile.
     const hautZone = plusHaut.y;
-    const basZone = composant.svgHaut - 12;
+    const basZone = composant.svgHaut - composant.margeBas;
     expect(moitie.y).toBeCloseTo(hautZone + (basZone - hautZone) / 2, 1);
+  });
+
+  describe('géométrie du tracé', () => {
+
+    /**
+     * Part du plafond que désigne une ordonnée — la projection, inversée.
+     *
+     * <p>Reconstruire la valeur depuis le libellé serait faux : il est arrondi
+     * pour l'affichage, et l'écart d'arrondi passerait pour une erreur de
+     * projection. L'ordonnée, elle, porte la géométrie exacte.</p>
+     */
+    const part = (y: number, composant: DashboardComponent) =>
+      1 - (y - composant.margeHaut) / (composant.svgHaut - composant.margeHaut - composant.margeBas);
+
+    it('projette les graduations par une fonction affine du rapport à l\'échelle', () => {
+      // Le defaut signale : une cible de 11,99 k paraissait au-dessus de la
+      // graduation 12,54 k. Deux reperes correctement projetes ne peuvent pas
+      // se lire dans le mauvais ordre — l'ordonnee croit quand la valeur
+      // decroit, sans exception.
+      const composant = monter().componentInstance;
+
+      expect(composant.grilleHistorique.map(r => +part(r.y, composant).toFixed(4)))
+        .toEqual([1, 0.66, 0.33, 0]);
+    });
+
+    it('ordonne les repères par valeur décroissante', () => {
+      const composant = monter().componentInstance;
+      const grille = composant.grilleHistorique;
+
+      for (let i = 1; i < grille.length; i++) {
+        // Valeur plus faible, donc plus bas : l'ordonnee doit croitre.
+        expect(grille[i].y).toBeGreaterThan(grille[i - 1].y);
+      }
+    });
+
+    it('place la cible entre les graduations qui l\'encadrent', () => {
+      // Base 120 t, plafond 140 : la cible vaut 60 t, soit 0,43 du plafond.
+      // Elle doit donc tomber sous la graduation 0,66 et au-dessus de 0,33 —
+      // c'est exactement l'ordre que l'ancrage des étiquettes inversait.
+      const composant = monter().componentInstance;
+      const cible = composant.cibleHistorique!;
+      const partCible = part(cible.y, composant);
+
+      expect(partCible).toBeLessThan(0.66);
+      expect(partCible).toBeGreaterThan(0.33);
+
+      const grille = composant.grilleHistorique;
+      expect(cible.y).toBeGreaterThan(grille[1].y);
+      expect(cible.y).toBeLessThan(grille[2].y);
+    });
+
+    it('relie les points en ligne brisée, sans courbe inventée', () => {
+      // Les cubiques a tangente horizontale dessinaient une cloche entre un
+      // exercice a zero et un exercice a seize mille tonnes : une montee et une
+      // decrue progressives que la donnee ne documente pas.
+      const composant = monter().componentInstance;
+
+      for (const serie of composant.airesHistorique) {
+        expect(serie.ligne).not.toContain('C');
+        expect(serie.ligne).toMatch(/^M [\d.]+ [\d.]+( L [\d.]+ [\d.]+)+$/);
+      }
+    });
+  });
+
+  it('répartit l\'axe des abscisses sur les exercices rendus par la base', () => {
+    // Le pas horizontal se deduit du nombre d'exercices : une annee ajoutee en
+    // base doit s'inserer d'elle-meme, sans toucher au composant.
+    const composant = monter().componentInstance;
+    const n = composant.historique.length;
+
+    expect(n).toBeGreaterThan(1);
+    expect(composant.positionX(0)).toBeCloseTo(0, 6);
+    expect(composant.positionX(n - 1)).toBeCloseTo(100, 6);
+
+    for (let i = 1; i < n; i++) {
+      expect(composant.positionX(i) - composant.positionX(i - 1))
+        .toBeCloseTo(100 / (n - 1), 6);
+    }
   });
 
   it('laisse de l\'air au-dessus du plus grand exercice', () => {
@@ -154,7 +235,7 @@ describe('DashboardComponent — historique pluriannuel', () => {
     const composant = monter().componentInstance;
 
     const plusHaut = Math.min(...composant.marqueursHistorique.map(m => m.y));
-    expect(plusHaut).toBeGreaterThan(16);
+    expect(plusHaut).toBeGreaterThan(composant.margeHaut);
 
     // Le repère du haut porte le plafond, non le maximum collecté : 120 tCO₂e
     // au plus fort exercice, une échelle qui monte à 140.
