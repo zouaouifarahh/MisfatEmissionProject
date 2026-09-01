@@ -197,9 +197,13 @@
            explication se lit comme une perte de donnees. -->
       <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
            comptait deja ; cet ecran les niait. -->
+      <!-- Aucun exercice imposé : l'inventaire des immobilisations est un
+           patrimoine, pas un relevé d'année. Un actif acquis en 2019 est
+           toujours détenu, et le masquer parce que l'en-tête affiche 2026
+           reviendrait à nier qu'on le possède. -->
       <app-mesures-serveur
         [numeroGhg]="15"
-        [exercice]="exerciceActif"
+        [exercice]="exercicePourPanneau"
         [organisation]="perimetreAffiche"></app-mesures-serveur>
 
       <p class="note-perimetre" *ngIf="messagePerimetre"
