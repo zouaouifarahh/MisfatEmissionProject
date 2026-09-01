@@ -58,16 +58,25 @@
           <input type="text" class="custom-input" [(ngModel)]="nouvelleSource.sourceName" name="sourceName" placeholder="Ex: Voiture à diesel moyenne" required>
         </div>
 
+        <!-- NATURE DE L'UNITÉ -->
+        <div class="form-group">
+          <label>TYPE D'UNITÉ *</label>
+          <!-- Les catégories monétaires du Scope 3 — achats, immobilisations,
+               investissements — se valorisent à la dépense. La liste n'offrait
+               que des grandeurs physiques : une source d'achats était contrainte
+               au kilogramme, ou créée avec une unité qui ne la documente pas. -->
+          <select class="custom-input" [(ngModel)]="nouvelleSource.typeUnite"
+                  name="typeUnite" (ngModelChange)="onTypeUniteChange()" required>
+            <option value="PHYSIQUE">⚖️ Physique — quantité mesurée</option>
+            <option value="MONETAIRE">💰 Monétaire — montant dépensé</option>
+          </select>
+        </div>
+
         <!-- UNITÉ -->
         <div class="form-group">
           <label>UNITÉ DE MESURE *</label>
           <select class="custom-input" [(ngModel)]="nouvelleSource.defaultUnit" name="defaultUnit" required>
-            <option value="kg">kg (Kilogrammes)</option>
-            <option value="L">L (Litres)</option>
-            <option value="kWh">kWh (Kilowatt-heure)</option>
-            <option value="m3">m³ (Mètres cubes)</option>
-            <option value="km">Km (Kilomètres)</option>
-            <option value="tonne">Tonne</option>
+            <option *ngFor="let u of unitesDuType" [value]="u.valeur">{{ u.libelle }}</option>
           </select>
         </div>
 

@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { UNITES_PHYSIQUES, UNITES_MONETAIRES } from '../../shared/ui/unites-mesure';
 
 export interface EmissionSource {
   id?: number;
@@ -10,6 +11,19 @@ export interface EmissionSource {
   category: string;
   sourceName: string;
   defaultUnit: string;
+}
+
+/**
+ * Source en cours de saisie.
+ *
+ * <p>Elle porte un champ de plus que la source enregistrée : la nature de
+ * l'unité. La base ne la stocke pas — l'unité elle-même la porte, « TND »
+ * désignant un ratio monétaire aussi sûrement qu'un champ le déclarerait — et
+ * l'ajouter à {@link EmissionSource} laisserait croire qu'elle est persistée.
+ * Elle ne sert qu'à restreindre la liste proposée au formulaire.</p>
+ */
+interface SourceEnSaisie extends EmissionSource {
+  typeUnite: 'PHYSIQUE' | 'MONETAIRE';
 }
 
 @Component({
@@ -53,13 +67,75 @@ export class ReferentielCarboneComponent implements OnInit {
   sourceToDeleteId: number | null = null;
 
   // Formulaire
-  nouvelleSource: EmissionSource = {
+  nouvelleSource: SourceEnSaisie = {
     referenceCode: '',
     scope: 'SCOPE_1',
     category: '',
     sourceName: '',
-    defaultUnit: 'kg'
+    defaultUnit: 'kg',
+    /**
+     * Nature de l'unité : grandeur physique ou devise.
+     *
+     * <p>Aide de saisie, non enregistrée : la base ne connaît que l'unité, et
+     * celle-ci porte déjà l'information — « TND » désigne un ratio monétaire
+     * aussi sûrement qu'un champ le déclarerait. Ce sélecteur ne fait que
+     * restreindre la liste proposée, pour qu'on ne cherche pas une devise parmi
+     * les kilogrammes.</p>
+     */
+    typeUnite: 'PHYSIQUE' as 'PHYSIQUE' | 'MONETAIRE'
   };
+
+  /**
+   * Unités proposées, selon la nature retenue.
+   *
+   * <p>Les catégories monétaires du Scope 3 — achats, immobilisations,
+   * investissements — se valorisent à la dépense : leurs sources doivent
+   * pouvoir se libeller en dinars, et la liste n'offrait que des grandeurs
+   * physiques. Une source d'achats était donc contrainte au kilogramme, ou
+   * créée avec une unité qui ne la documente pas.</p>
+   */
+  unitesDuType: { valeur: string; libelle: string }[] = [];
+
+  /**
+   * Recompose la liste des unités proposées.
+   *
+   * <p>Champ et non accesseur : un accesseur aurait rendu un tableau neuf à
+   * chaque cycle de rendu, et la boucle du gabarit l'aurait vu changer sans
+   * fin — Angular s'arrête alors sur « détection de changements infinie ». La
+   * liste ne dépend que de la nature retenue : elle est donc recalculée quand
+   * celle-ci change, et à ce seul moment.</p>
+   */
+  private majUnitesProposees(): void {
+    this.unitesDuType = this.nouvelleSource.typeUnite === 'MONETAIRE'
+      ? UNITES_MONETAIRES.map(devise => ({
+          valeur: devise, libelle: `${devise} (montant dépensé)`
+        }))
+      : UNITES_PHYSIQUES.flatMap(groupe =>
+          groupe.unites.map(unite => ({
+            valeur: unite, libelle: `${unite} — ${groupe.grandeur}`
+          })));
+  }
+
+  /**
+   * Accorde l'unité à la nature retenue.
+   *
+   * <p>Basculer en monétaire sans changer l'unité laisserait « kg » sur une
+   * source qui se compte en dinars.</p>
+   */
+  onTypeUniteChange(): void {
+    this.majUnitesProposees();
+
+    if (!this.unitesDuType.some(u => u.valeur === this.nouvelleSource.defaultUnit)) {
+      this.nouvelleSource.defaultUnit = this.unitesDuType[0]?.valeur ?? '';
+    }
+  }
+
+  /** La nature d'une unité déjà enregistrée, déduite d'elle-même. */
+  private typeDeLUnite(unite: string | null | undefined): 'PHYSIQUE' | 'MONETAIRE' {
+    return UNITES_MONETAIRES.includes(String(unite ?? '').trim().toUpperCase())
+      ? 'MONETAIRE'
+      : 'PHYSIQUE';
+  }
 
   scopesData = [
     {
@@ -112,6 +188,7 @@ export class ReferentielCarboneComponent implements OnInit {
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
+    this.majUnitesProposees();
     this.syncFormWithActiveTab();
     this.chargerSources();
   }
@@ -249,6 +326,19 @@ export class ReferentielCarboneComponent implements OnInit {
   private majCategoriesTableau(): void {
     const parCle = new Map<string, string>();
 
+    // La nomenclature du scope ouvre la liste, dans son ordre — de la catégorie
+    // 1 à la 15. Le filtre ne proposait que les catégories déjà pourvues :
+    // rechercher « Investissements » était impossible tant qu'aucune source n'y
+    // figurait, alors que c'est précisément ce qu'on veut vérifier avant d'en
+    // créer une. Un filtre qui ne rend rien est une réponse, pas une panne.
+    const nomenclature = this.scopesData.find(s => s.id === this.selectedScopeTab);
+    for (const categorie of nomenclature?.categories ?? []) {
+      parCle.set(this.normaliser(categorie.nom), categorie.nom);
+    }
+
+    // Les catégories que la base porte sans que la nomenclature les prévoie
+    // sont ajoutées ensuite : aucune source ne doit rester hors de portée du
+    // filtre.
     for (const source of this.sourcesToutes) {
       if (source.scope !== this.selectedScopeTab || !source.category) continue;
 
@@ -256,7 +346,7 @@ export class ReferentielCarboneComponent implements OnInit {
       if (libelle) parCle.set(this.normaliser(libelle), libelle);
     }
 
-    this.categoriesTableau = [...parCle.values()].sort((a, b) => a.localeCompare(b, 'fr'));
+    this.categoriesTableau = [...parCle.values()];
 
     // La catégorie retenue peut ne plus exister dans le scope choisi.
     const cible = this.cleCategorie(this.selectedScopeTab, this.selectedCategorie);
@@ -376,7 +466,16 @@ export class ReferentielCarboneComponent implements OnInit {
       ? canonique
       : (this.categoriesDisponibles[0]?.nom ?? '');
 
-    this.nouvelleSource = { ...source, category: proposee };
+    // La nature de l'unité se déduit de l'unité elle-même : la base ne la
+    // stocke pas, et « TND » désigne un ratio monétaire aussi sûrement qu'un
+    // champ le déclarerait. Sans cela, rouvrir une source en dinars aurait
+    // affiché la liste des grandeurs physiques, et son unité aurait paru vide.
+    this.nouvelleSource = {
+      ...source,
+      category: proposee,
+      typeUnite: this.typeDeLUnite(source.defaultUnit)
+    };
+    this.majUnitesProposees();
     this.majCategoriesTableau();
     this.filtrerTableau();
     this.cdr.detectChanges();
@@ -425,8 +524,10 @@ export class ReferentielCarboneComponent implements OnInit {
       scope: this.selectedScopeTab,
       category: '',
       sourceName: '',
-      defaultUnit: 'kg'
+      defaultUnit: 'kg',
+      typeUnite: 'PHYSIQUE'
     };
+    this.majUnitesProposees();
     this.syncFormWithActiveTab();
     this.cdr.detectChanges();
   }
