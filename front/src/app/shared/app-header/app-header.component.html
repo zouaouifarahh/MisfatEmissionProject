@@ -39,6 +39,12 @@
   <label class="filter">
     <span class="filter-label">Année</span>
     <select [ngModel]="annee" (ngModelChange)="changerAnnee($event)">
+      <!-- Vue pluriannuelle. Le cloisonnement tient `null` pour « tous les
+           exercices » depuis toujours, mais rien dans l'interface ne pouvait
+           le produire : un classeur couvrant plusieurs annees n'etait donc
+           consultable qu'un millesime a la fois, et ses lignes des autres
+           exercices restaient hors de portee. -->
+      <option [ngValue]="null">Tous les exercices</option>
       <option *ngFor="let a of annees" [ngValue]="a.valeur">
         {{ a.valeur }}{{ a.statut === 'EN_COURS' ? ' · en cours' : '' }}
       </option>
