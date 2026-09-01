@@ -538,6 +538,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private clefHistorique = '';
 
   /**
+   * Oublie le relevé pluriannuel déjà chargé, pour le faire relire.
+   *
+   * <p>Le mémo est bâti sur le seul périmètre : société, usine, exercices
+   * ouverts. Il ne pouvait donc pas savoir que la donnée avait bougé sans que
+   * le périmètre change — un import, une correction au référentiel, une mesure
+   * saisie. Les cartes se recalculaient pendant que la courbe restait sur son
+   * chargement précédent, et la trajectoire SBTi, qui lit pourtant le même
+   * tableau, affichait alors la valeur du jour sous une courbe de la veille :
+   * deux vues de la même donnée en désaccord, sans que rien ne dise laquelle
+   * avait raison.</p>
+   *
+   * <p>L'invalidation est explicite plutôt qu'automatique : c'est à ce qui
+   * change la donnée de le dire, et non au graphique de tout relire à chaque
+   * cycle par précaution.</p>
+   */
+  private invaliderHistorique(): void {
+    this.clefHistorique = '';
+  }
+
+  /**
    * Trace l'empreinte de tous les exercices ouverts.
    *
    * <p>L'axe des abscisses suit la table des exercices : ouvrir une année dans
@@ -554,6 +574,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const filtre = this.entityService.filter;
     const annees = this.annees.map(a => a.valeur).sort((a, b) => a - b);
 
+    // Le mémo épargne un rechargement complet quand seul l'exercice consulté
+    // change : la série porte déjà toutes les années, et les redemander une par
+    // une n'apprendrait rien.
     const clef = `${filtre.entityId}|${filtre.usineId}|${annees.join(',')}`;
     if (!annees.length || clef === this.clefHistorique) return;
 
@@ -2532,6 +2555,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.abonnements.add(
       mesuresLocalesModifiees$.subscribe(() => {
         this.chargerStats();
+        // La courbe pluriannuelle est nourrie par les mêmes agrégats : la
+        // laisser en arrière la mettrait en désaccord avec les cartes qui,
+        // elles, viennent de se recalculer.
+        this.invaliderHistorique();
+        this.chargerHistorique();
         this.cdr.markForCheck();
       })
     );
@@ -2568,6 +2596,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onImported(): void {
     this.refreshToken++;
     this.chargerStats();
+    // L'import change les exercices déjà chiffrés autant que celui qui est
+    // consulté : la courbe pluriannuelle doit être relue, elle aussi.
+    this.invaliderHistorique();
+    this.chargerHistorique();
     this.cdr.markForCheck();
   }
 

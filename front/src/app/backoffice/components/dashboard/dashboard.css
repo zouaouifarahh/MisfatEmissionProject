@@ -2219,11 +2219,13 @@
     position: absolute;
     /* Retrait franc du bord : collée à gauche, l'étiquette venait buter contre
        les graduations de l'axe des ordonnées, et son premier mot s'y perdait.
-       Le retrait la pose au-dessus du tracé, là où rien ne la coupe. */
-    left: 18px;
+       La zone de tracé commence déjà 42 px après le bord de la carte ; ces
+       28 px de plus posent l'étiquette à 70 px du bord, franchement au-dessus
+       du tracé, là où rien ne la coupe. */
+    left: 28px;
     transform: translateY(-100%);
     margin-top: -3px;
-    max-width: calc(100% - 26px);
+    max-width: calc(100% - 36px);
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 9.5px;

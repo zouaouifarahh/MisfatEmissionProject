@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { DashboardComponent } from './dashboard';
+import { signalerMesuresLocalesModifiees } from '../../../shared/dispatch/mesures-locales';
 
 /**
  * Histogramme pluriannuel et analyse décisionnelle.
@@ -227,6 +228,23 @@ describe('DashboardComponent — historique pluriannuel', () => {
 
     // Le graphique montre déjà toutes les années : le redessiner serait inutile.
     expect(composant.historique).toBe(avant);
+  });
+
+  it('relit la série quand une saisie change la donnée', () => {
+    // Le mémo est bâti sur le seul périmètre : il ne pouvait pas savoir que la
+    // donnée avait bougé sans que le périmètre change. Les cartes se
+    // recalculaient pendant que la courbe restait sur son chargement
+    // précédent — et la trajectoire SBTi, qui lit pourtant le même tableau,
+    // affichait la valeur du jour sous une courbe de la veille.
+    const fixture = monter();
+    const composant = fixture.componentInstance;
+    const avant = composant.historique;
+
+    signalerMesuresLocalesModifiees();
+    servirTout();
+    fixture.detectChanges();
+
+    expect(composant.historique).not.toBe(avant);
   });
 
   describe('mini-cartes de synthèse', () => {
