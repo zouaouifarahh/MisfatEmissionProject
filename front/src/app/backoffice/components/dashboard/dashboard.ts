@@ -652,8 +652,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
    */
   private static readonly ECART_MIN_ETIQUETTES = 16;
 
-  /** Air laissé au-dessus du plus grand exercice, en part de sa valeur. */
-  private static readonly MARGE_ECHELLE = 0.12;
+  /**
+   * Air laissé au-dessus du plus grand exercice, en part de sa valeur.
+   *
+   * <p>Quinze pour cent : l'arrondi au cran supérieur pouvait ramener la marge
+   * effective sous ce seuil — un maximum de 17 800 donnait un plafond de
+   * 20 000, soit douze pour cent seulement. Le plancher est desormais porté par
+   * la marge elle-même, et l'arrondi ne fait que l'augmenter.</p>
+   */
+  private static readonly MARGE_ECHELLE = 0.15;
   private readonly margeHaut = 16;
   private readonly margeBas = 12;
 
@@ -891,7 +898,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const courant = this.pointCourant;
     if (!courant) return false;
 
-    return this.annees.some(a => a.valeur === courant.annee && a.statut === 'EN_COURS');
+    const declare = this.annees.find(a => a.valeur === courant.annee);
+
+    // Statut inconnu — le référentiel des exercices n'a pas encore répondu, ou
+    // n'a pas répondu du tout : l'exercice est tenu pour ouvert. C'est le sens
+    // du doute. Le tenir pour clos ferait chiffrer une variation contre une
+    // année dont on ignore si la collecte est finie, et c'est précisément le
+    // « −100 % » qu'on cherche à ne plus afficher — il apparaissait le temps
+    // que la liste des exercices revienne, et restait pour de bon si l'appel
+    // échouait.
+    if (!declare) return true;
+
+    return declare.statut === 'EN_COURS';
   }
 
   /**
@@ -1755,6 +1773,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Le calcul est terminé : on force le rendu plutôt que d'attendre un cycle
     // que rien ne garantit après une réponse réseau.
     this.cdr.detectChanges();
+
+    if (isDevMode()) {
+      console.log('[dashboard] Echelle du graphique :', {
+        exercices: this.historique.map(p => ({ annee: p.annee, total: Math.round(p.total) })),
+        maximum: Math.round(this.maxHistorique),
+        plafondAxeY: Math.round(this.plafondHistorique)
+      });
+    }
 
     return fusion;
   }

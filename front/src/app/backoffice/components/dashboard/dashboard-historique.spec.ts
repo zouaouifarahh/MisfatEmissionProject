@@ -283,6 +283,21 @@ describe('DashboardComponent — historique pluriannuel', () => {
       expect(composant.motifSansVariation).toContain('Collecte en cours');
     });
 
+    it('tient l\'exercice pour ouvert tant que son statut est inconnu', () => {
+      // Le referentiel des exercices repond apres le premier rendu. Tant qu'il
+      // se tait, chiffrer une variation revient a comparer a une annee dont on
+      // ignore si la collecte est finie : c'est le « −100 % » qui s'affichait
+      // le temps que la liste revienne, et pour de bon si l'appel echouait.
+      const fixture = monter();
+      const composant = fixture.componentInstance;
+
+      composant.annees = [];
+      fixture.detectChanges();
+
+      expect(composant.exerciceEnCours).toBe(true);
+      expect(composant.variationCarte).toBeNull();
+    });
+
     it('chiffre la variation dès que l\'exercice est clos', () => {
       const fixture = monter();
       const composant = fixture.componentInstance;
