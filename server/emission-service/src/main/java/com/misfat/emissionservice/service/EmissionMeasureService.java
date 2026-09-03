@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import com.misfat.emissionservice.dto.MesurePageDto;
+import com.misfat.emissionservice.dto.PageMesuresDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class EmissionMeasureService {
@@ -24,6 +28,43 @@ public class EmissionMeasureService {
 
     @Autowired
     private UsineLookupRepository usineLookupRepository;
+
+    /**
+     * Page de mesures d'une catégorie, accompagnée des totaux du périmètre.
+     *
+     * <p>Les totaux ne se déduisent pas de la page : cinquante lignes sur cent
+     * onze mille n'en disent rien. Ils sont comptés par la base, sur exactement
+     * les mêmes critères — un en-tête et un tableau qui se contredisent coûtent
+     * plus cher qu'une requête supplémentaire.</p>
+     *
+     * <p>Un critère nul vaut « tous », comme partout ailleurs : exercice non
+     * renseigné pour la vue pluriannuelle, société non renseignée pour la vue
+     * groupe.</p>
+     */
+    @Transactional(readOnly = true)
+    public PageMesuresDto pagerParCategorie(String categorie, Integer annee, Long filialeId,
+                                            int page, int taille) {
+
+        Page<MesurePageDto> resultat = measureRepository.pagerParCategorie(
+                categorie, annee, filialeId, PageRequest.of(Math.max(page, 0), taille));
+
+        List<Object[]> totaux = measureRepository.totauxParCategorie(categorie, annee, filialeId);
+
+        long nombre = 0L;
+        BigDecimal co2e = BigDecimal.ZERO;
+        BigDecimal quantite = BigDecimal.ZERO;
+
+        if (!totaux.isEmpty() && totaux.get(0) != null) {
+            Object[] ligne = totaux.get(0);
+            nombre = ligne[0] == null ? 0L : ((Number) ligne[0]).longValue();
+            co2e = ligne[1] == null ? BigDecimal.ZERO : (BigDecimal) ligne[1];
+            quantite = ligne[2] == null ? BigDecimal.ZERO : (BigDecimal) ligne[2];
+        }
+
+        return new PageMesuresDto(
+                resultat.getContent(), resultat.getNumber(), resultat.getSize(),
+                nombre, resultat.getTotalPages(), co2e, quantite);
+    }
 
     /**
      * Renseigne la filiale à partir de l'usine de la mesure.
