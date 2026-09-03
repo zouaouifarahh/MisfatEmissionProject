@@ -213,17 +213,36 @@ public class ReferentialService {
      * et une catégorie neuve doit rester possible.</p>
      */
     private Category resoudreCategorie(String nomDemande, Scope scope) {
+        List<Category> duScope = categoryRepository.findAll().stream()
+                .filter(c -> c.getScope() != null
+                        && Objects.equals(c.getScope().getId(), scope.getId()))
+                .collect(Collectors.toList());
+
         Integer numero = numeroGhg(nomDemande);
 
         if (numero != null) {
-            Optional<Category> parNumero = categoryRepository.findAll().stream()
-                    .filter(c -> c.getScope() != null
-                            && Objects.equals(c.getScope().getId(), scope.getId()))
+            Optional<Category> parNumero = duScope.stream()
                     .filter(c -> numero.equals(numeroGhg(c.getName())))
                     .findFirst();
 
             if (parNumero.isPresent()) {
                 return parNumero.get();
+            }
+        }
+
+        // Les scopes 1 et 2 n'ont pas de numéro : leurs postes se rapprochent
+        // par synonymie. Sans elle, un import écrivant « Stationary combustion »
+        // créerait une catégorie jumelle de « Combustion dans les
+        // établissements », et les facteurs des deux cesseraient de se voir.
+        String famille = familleSynonyme(nomDemande);
+
+        if (famille != null) {
+            Optional<Category> parSynonyme = duScope.stream()
+                    .filter(c -> famille.equals(familleSynonyme(c.getName())))
+                    .findFirst();
+
+            if (parSynonyme.isPresent()) {
+                return parSynonyme.get();
             }
         }
 
@@ -235,6 +254,49 @@ public class ReferentialService {
                     nouvelle.setScope(scope);
                     return categoryRepository.save(nouvelle);
                 });
+    }
+
+    /**
+     * Groupes de libellés désignant un même poste des scopes 1 et 2.
+     *
+     * <p>Chaque clé nomme une famille ; les motifs reconnaissent les écritures
+     * rencontrées, françaises comme anglaises. Ces postes n'ont pas de numéro
+     * GHG : la synonymie est le seul repère qui les rapproche.</p>
+     */
+    private static final Map<String, Pattern> FAMILLES_SANS_NUMERO = Map.of(
+            "combustion-fixe",
+            Pattern.compile("combustion.*(etablissement|installation|fixe|stationnaire)"
+                    + "|stationary.*combustion|combustion in stationary"),
+            "combustion-mobile",
+            Pattern.compile("combustion.*(vehicul|mobile)|mobile combustion"
+                    + "|company owned (car|vehicle)"),
+            "refrigerants",
+            Pattern.compile("refrigerant|fugitive|frigorigene"),
+            "energie-achetee",
+            Pattern.compile("^energy$|electricite|electricity|purchased energy|reseau de chaleur"));
+
+    /**
+     * Famille à laquelle un libellé se rattache, ou {@code null}.
+     *
+     * <p>Le rapprochement se fait sans accents ni casse : « Émissions de
+     * réfrigérants » et « Refrigerant gas loss » désignent le même poste.</p>
+     */
+    private static String familleSynonyme(String libelle) {
+        if (libelle == null) {
+            return null;
+        }
+
+        String cle = java.text.Normalizer.normalize(libelle.trim(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase();
+
+        for (Map.Entry<String, Pattern> famille : FAMILLES_SANS_NUMERO.entrySet()) {
+            if (famille.getValue().matcher(cle).find()) {
+                return famille.getKey();
+            }
+        }
+
+        return null;
     }
 
     /**

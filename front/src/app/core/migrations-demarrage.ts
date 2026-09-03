@@ -139,6 +139,88 @@ function attribuerPeriode2025(): number {
   return datees;
 }
 
+/** Marqueur de la redatation des achats, versionné. */
+export const MARQUEUR_ACHATS_2025 = 'misfat_achats_redates_2025_v1';
+
+/** Compte rendu de la redatation, pour le bandeau du tableau de bord. */
+export const bilanAchats = { lignes: 0 };
+
+/**
+ * Ramène à 2025 les achats datés de 2026 par leur import.
+ *
+ * <p>L'import des achats lisait une colonne de date ; absente du classeur, la
+ * période restait vide et la ligne retombait sur sa date de création — donc sur
+ * l'année de l'import. Un export d'achats 2025 versé en 2026 s'est ainsi
+ * retrouvé daté de 2026, et restait invisible pour qui consulte 2025.</p>
+ *
+ * <p>L'import est corrigé depuis : il inscrit la période de l'exercice consulté.
+ * Cette reprise ne vaut donc que pour les lignes déjà versées, qu'aucune
+ * correction d'import ne peut rattraper.</p>
+ *
+ * <p>Le millésime retenu vient d'un arbitrage de l'exploitante — ces achats
+ * documentent 2025 — et non d'une lecture de la donnée, qui ne le porte pas.
+ * Les lignes explicitement rattachées à une autre société ne sont pas touchées :
+ * l'arbitrage portait sur MISFAT TUNISIE.</p>
+ *
+ * @returns le nombre de lignes redatées.
+ */
+function redaterAchatsEn2025(): number {
+  if (migrationFaite(MARQUEUR_ACHATS_2025)) return 0;
+
+  const cle = CLES_PAR_CATEGORIE['biens-services'];
+  const lignes = relire(cle) as Record<string, unknown>[];
+
+  if (!lignes.length) {
+    marquerMigration(MARQUEUR_ACHATS_2025);
+    return 0;
+  }
+
+  let redatees = 0;
+
+  const reprises = lignes.map(ligne => {
+    const societe = ligne['societeId'];
+    // Une ligne rattachée à une autre société relève d'un autre arbitrage.
+    if (societe !== null && societe !== undefined && Number(societe) !== SOCIETE_TUNISIE) {
+      return ligne;
+    }
+
+    const debut = String(ligne['dateDebut'] ?? '');
+    const fin = String(ligne['dateFin'] ?? '');
+    if (!debut.startsWith('2026') && !fin.startsWith('2026')) return ligne;
+
+    redatees++;
+    return { ...ligne, dateDebut: '2025-01-01', dateFin: '2025-12-31' };
+  });
+
+  if (!redatees) {
+    marquerMigration(MARQUEUR_ACHATS_2025);
+    return 0;
+  }
+
+  try {
+    localStorage.setItem(cle, JSON.stringify(reprises));
+  } catch {
+    // Stockage saturé : le marqueur n'est pas posé, la reprise se rejouera.
+    return 0;
+  }
+
+  bilanAchats.lignes = redatees;
+  marquerMigration(MARQUEUR_ACHATS_2025);
+  return redatees;
+}
+
+/** Société à laquelle l'arbitrage de redatation s'applique. */
+const SOCIETE_TUNISIE = 1;
+
+/** Message rendu à l'utilisateur quand des achats ont été redatés. */
+export function messageAchats(): string {
+  if (bilanAchats.lignes <= 0) return '';
+
+  return `${bilanAchats.lignes.toLocaleString('fr-FR')} ligne(s) d'achats étaient datées de `
+    + '2026 par leur import : elles portent désormais l\'exercice 2025, celui qu\'elles '
+    + 'documentent.';
+}
+
 /** Marqueur de la neutralisation des émissions résiduelles, versionné. */
 export const MARQUEUR_PURGE_ABERRANTES = 'misfat_purge_emissions_aberrantes_v1';
 
@@ -371,6 +453,12 @@ export function jouerMigrationsDeDemarrage(): number {
     reprises += rattacherClasseurAuMillesime();
   } catch (erreur) {
     console.error('[migrations] rattachement du classeur à son millésime interrompu', erreur);
+  }
+
+  try {
+    reprises += redaterAchatsEn2025();
+  } catch (erreur) {
+    console.error('[migrations] redatation des achats interrompue', erreur);
   }
 
   // Utilitaire de remise à zéro, offert à la console pour les essais. Exposé
