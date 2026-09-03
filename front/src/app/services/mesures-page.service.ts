@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, concatMap, from, map, of } from 'rxjs';
 
 /**
  * Lecture paginée des mesures, servie par la base.
@@ -73,6 +73,7 @@ export class MesuresPageService {
 
   private readonly http = inject(HttpClient);
   private readonly baseUrl = 'http://localhost:8082/api/v1/emission-measures';
+  private readonly racineEmissions = 'http://localhost:8082/api/v1/emissions';
 
   /**
    * Page de mesures d'une catégorie, cloisonnée par exercice et par société.
@@ -109,19 +110,87 @@ export class MesuresPageService {
    * moitié a été refusée.</p>
    */
   importerEnMasse(lignes: LigneImportBrute[]): Observable<BilanImport> {
-    return new Observable<BilanImport>(observateur => {
-      this.http.post(`${this.baseUrl.replace('/emission-measures', '')}/emissions/bulk-import`,
-        lignes, { observe: 'response' }).subscribe({
-        next: reponse => {
-          observateur.next({
-            importees: Number(reponse.headers.get('X-Imported-Count') ?? 0),
-            ecartees: Number(reponse.headers.get('X-Skipped-Count') ?? 0),
-            motifs: reponse.headers.get('X-Skipped-Reasons') ?? ''
-          });
-          observateur.complete();
-        },
-        error: erreur => observateur.error(erreur)
-      });
-    });
+    return this.http
+      .post(`${this.racineEmissions}/bulk-import`, lignes, { observe: 'response' })
+      .pipe(map(reponse => ({
+        importees: Number(reponse.headers.get('X-Imported-Count') ?? 0),
+        ecartees: Number(reponse.headers.get('X-Skipped-Count') ?? 0),
+        motifs: reponse.headers.get('X-Skipped-Reasons') ?? ''
+      })));
   }
+
+  /**
+   * Verse un classeur entier, par lots successifs.
+   *
+   * <p>Trente-sept mille lignes en une requête tiennent le serveur plusieurs
+   * minutes dans une seule transaction, et la connexion expire avant la réponse
+   * — l'import échoue alors sans qu'on sache ce qui a été écrit. Découpé, chaque
+   * lot se valide seul : une coupure laisse les lots précédents en base plutôt
+   * que de tout perdre.</p>
+   *
+   * <p>Les lots partent l'un après l'autre, non en parallèle. Trente-huit
+   * requêtes simultanées sur la même table se disputeraient les verrous, et le
+   * gain de temps se paierait en interblocages.</p>
+   *
+   * <p>Le flux émet après chaque lot : c'est ce qui permet d'afficher où en est
+   * l'import. Un import long et muet se confond avec un import bloqué.</p>
+   */
+  importerParLots(lignes: LigneImportBrute[],
+                  tailleLot = TAILLE_LOT_IMPORT): Observable<ProgressionImport> {
+
+    const lots: LigneImportBrute[][] = [];
+    for (let debut = 0; debut < lignes.length; debut += tailleLot) {
+      lots.push(lignes.slice(debut, debut + tailleLot));
+    }
+
+    if (!lots.length) {
+      return of({ lot: 0, lots: 0, importees: 0, ecartees: 0, motifs: '', termine: true });
+    }
+
+    const cumul = { importees: 0, ecartees: 0, motifs: [] as string[] };
+
+    return from(lots).pipe(
+      concatMap((lot, index) => this.importerEnMasse(lot).pipe(
+        map(bilan => {
+          cumul.importees += bilan.importees;
+          cumul.ecartees += bilan.ecartees;
+          if (bilan.motifs) cumul.motifs.push(bilan.motifs);
+
+          return {
+            lot: index + 1,
+            lots: lots.length,
+            importees: cumul.importees,
+            ecartees: cumul.ecartees,
+            // Les motifs se répètent d'un lot à l'autre — même colonne absente,
+            // même facteur introuvable : les dédoubler rendrait le message
+            // illisible sans rien apprendre de plus.
+            motifs: [...new Set(cumul.motifs)].join(' | '),
+            termine: index + 1 === lots.length
+          };
+        })
+      ))
+    );
+  }
+}
+
+/**
+ * Nombre de lignes par lot d'import.
+ *
+ * <p>Mille : assez pour que trente-sept mille lignes tiennent en trente-huit
+ * requêtes, assez peu pour qu'une transaction se boucle avant l'expiration
+ * d'une connexion. La valeur n'a rien de sacré — elle arbitre entre le nombre
+ * d'allers-retours et la durée de chacun.</p>
+ */
+export const TAILLE_LOT_IMPORT = 1000;
+
+/** Où en est un import par lots. */
+export interface ProgressionImport {
+  /** Rang du lot qui vient d'aboutir, à partir de un. */
+  lot: number;
+  lots: number;
+  /** Lignes enregistrées depuis le début, tous lots confondus. */
+  importees: number;
+  ecartees: number;
+  motifs: string;
+  termine: boolean;
 }

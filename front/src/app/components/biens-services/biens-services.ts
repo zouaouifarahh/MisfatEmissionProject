@@ -18,10 +18,9 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
 import {
-  MesuresPageService, PageMesures, LigneImportBrute
+  MesuresPageService, PageMesures, LigneImportBrute, ProgressionImport
 } from '../../services/mesures-page.service';
 
 /** Ligne d'achat de bien ou service, catégorie 1 du Scope 3. */
@@ -97,7 +96,7 @@ const CLE_STOCKAGE = 'listeEmissionsAchats';
 @Component({
   selector: 'app-biens-services',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './biens-services.html',
   styleUrl: './biens-services.css'
@@ -139,6 +138,15 @@ export class BiensServicesComponent implements OnInit {
   messageErreur = '';
 
   fichierSelectionne: File | null = null;
+
+  /**
+   * Avancement de l'import en cours, ou null hors import.
+   *
+   * <p>Un import long et muet se confond avec un import bloque : sur
+   * trente-huit lots, l'utilisateur doit voir que quelque chose avance.</p>
+   */
+  progressionImport: ProgressionImport | null = null;
+
   importSuccesMsg = '';
   importErreurMsg = '';
 
@@ -933,14 +941,27 @@ export class BiensServicesComponent implements OnInit {
         }
         if (ignorees) details.push(`${ignorees} ligne(s) sans catégorie ou sans montant exploitable`);
 
-        this.mesuresPage.importerEnMasse(aVerser).subscribe({
-          next: bilan => {
-            this.importSuccesMsg = `${bilan.importees.toLocaleString('fr-FR')} ligne(s) `
+        // Par lots : trente-sept mille lignes en une requête tiennent le serveur
+        // plusieurs minutes dans une seule transaction, et la connexion expire
+        // avant la réponse — l'import échoue alors sans qu'on sache ce qui a été
+        // écrit. Découpé, chaque lot se valide seul.
+        this.progressionImport = null;
+
+        this.mesuresPage.importerParLots(aVerser).subscribe({
+          next: avancement => {
+            this.progressionImport = avancement;
+
+            if (!avancement.termine) {
+              this.cdr.detectChanges();
+              return;
+            }
+
+            this.importSuccesMsg = `${avancement.importees.toLocaleString('fr-FR')} ligne(s) `
               + `enregistrée(s) en base sur ${lignes.length.toLocaleString('fr-FR')} lue(s).`;
 
-            if (bilan.ecartees) {
-              details.push(`${bilan.ecartees} ligne(s) refusée(s) par le serveur`
-                + (bilan.motifs ? ` : ${bilan.motifs.slice(0, 160)}` : ''));
+            if (avancement.ecartees) {
+              details.push(`${avancement.ecartees.toLocaleString('fr-FR')} ligne(s) refusée(s) `
+                + `par le serveur` + (avancement.motifs ? ` : ${avancement.motifs.slice(0, 160)}` : ''));
             }
             this.importErreurMsg = details.join(' · ');
 
@@ -950,9 +971,14 @@ export class BiensServicesComponent implements OnInit {
             this.cdr.detectChanges();
           },
           error: () => {
+            // Les lots déjà acceptés restent en base : le dire évite un second
+            // import qui doublerait ce qui est passé.
+            const acquis = this.progressionImport?.importees ?? 0;
             this.importSuccesMsg = '';
-            this.importErreurMsg = 'Enregistrement refusé : emission-service ne répond pas '
-              + '(port 8082). Aucune ligne n\'a été versée.';
+            this.importErreurMsg = 'Import interrompu : emission-service ne répond plus '
+              + `(port 8082). ${acquis.toLocaleString('fr-FR')} ligne(s) sont déjà en base — `
+              + 'reprenez à partir de là plutôt que de tout reverser.';
+            this.progressionImport = null;
             this.cdr.detectChanges();
           }
         });

@@ -79,13 +79,6 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
-      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
-           comptait deja ; cet ecran les niait. -->
-      <app-mesures-serveur
-        [numeroGhg]="1"
-        [exercice]="exerciceActif"
-        [organisation]="perimetreAffiche"></app-mesures-serveur>
-
       <table class="data-table">
         <thead>
           <tr>
@@ -375,6 +368,19 @@
         <button class="btn-model" (click)="telechargerGabarit()">📄 Télécharger le gabarit</button>
 
         <input type="file" accept=".xlsx,.xls" (change)="onFichierChange($event)" class="file-input">
+
+        <!-- Un import long et muet se confond avec un import bloqué : sur
+             trente-huit lots, il faut voir que quelque chose avance. -->
+        <div class="import-progression" *ngIf="progressionImport as avancement">
+          <div class="import-progression-texte">
+            ⏳ Importation : lot {{ avancement.lot }} / {{ avancement.lots }} —
+            {{ avancement.importees | number:'1.0-0' }} ligne(s) enregistrée(s)
+          </div>
+          <div class="import-jauge">
+            <div class="import-jauge-remplie"
+                 [style.width.%]="(avancement.lot / avancement.lots) * 100"></div>
+          </div>
+        </div>
 
         <div class="import-ok" *ngIf="importSuccesMsg">✅ {{ importSuccesMsg }}</div>
         <div class="import-ko" *ngIf="importErreurMsg">⚠️ {{ importErreurMsg }}</div>

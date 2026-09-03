@@ -304,3 +304,34 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* Avancement d'un import par lots. Trente-sept mille lignes partent en
+   trente-huit requêtes : sans jauge, l'écran reste muet plusieurs minutes et
+   rien ne distingue un import qui avance d'un import bloqué. */
+.import-progression {
+    margin: 10px 0;
+    padding: 10px 13px;
+    border: 1px solid #DDE6EE;
+    border-radius: 9px;
+    background: #F7FAFC;
+}
+
+.import-progression-texte {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #2D3B48;
+    margin-bottom: 7px;
+}
+
+.import-jauge {
+    height: 6px;
+    border-radius: 3px;
+    background: #E2E8F0;
+    overflow: hidden;
+}
+
+.import-jauge-remplie {
+    height: 100%;
+    background: #2F7D50;
+    transition: width 0.25s ease;
+}

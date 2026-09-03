@@ -30,7 +30,7 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresPageService, PageMesures } from '../../services/mesures-page.service';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
@@ -92,7 +92,7 @@ const LIBELLE_CATEGORIE = 'Transport en amont';
 @Component({
   selector: 'app-transport-amont',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './transport-amont.html',
   styleUrl: './transport-amont.css'
@@ -221,6 +221,8 @@ export class TransportAmontComponent implements OnInit {
         next: filtre => {
           this.societeActiveId = filtre?.entityId ?? null;
           this.exerciceActif = filtre?.year ?? null;
+      // La page vient de la base : un changement de perimetre la redemande.
+      this.chargerPage();
           this.majPerimetre();
         },
         error: () => this.signalerEchec('Périmètre organisationnel indisponible.')
@@ -966,6 +968,7 @@ export class TransportAmontComponent implements OnInit {
 
 
   private readonly dispatchStore = inject(DispatchStore);
+  private readonly mesuresPage = inject(MesuresPageService);
 
   /**
    * Lignes reçues de la ventilation d'un classeur comptable.
@@ -1006,8 +1009,80 @@ export class TransportAmontComponent implements OnInit {
   }
 
   /** Saisies de l'utilisateur et lignes ventilées, dans cet ordre d'affichage. */
+  /** Page servie par la base : lignes, totaux du périmètre et découpage. */
+  pageServeur: PageMesures | null = null;
+  chargementPage = false;
+
+  /**
+   * Lignes de la page, ramenées à la forme que le tableau attend.
+   *
+   * <p>La base rend une mesure, pas une expédition. L'adaptation est faite ici,
+   * en un seul endroit, plutôt que d'imposer au gabarit de connaître deux
+   * formes.</p>
+   */
+  private get lignesDeLaPage(): EmissionTransport[] {
+    return (this.pageServeur?.lignes ?? []).map(ligne => ({
+      id: ligne.id,
+      scope: 'SCOPE_3',
+      categorie: 'Transport en amont',
+      etablissement: '',
+      numeroFacture: ligne.referenceCode ?? '',
+      provenance: 'Excel' as Provenance,
+      modeTransport: 'Routier' as ModeTransport,
+      transporteur: ligne.label,
+      destination: '',
+      client: '',
+      poidsKg: null,
+      distanceKm: null,
+      montant: Number(ligne.quantity) || 0,
+      devise: ligne.currency ?? ligne.unit ?? '',
+      typeFacteur: ligne.categoryName ?? '',
+      reference: ligne.referenceCode ?? '',
+      facteur: Number(ligne.factorValue) || 0,
+      uniteFacteur: ligne.factorUnit ?? '',
+      baseAppliquee: ligne.databaseSource ?? '',
+      emissionCalculee: Number(ligne.totalCo2e) || 0,
+      dateDebut: ligne.measureDate ?? '',
+      dateFin: ligne.measureDate ?? '',
+      societeId: ligne.filialeId,
+      creeLe: ''
+    } as EmissionTransport));
+  }
+
+  /** Demande une page à la base, sur le périmètre consulté. */
+  chargerPage(): void {
+    this.chargementPage = true;
+
+    this.mesuresPage.pager({
+      categorie: 'Category 4',
+      annee: this.exerciceActif,
+      filialeId: this.societeActiveId,
+      page: 0,
+      taille: 100
+    }).subscribe({
+      next: page => {
+        this.pageServeur = page;
+        this.chargementPage = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.pageServeur = null;
+        this.chargementPage = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  /**
+   * Lignes affichées : la page de la base, précédée de la ventilation.
+   *
+   * <p>Le tableau restait vide — « Aucun transport amont enregistré » — alors
+   * que la base porte les mesures de la catégorie 4. Elles ne s'affichaient que
+   * dans un panneau séparé, au-dessus, qui doublait le tableau sans le
+   * remplacer.</p>
+   */
   get toutesLignes(): EmissionTransport[] {
-    return [...this.lignesVentilees, ...this.listeEmissions];
+    return [...this.lignesVentilees, ...this.lignesDeLaPage, ...this.listeEmissions];
   }
 
 
