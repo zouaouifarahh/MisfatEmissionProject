@@ -20,6 +20,9 @@ import {
 } from '../../shared/ui/perimetre-ecran';
 import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
 import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
+import {
+  MesuresPageService, PageMesures, LigneImportBrute
+} from '../../services/mesures-page.service';
 
 /** Ligne d'achat de bien ou service, catégorie 1 du Scope 3. */
 export interface EmissionAchat {
@@ -116,6 +119,7 @@ export class BiensServicesComponent implements OnInit {
    * métadonnées du type.</p>
    */
   private readonly dispatchStore = inject(DispatchStore);
+  private readonly mesuresPage = inject(MesuresPageService);
 
   /** Statut du facteur retenu : référentiel MS SQL ou repli ADEME. */
   filtreStatut = 'Tous';
@@ -191,6 +195,11 @@ export class BiensServicesComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Le tableau lit la base ; le stockage du navigateur reste relu pour les
+    // seules lignes d'avant la bascule. Elles ne sont plus affichées — la base
+    // fait foi — mais la reprise d'appariement continue de les réparer, et les
+    // effacer d'office perdrait une donnée que personne n'a demandé à perdre.
+    // Un réimport les versera en base, et ce chargement deviendra sans objet.
     if (isPlatformBrowser(this.platformId)) {
       const sauvegarde = localStorage.getItem(CLE_STOCKAGE);
       if (sauvegarde) {
@@ -209,6 +218,9 @@ export class BiensServicesComponent implements OnInit {
       this.societeActiveId = filtre.entityId;
       this.exerciceActif = filtre.year ?? null;
       this.majPerimetre();
+      // La page vient de la base : un changement de perimetre la redemande.
+      this.pageCourante = 1;
+      this.chargerPage();
     });
   }
 
@@ -899,17 +911,51 @@ export class BiensServicesComponent implements OnInit {
           });
         });
 
-        this.listeEmissions = [...ajoutees, ...this.listeEmissions];
-        this.sauvegarder();
+        // Les lignes partent en base, non dans le stockage du navigateur : ce
+        // dernier plafonne à quelques mégaoctets, et un export d'achats les
+        // dépasse largement — l'import « réussissait » sans rien conserver, et
+        // tout disparaissait au rafraîchissement suivant.
+        const aVerser: LigneImportBrute[] = ajoutees.map((ligne, rang) => ({
+          dateDocument: ligne.dateDebut || null,
+          label: ligne.etiquette || ligne.categorieCarbone || 'Achat',
+          rawAmount: ligne.quantite,
+          rawCurrency: ligne.typeDonnee === 'Monetaire' ? ligne.unite : null,
+          categoryCode: ligne.categorieCarbone || null,
+          sourceCode: ligne.reference || null,
+          filialeId: this.societeActiveId,
+          unit: ligne.unite || null,
+          sourceRowNumber: rang + 1
+        }));
 
-        this.importSuccesMsg = `${ajoutees.length} ligne(s) importée(s) sur ${lignes.length}.`;
         const details: string[] = [];
         if (sansFacteur.size) {
           details.push(`${sansFacteur.size} catégorie(s) sans facteur : ${[...sansFacteur].slice(0, 4).join(', ')}`);
         }
         if (ignorees) details.push(`${ignorees} ligne(s) sans catégorie ou sans montant exploitable`);
-        this.importErreurMsg = details.join(' · ');
-        this.cdr.detectChanges();
+
+        this.mesuresPage.importerEnMasse(aVerser).subscribe({
+          next: bilan => {
+            this.importSuccesMsg = `${bilan.importees.toLocaleString('fr-FR')} ligne(s) `
+              + `enregistrée(s) en base sur ${lignes.length.toLocaleString('fr-FR')} lue(s).`;
+
+            if (bilan.ecartees) {
+              details.push(`${bilan.ecartees} ligne(s) refusée(s) par le serveur`
+                + (bilan.motifs ? ` : ${bilan.motifs.slice(0, 160)}` : ''));
+            }
+            this.importErreurMsg = details.join(' · ');
+
+            // La base fait foi : le tableau se relit plutôt que de se deviner.
+            this.pageCourante = 1;
+            this.chargerPage();
+            this.cdr.detectChanges();
+          },
+          error: () => {
+            this.importSuccesMsg = '';
+            this.importErreurMsg = 'Enregistrement refusé : emission-service ne répond pas '
+              + '(port 8082). Aucune ligne n\'a été versée.';
+            this.cdr.detectChanges();
+          }
+        });
       } catch {
         this.importErreurMsg = 'Fichier illisible : vérifiez qu\'il s\'agit bien d\'un classeur .xlsx.';
         this.cdr.detectChanges();
@@ -965,19 +1011,31 @@ export class BiensServicesComponent implements OnInit {
    * <p>Ils suivent les filtres : ce que l'écran montre est ce que les cartes
    * comptent, sans quoi le total démentirait le tableau.</p>
    */
+  /**
+   * Indicateurs du haut d'écran, comptés par la base.
+   *
+   * <p>Ils se déduisaient des lignes affichées. Sur une page de cinquante
+   * lignes tirées de cent onze mille, cela ne dit rien : les cartes montraient
+   * le total d'un échantillon sous un libellé qui promettait le périmètre. Les
+   * totaux viennent désormais de la même requête que la page, sur exactement
+   * les mêmes critères — l'en-tête et le tableau ne peuvent plus se
+   * contredire.</p>
+   *
+   * <p>La couverture référentielle, elle, reste calculée sur la page : elle
+   * mesure une proportion, et une proportion se lit sur un échantillon. Son
+   * libellé le dit.</p>
+   */
   get kpisCategorie(): CarteKpi[] {
     const lignes = this.emissionsFiltrees as any[];
-    const somme = (extrait: (e: any) => number) =>
-      lignes.reduce((total, e) => total + (extrait(e) || 0), 0);
-
-    const emissionsKg = somme(e => e.emissionCalculee);
+    const emissionsKg = this.pageServeur?.totalCo2eKg ?? 0;
     const couverture = tauxCouvertureReferentiel(lignes);
 
     return [
       {
         libelle: 'Volume acheté', icone: '📦', accent: 'volume',
-        valeur: (somme(e => e.quantite)).toLocaleString('fr-FR', { maximumFractionDigits: 2 }),
-        unite: uniteDominante(this.listeEmissions.map(e => e.unite), 'unités')
+        valeur: (this.pageServeur?.totalQuantite ?? 0)
+          .toLocaleString('fr-FR', { maximumFractionDigits: 2 }),
+        unite: uniteDominante(this.lignesDeLaPage.map(e => e.unite), 'unités')
       },
       {
         libelle: 'Total émissions', icone: '🌍', accent: 'emissions',
@@ -986,8 +1044,8 @@ export class BiensServicesComponent implements OnInit {
       },
       {
         libelle: 'Nombre de lignes', icone: '📄', accent: 'lignes',
-        valeur: lignes.length.toLocaleString('fr-FR'),
-        unite: 'saisie(s) au périmètre'
+        valeur: this.lignesDuServeur.toLocaleString('fr-FR'),
+        unite: 'mesure(s) en base au périmètre'
       },
       {
         libelle: 'Couverture MS SQL', icone: '🎯', accent: 'couverture',
@@ -1029,34 +1087,105 @@ export class BiensServicesComponent implements OnInit {
   taillePage = 50;
   pageCourante = 1;
 
+  /** Page servie par la base : lignes, totaux du périmètre et découpage. */
+  pageServeur: PageMesures | null = null;
+  chargementPage = false;
+  erreurPage = '';
+
+  /**
+   * Lignes de la page, ramenées à la forme que le tableau attend.
+   *
+   * <p>La base ne connaît pas la forme de cet écran : elle rend une mesure, pas
+   * une ligne d'achat. L'adaptation est faite ici, en un seul endroit, plutôt
+   * que d'imposer au gabarit de connaître deux formes.</p>
+   */
+  private get lignesDeLaPage(): EmissionAchat[] {
+    return (this.pageServeur?.lignes ?? []).map(ligne => ({
+      id: ligne.id,
+      scope: 'SCOPE_3',
+      categorie: 'Biens et services achetés',
+      etablissement: '',
+      reference: ligne.referenceCode ?? '',
+      categorieCarbone: ligne.categoryName ?? '',
+      etiquette: ligne.label,
+      typeDonnee: (ligne.dataType ?? '').toUpperCase() === 'MONETAIRE' ? 'Monetaire' : 'Physique',
+      quantite: Number(ligne.quantity) || 0,
+      facteur: Number(ligne.factorValue) || 0,
+      unite: ligne.unit || ligne.factorUnit || '',
+      dateDebut: ligne.measureDate ?? '',
+      dateFin: ligne.measureDate ?? '',
+      emissionCalculee: Number(ligne.totalCo2e) || 0,
+      hypothese: 'Réelle',
+      societeId: ligne.filialeId,
+      creeLe: '',
+      databaseSource: ligne.databaseSource ?? '',
+      sourceData: ligne.origin === 'EXCEL_IMPORT' ? 'Import Excel' : undefined
+    } as EmissionAchat));
+  }
+
+  /**
+   * Demande une page à la base, sur le périmètre consulté.
+   *
+   * <p>La recherche et les filtres métier restent appliqués côté navigateur, sur
+   * la page reçue. Les porter au serveur demanderait autant de critères dans la
+   * requête, et l'écran n'en a pas besoin pour tenir : cinquante lignes se
+   * filtrent instantanément.</p>
+   */
+  chargerPage(): void {
+    this.chargementPage = true;
+
+    this.mesuresPage.pager({
+      categorie: 'Category 1',
+      annee: this.exerciceActif,
+      filialeId: this.societeActiveId,
+      page: Math.max(0, this.pageCourante - 1),
+      taille: this.taillePage
+    }).subscribe({
+      next: page => {
+        this.pageServeur = page;
+        this.erreurPage = '';
+        this.chargementPage = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.pageServeur = null;
+        this.erreurPage = 'Mesures indisponibles : emission-service ne répond pas (port 8082).';
+        this.chargementPage = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   get nombrePages(): number {
-    return Math.max(1, Math.ceil(this.emissionsFiltrees.length / this.taillePage));
+    return Math.max(1, this.pageServeur?.totalPages ?? 1);
   }
 
   /** Lignes de la page courante, seules montées dans le document. */
   get emissionsPage(): EmissionAchat[] {
-    const liste = this.emissionsFiltrees;
-    const page = Math.min(this.pageCourante, this.nombrePages);
-    const debut = (page - 1) * this.taillePage;
-    return liste.slice(debut, debut + this.taillePage);
+    return this.emissionsFiltrees;
+  }
+
+  /** Nombre de mesures du périmètre entier, non de la page. */
+  get lignesDuServeur(): number {
+    return this.pageServeur?.totalLignes ?? 0;
   }
 
   get premierIndexPage(): number {
-    return this.emissionsFiltrees.length ? (this.pageCourante - 1) * this.taillePage + 1 : 0;
+    return this.lignesDuServeur ? (this.pageCourante - 1) * this.taillePage + 1 : 0;
   }
 
   get dernierIndexPage(): number {
-    return Math.min(this.pageCourante * this.taillePage, this.emissionsFiltrees.length);
+    return Math.min(this.pageCourante * this.taillePage, this.lignesDuServeur);
   }
 
   allerPage(page: number): void {
     this.pageCourante = Math.min(Math.max(1, page), this.nombrePages);
-    this.cdr.detectChanges();
+    this.chargerPage();
   }
 
   changerTaillePage(): void {
     this.pageCourante = 1;
-    this.cdr.detectChanges();
+    this.chargerPage();
   }
 
 
@@ -1074,8 +1203,23 @@ export class BiensServicesComponent implements OnInit {
   }
 
   /** Saisies de l'utilisateur et lignes ventilées, dans cet ordre d'affichage. */
+  /**
+   * Lignes affichées : la page servie par la base.
+   *
+   * <p>Elles venaient du stockage du navigateur. Le procédé convient à quelques
+   * centaines de saisies ; il ne tient pas les cent onze mille lignes d'un
+   * exercice d'achats — le quota est dépassé bien avant, l'import « réussit »
+   * sans rien conserver, et tout disparaît au rafraîchissement suivant. La base
+   * fait désormais foi : elle pagine, filtre et totalise sans effort ce que le
+   * navigateur payait en mémoire.</p>
+   *
+   * <p>Les lignes de la ventilation comptable les précèdent. Elles ne sont pas
+   * encore versées en base — elles attendent la validation de l'écran d'import
+   * — mais les retirer d'ici les rendrait invisibles, et c'est précisément dans
+   * ce tableau qu'on les corrige. Leur pastille de provenance les distingue.</p>
+   */
   get toutesLignes(): EmissionAchat[] {
-    return [...this.lignesVentilees, ...this.listeEmissions];
+    return [...this.lignesVentilees, ...this.lignesDeLaPage];
   }
 
 

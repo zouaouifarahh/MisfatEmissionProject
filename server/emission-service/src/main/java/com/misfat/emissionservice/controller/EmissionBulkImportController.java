@@ -40,8 +40,14 @@ public class EmissionBulkImportController {
      * </ul>
      */
     @PostMapping("/bulk-import")
-    public ResponseEntity<Void> bulkImportEmissions(@RequestBody List<RawImportRowDto> dtoList,
-                                                   @RequestParam("importLogId") Long importLogId) {
+    public ResponseEntity<Void> bulkImportEmissions(
+            @RequestBody List<RawImportRowDto> dtoList,
+            // Facultatif : un import lancé depuis un écran de catégorie ne passe
+            // pas par le journal du service d'import, et exiger son identifiant
+            // lui fermerait cette route. La colonne ne porte aucune contrainte
+            // référentielle — la laisser nulle ne casse rien, et dire d'où vient
+            // le lot reste possible quand un journal existe.
+            @RequestParam(value = "importLogId", required = false) Long importLogId) {
 
         BulkImportResult resultat = bulkImportService.bulkImport(dtoList, importLogId);
 
