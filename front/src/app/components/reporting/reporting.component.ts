@@ -17,6 +17,7 @@ import {
   ChapitreNorme,
   ParametresNorme,
   SolutionRSE,
+  STATUTS_SOLUTION,
   STATUTS_VERIFICATION,
   migrerSolution,
   parametresVides,
@@ -1679,6 +1680,66 @@ export class ReportingComponent implements OnInit, OnDestroy {
     return (this.parametres.solutions ?? []).map(migrerSolution);
   }
 
+  /** Statuts proposés au plan d'actions de la synthèse. */
+  readonly statutsSolution = STATUTS_SOLUTION;
+
+  /**
+   * Identité d'une solution pour `*ngFor`.
+   *
+   * <p>{@link solutions} rend des objets neufs à chaque appel — `migrerSolution`
+   * reconstruit chacun. Sans cette clé, `*ngFor` les tient pour des lignes
+   * différentes à chaque cycle, détruit et recrée la ligne ouverte en saisie,
+   * et le `ngModel` qu'elle porte se réenregistre indéfiniment : la détection
+   * de changement ne se stabilise plus (NG0103) et le formulaire ne s'ouvre
+   * jamais.</p>
+   */
+  suiviSolution(_index: number, solution: SolutionRSE): string {
+    return solution.id;
+  }
+
+  /**
+   * Scopes et postes qu'une action peut viser.
+   *
+   * <p>Tirés des scopes réellement chiffrés sur le périmètre, non d'une liste
+   * figée : proposer « Scope 2 » à une société qui n'en déclare aucun inviterait
+   * à rattacher une action à un poste vide.</p>
+   */
+  get ciblesSolution(): string[] {
+    const noms = this.scopesRetenus.map(scope => scope.nom);
+    const signature = noms.join('|');
+
+    // La même référence est rendue tant que les scopes ne changent pas. Un
+    // tableau neuf à chaque appel fait boucler la détection de changement
+    // (NG0103) : `*ngFor` voit une collection différente à chaque cycle, la
+    // vue se resalit, et le clic qui a ouvert le formulaire n'aboutit jamais.
+    if (signature !== this.signatureCibles) {
+      this.signatureCibles = signature;
+      this.cachesCibles = noms.length ? ['Tous scopes', ...noms] : ['Tous scopes'];
+    }
+    return this.cachesCibles;
+  }
+
+  private signatureCibles = ' ';
+  private cachesCibles: string[] = ['Tous scopes'];
+
+  /**
+   * Réduction totale annoncée par le plan, en tCO₂e.
+   *
+   * <p>Ne somme que les actions chiffrées : une action sans estimation ne vaut
+   * pas zéro, elle n'est simplement pas comptée. Les mêler ferait passer un
+   * plan à moitié chiffré pour un plan sans ambition.</p>
+   */
+  get reductionAnnoncee(): number {
+    return this.solutions.reduce(
+      (somme, solution) => somme + (Number(solution.impactTco2e) || 0), 0);
+  }
+
+  /** Nombre d'actions portant une réduction chiffrée. */
+  get solutionsChiffrees(): number {
+    return this.solutions.filter(s => Number.isFinite(Number(s.impactTco2e))
+      && s.impactTco2e !== null && s.impactTco2e !== undefined).length;
+  }
+
   /** Solution en cours de saisie ; `null` quand aucune ne l'est. */
   solutionEnEdition: string | null = null;
 
@@ -1718,12 +1779,13 @@ export class ReportingComponent implements OnInit, OnDestroy {
   /** Ajoute une solution vide et l'ouvre aussitôt en saisie. */
   ajouterSolution(): void {
     const solution: SolutionRSE = {
-      id: this.identifiantLibre(), titre: '', horizon: '', portee: '', impact: ''
+      id: this.identifiantLibre(), titre: '', horizon: '', portee: '', impact: '',
+      scopeVise: '', impactTco2e: null, statut: undefined
     };
 
     this.parametres.solutions = [...this.solutions, solution];
     this.solutionEnEdition = solution.id;
-    this.brouillonSolution = { titre: '', horizon: '', portee: '', impact: '' };
+    this.brouillonSolution = { titre: '', horizon: '', portee: '', impact: '', scopeVise: '', impactTco2e: null, statut: undefined };
     this.cdr.markForCheck();
   }
 
@@ -1733,7 +1795,10 @@ export class ReportingComponent implements OnInit, OnDestroy {
       titre: solution.titre,
       horizon: solution.horizon,
       portee: solution.portee,
-      impact: solution.impact
+      impact: solution.impact,
+      scopeVise: solution.scopeVise ?? '',
+      impactTco2e: solution.impactTco2e ?? null,
+      statut: solution.statut
     };
   }
 
@@ -1752,7 +1817,14 @@ export class ReportingComponent implements OnInit, OnDestroy {
       titre: this.brouillonSolution.titre.trim(),
       horizon: this.brouillonSolution.horizon.trim(),
       portee: this.brouillonSolution.portee.trim(),
-      impact: this.brouillonSolution.impact.trim()
+      impact: this.brouillonSolution.impact.trim(),
+      scopeVise: (this.brouillonSolution.scopeVise ?? '').trim(),
+      // Un champ laissé vide vaut « non chiffré », non zéro : une réduction
+      // nulle est une affirmation, l'absence de chiffre n'en est pas une.
+      impactTco2e: Number.isFinite(Number(this.brouillonSolution.impactTco2e))
+        && String(this.brouillonSolution.impactTco2e ?? '').trim() !== ''
+        ? Number(this.brouillonSolution.impactTco2e) : null,
+      statut: this.brouillonSolution.statut
     };
 
     this.parametres.solutions = saisie.titre
@@ -1777,7 +1849,7 @@ export class ReportingComponent implements OnInit, OnDestroy {
       solution => solution.titre.trim() !== '' || solution.id !== this.solutionEnEdition);
 
     this.solutionEnEdition = null;
-    this.brouillonSolution = { titre: '', horizon: '', portee: '', impact: '' };
+    this.brouillonSolution = { titre: '', horizon: '', portee: '', impact: '', scopeVise: '', impactTco2e: null, statut: undefined };
     this.cdr.markForCheck();
   }
 

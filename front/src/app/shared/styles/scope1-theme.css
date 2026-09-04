@@ -187,6 +187,21 @@
 .emission-card .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .emission-card .num-fort { font-weight: 800; color: var(--sc1-texte); }
 
+/* Marqueur des lignes venues de la base : discret, il occupe la colonne
+   d'actions sans y simuler un bouton qui ne ferait rien. */
+.emission-card .lecture-seule {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--sc1-texte-3);
+    background: var(--sc1-ligne-douce);
+    cursor: help;
+}
+
 /* ---------- Pastilles ---------- */
 
 .emission-card .ref-badge,

@@ -200,7 +200,17 @@ public class EmissionBulkImportService {
         mesure.setLabel(tronquer(ligne.getLabel(), 300));
 
         mesure.setUsineId(ligne.getUsineId());
-        if (ligne.getUsineId() != null) {
+
+        // La société transmise prime sur toute déduction. L'écran d'import
+        // renseignait auparavant usineId avec un identifiant de société : les
+        // deux séries se recouvrant, la société 2 était lue comme l'usine 2, qui
+        // appartient à la société 1 — et les corrections de MISFAT MAROC
+        // alimentaient le bilan de MISFAT TUNISIE. Le rattachement par le site
+        // ne sert donc plus que lorsqu'un site est réellement désigné sans que
+        // sa société l'accompagne.
+        if (ligne.getFilialeId() != null) {
+            mesure.setFilialeId(ligne.getFilialeId());
+        } else if (ligne.getUsineId() != null) {
             usineLookupRepository.filialeDeLUsine(ligne.getUsineId())
                     .ifPresent(mesure::setFilialeId);
         }
@@ -274,6 +284,20 @@ public class EmissionBulkImportService {
             Optional<EmissionFactor> parCategorie = choisir(factorRepository.findByCategoryNameExact(cle, dataType), ligne);
             if (parCategorie.isPresent()) {
                 return parCategorie;
+            }
+
+            // Le classeur nomme une matière — « Leather », « steel » — là où le
+            // référentiel nomme un secteur d'activité. La table de synonymes
+            // relie les deux ; sans elle la ligne est écartée alors que le
+            // facteur existe. Placée après la recherche directe : un libellé qui
+            // est déjà un code de référence n'a pas à passer par la traduction.
+            String synonyme = ReferentialService.referenceDuSynonyme(cle);
+            if (synonyme != null) {
+                Optional<EmissionFactor> parSynonyme =
+                        choisir(factorRepository.findByReferenceCode(synonyme, dataType), ligne);
+                if (parSynonyme.isPresent()) {
+                    return parSynonyme;
+                }
             }
         }
 

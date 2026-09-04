@@ -28,28 +28,36 @@
       cette réserve.
     </p>
 
+    <!-- Chaque carte porte sa teinte : les trois scopes reprennent celles du
+         tableau de bord, pour qu'un même poste garde sa couleur d'un écran à
+         l'autre. -->
     <div class="cg-chiffres">
-      <div class="cg-chiffre">
+      <div class="cg-chiffre cg-chiffre-groupe">
+        <span class="chiffre-icone" aria-hidden="true">🌍</span>
         <span class="chiffre-libelle">Empreinte Groupe {{ exercice }}</span>
         <span class="chiffre-valeur">{{ g.total | number:'1.0-0' }}</span>
         <span class="chiffre-unite">tCO₂e · {{ g.filiales }} filiales</span>
       </div>
-      <div class="cg-chiffre">
+      <div class="cg-chiffre cg-chiffre-s1">
+        <span class="chiffre-icone" aria-hidden="true">🔥</span>
         <span class="chiffre-libelle">Scope 1</span>
         <span class="chiffre-valeur">{{ g.scope1 | number:'1.0-0' }}</span>
         <span class="chiffre-unite">tCO₂e</span>
       </div>
-      <div class="cg-chiffre">
+      <div class="cg-chiffre cg-chiffre-s2">
+        <span class="chiffre-icone" aria-hidden="true">⚡</span>
         <span class="chiffre-libelle">Scope 2</span>
         <span class="chiffre-valeur">{{ g.scope2 | number:'1.0-0' }}</span>
         <span class="chiffre-unite">tCO₂e</span>
       </div>
-      <div class="cg-chiffre">
+      <div class="cg-chiffre cg-chiffre-s3">
+        <span class="chiffre-icone" aria-hidden="true">🔗</span>
         <span class="chiffre-libelle">Scope 3</span>
         <span class="chiffre-valeur">{{ g.scope3 | number:'1.0-0' }}</span>
         <span class="chiffre-unite">tCO₂e</span>
       </div>
-      <div class="cg-chiffre">
+      <div class="cg-chiffre cg-chiffre-intensite">
+        <span class="chiffre-icone" aria-hidden="true">📊</span>
         <span class="chiffre-libelle">Intensité Groupe</span>
         <span class="chiffre-valeur">
           <ng-container *ngIf="g.intensiteEffectif !== null; else sansIntensite">
@@ -80,10 +88,12 @@
       </p>
 
       <ul class="cg-barres">
-        <li *ngFor="let b of barres">
+        <li *ngFor="let b of barres; trackBy: parLibelle">
           <div class="barre-tete">
             <span class="barre-nom">{{ b.libelle }}</span>
-            <span class="barre-pays">{{ b.pays }}</span>
+            <span class="barre-pays">
+              <span class="barre-drapeau" aria-hidden="true">{{ b.drapeau }}</span>{{ b.pays }}
+            </span>
             <span class="barre-valeur" *ngIf="b.valeur !== null">
               {{ b.valeur | number:'1.0-2' }} <small>{{ uniteAffichee }}</small>
             </span>
@@ -93,7 +103,8 @@
           </div>
 
           <div class="barre-piste">
-            <div class="barre-remplie" [style.width.%]="b.largeur"></div>
+            <div class="barre-remplie" [style.width.%]="b.largeur"
+                 [style.background]="b.couleur"></div>
           </div>
 
           <p class="barre-ecart" *ngIf="b.ecart !== null"
@@ -129,7 +140,12 @@
           <tbody>
             <tr *ngFor="let l of g.lignes">
               <td class="cellule-nom">{{ l.libelle }}</td>
-              <td>{{ l.pays || '—' }}</td>
+              <td>
+                <span class="badge-pays" *ngIf="l.pays">
+                  <span aria-hidden="true">{{ drapeauDe(l.pays) }}</span>{{ l.pays }}
+                </span>
+                <span class="non-renseigne" *ngIf="!l.pays">—</span>
+              </td>
               <td class="ta-right">{{ l.scope1 | number:'1.0-0' }}</td>
               <td class="ta-right">{{ l.scope2 | number:'1.0-0' }}</td>
               <td class="ta-right">{{ l.scope3 | number:'1.0-0' }}</td>
@@ -198,7 +214,11 @@
           </thead>
           <tbody>
             <tr *ngFor="let p of g.pays">
-              <td class="cellule-nom">{{ p.pays }}</td>
+              <td class="cellule-nom">
+                <span class="badge-pays">
+                  <span aria-hidden="true">{{ drapeauDe(p.pays) }}</span>{{ p.pays }}
+                </span>
+              </td>
               <td class="ta-right">{{ p.filiales }}</td>
               <td class="ta-right">{{ p.scope1 | number:'1.0-0' }}</td>
               <td class="ta-right">{{ p.scope2 | number:'1.0-0' }}</td>

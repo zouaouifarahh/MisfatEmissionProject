@@ -526,13 +526,31 @@ export class EmissionFactorsComponent implements OnInit {
 
   confirmerSuppression(): void {
     const ligne = this.ligneASupprimer;
-    if (!ligne || ligne.defaultFactorId == null) {
-      this.ligneASupprimer = null;
+    if (!ligne) {
       return;
     }
+
+    // Une ligne sans facteur est une source que l'import a créée sans parvenir
+    // à lui rattacher de valeur. Elle n'a pas d'identifiant de facteur à
+    // effacer : c'est la référence qu'il faut retirer. Le code sortait ici en
+    // silence — la boîte se fermait, la ligne restait, et rien ne disait
+    // pourquoi. La suppression paraissait interdite aux lignes importées.
+    const suppression = ligne.defaultFactorId != null
+      ? this.referentialService.deleteFactor(ligne.defaultFactorId)
+      : ligne.carbonReferenceId != null
+        ? this.referentialService.deleteCarbonReference(ligne.carbonReferenceId)
+        : null;
+
+    if (!suppression) {
+      this.erreur = "Cette ligne ne porte ni facteur ni référence : rien à supprimer.";
+      this.ligneASupprimer = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.suppressionEnCours = true;
 
-    this.referentialService.deleteFactor(ligne.defaultFactorId).subscribe({
+    suppression.subscribe({
       next: () => {
         this.suppressionEnCours = false;
         this.ligneASupprimer = null;

@@ -448,12 +448,51 @@ export class ReferentielCarboneComponent implements OnInit {
     });
   }
 
+  /**
+   * Message unique du conflit de référence, écran et serveur confondus.
+   *
+   * <p>Le serveur rend le même texte : deux formulations pour un même refus
+   * laisseraient croire à deux causes distinctes.</p>
+   */
+  static readonly REFERENCE_EN_DOUBLE =
+    "⚠️ Cette référence existe déjà dans le référentiel.";
+
+  /**
+   * Le code est-il déjà porté par une autre source ?
+   *
+   * <p>Éprouvé sur la liste déjà chargée, donc sans aller-retour : l'utilisateur
+   * est arrêté à la frappe plutôt qu'après un appel refusé. Le serveur tient la
+   * même règle et reste seul juge — deux onglets peuvent saisir le même code à
+   * la seconde près, et cet écran ne le verrait pas.</p>
+   *
+   * <p>La casse et les espaces de bordure ne distinguent rien : « MS1GPL » et
+   * « ms1gpl » sont la même référence pour qui la saisit.</p>
+   */
+  private referenceDejaPrise(refCode: string): boolean {
+    const cherche = refCode.trim().toLowerCase();
+    if (!cherche) return false;
+
+    // La liste complète, non celle que les filtres du tableau laissent voir :
+    // un code masqué par un filtre de scope reste pris.
+    return this.sourcesToutes.some((source: EmissionSource) =>
+      String(source.referenceCode ?? '').trim().toLowerCase() === cherche
+      && !(this.isEditMode && source.id === this.nouvelleSource.id));
+  }
+
   enregistrerSource(): void {
     const refCode = (this.nouvelleSource.referenceCode || '').trim();
     const sName = (this.nouvelleSource.sourceName || '').trim();
 
     if (!refCode || !sName) {
       this.showToast('Merci de remplir le code référence et le nom de la source.', 'danger');
+      return;
+    }
+
+    // Une source par code : deux lignes partageant le même laissaient les menus
+    // de saisie proposer deux entrées que rien ne distinguait, pour des facteurs
+    // différents.
+    if (this.referenceDejaPrise(refCode)) {
+      this.showToast(ReferentielCarboneComponent.REFERENCE_EN_DOUBLE, 'danger');
       return;
     }
 
@@ -478,7 +517,8 @@ export class ReferentielCarboneComponent implements OnInit {
         },
         error: (err) => {
           console.error('Erreur modification:', err);
-          this.showToast('Échec de la modification sur le serveur.', 'danger');
+          this.showToast(
+            err?.error?.message ?? 'Échec de la modification sur le serveur.', 'danger');
         }
       });
     } else {
@@ -490,7 +530,9 @@ export class ReferentielCarboneComponent implements OnInit {
         },
         error: (err) => {
           console.error('Erreur ajout:', err);
-          this.showToast('Échec de l\'ajout. Le Code Réf existe peut-être déjà.', 'danger');
+          // Le serveur dit désormais ce qu'il refuse : le message rendu prime
+          // sur la conjecture que cet écran formulait à sa place.
+          this.showToast(err?.error?.message ?? "Échec de l'ajout sur le serveur.", 'danger');
         }
       });
     }

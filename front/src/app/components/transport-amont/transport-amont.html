@@ -314,7 +314,11 @@
             <label for="ta-poids-moyen">Poids moyen d'une unité (kg)</label>
             <input id="ta-poids-moyen" type="number" step="any" min="0" name="taPoidsMoyen"
                    [(ngModel)]="formModel.poidsMoyenKg"
-                   (ngModelChange)="onSaisieChange()" placeholder="0.000">
+                   (ngModelChange)="onSaisieChange()" placeholder="0.200">
+            <small class="field-hint">
+              Poids d'un filtre par défaut ({{ poidsFiltreParDefaut }} kg) ; à corriger
+              pour une référence qui s'en écarte.
+            </small>
           </div>
         </div>
 
@@ -339,7 +343,21 @@
           </div>
         </div>
 
-        <!-- Grandeur intermédiaire : c'est elle que le facteur multiplie. -->
+        <!-- Conversion des pièces en tonnes, sous les champs qui la produisent.
+             Elle ne dépend pas du facteur retenu : le tonnage est une propriété
+             du chargement, et se vérifie avant même qu'un facteur soit choisi. -->
+        <div class="form-row" *ngIf="!formModel.monetaire && tonnageSaisi as t">
+          <div class="form-group flex-1">
+            <small class="field-hint">
+              Quantité × Poids × 0,001 =
+              <strong>{{ t.tonnes | number:'1.0-3' }} t</strong>
+              &nbsp;— {{ t.quantite | number:'1.0-0' }} unité(s)
+              × {{ t.poidsMoyenKg | number:'1.0-3' }} kg × 0,001
+            </small>
+          </div>
+        </div>
+
+        <!-- Grandeur que le facteur multiplie, quand il se compte en t.km. -->
         <div class="form-row" *ngIf="!formModel.monetaire && tonnesKmPrevisionnelles !== null">
           <div class="form-group flex-1">
             <small class="field-hint">
@@ -405,6 +423,41 @@
           <p class="formule-hint" *ngIf="formuleAppliquee">
             <span aria-hidden="true">🧮</span> {{ formuleAppliquee }}
           </p>
+
+          <!-- « Distance × Facteur » se lisait comme un oubli du tonnage. La
+               raison tient à l'unité du facteur retenu, et elle est dite. -->
+          <p class="formule-motif" *ngIf="facteurAuKilometre">
+            Ce facteur est publié <strong>au kilomètre</strong>
+            (unité «&nbsp;{{ formModel.uniteFacteur }}&nbsp;») : il vaut pour un
+            véhicule chargé, et le multiplier par le tonnage compterait la charge
+            deux fois. Pour appliquer
+            «&nbsp;Distance × Quantité × Poids × 0,001 × Facteur&nbsp;», retenez
+            un facteur en t.km dans la liste ci-dessus.
+          </p>
+
+          <!-- Trois multiplications séparent la quantité expédiée de
+               l'émission. L'aperçu n'en montrait que le résultat : lequel des
+               trois nombres est en cause quand le total surprend ? -->
+          <div class="calcul-detail" *ngIf="detailTonneKm as d">
+            <div class="calcul-ligne">
+              <span>Poids total</span>
+              <strong>
+                {{ d.quantite | number:'1.0-0' }} × {{ d.poidsMoyenKg | number:'1.0-3' }} kg × 0,001
+                = {{ d.poidsTotalTonnes | number:'1.0-3' }} t
+              </strong>
+            </div>
+            <div class="calcul-ligne">
+              <span>Tonnes-kilomètres</span>
+              <strong>
+                {{ d.distanceKm | number:'1.0-2' }} km × {{ d.poidsTotalTonnes | number:'1.0-3' }} t
+                = {{ d.tonnesKm | number:'1.0-3' }} t.km
+              </strong>
+            </div>
+            <div class="calcul-ligne" *ngIf="formModel.facteur">
+              <span>Facteur d'émission</span>
+              <strong>× {{ formModel.facteur | number:'1.0-6' }} {{ formModel.uniteFacteur }}</strong>
+            </div>
+          </div>
 
           <div class="preview-total">
             Émissions estimées

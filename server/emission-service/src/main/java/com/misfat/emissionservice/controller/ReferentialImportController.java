@@ -38,9 +38,19 @@ public class ReferentialImportController {
     private final ReferentialImportLogRepository logRepository;
     private final ReferentialTemplateBuilder templateBuilder;
 
+    /**
+     * Dépose un classeur pour une société et un exercice donnés.
+     *
+     * <p>{@code filialeId} et {@code annee} sont obligatoires, et volontairement
+     * sans valeur par défaut : un dépôt sans périmètre était rattachable à
+     * n'importe quelle société, donc à aucune. Leur absence vaut 400, ce qui est
+     * préférable à une trace que l'historique ne saura plus classer.</p>
+     */
     @PostMapping(value = "/import", consumes = "multipart/form-data")
     public ResponseEntity<ReferentialImportLog> importer(
             @RequestPart("file") MultipartFile file,
+            @RequestParam("filialeId") Long filialeId,
+            @RequestParam("annee") Integer annee,
             @RequestParam(name = "importedBy", required = false) String importedBy) {
 
         if (file == null || file.isEmpty()) {
@@ -51,6 +61,12 @@ public class ReferentialImportController {
         journal.setFileName(file.getOriginalFilename());
         journal.setImportDate(LocalDateTime.now());
         journal.setImportedBy(importedBy);
+
+        // Posé avant la lecture : un classeur refusé doit rester classé sous le
+        // périmètre où on a tenté de le déposer, sans quoi son échec ne
+        // remonterait dans l'historique d'aucune société.
+        journal.setFilialeId(filialeId);
+        journal.setAnnee(annee);
 
         try (InputStream flux = file.getInputStream()) {
             CarbonReferentialImporter.Bilan bilan = importer.importer(flux);
@@ -99,9 +115,32 @@ public class ReferentialImportController {
                 .body(new ByteArrayResource(contenu));
     }
 
-    /** Historique des dépôts, du plus récent au plus ancien. */
+    /**
+     * Historique des dépôts, du plus récent au plus ancien.
+     *
+     * <p>Filtré sur le périmètre consulté. Les deux paramètres restent
+     * facultatifs : la vue Groupe ne désigne aucune société, et rendre alors une
+     * liste vide priverait l'utilisateur de tout historique. Un paramètre absent
+     * vaut donc « tous », comme partout ailleurs dans l'application.</p>
+     *
+     * <p>Les dépôts antérieurs à l'enregistrement du périmètre portent des
+     * colonnes nulles : ils ne remontent sous aucune société, faute d'avoir
+     * jamais dit à laquelle ils appartenaient.</p>
+     */
     @GetMapping("/imports")
-    public List<ReferentialImportLog> historique() {
+    public List<ReferentialImportLog> historique(
+            @RequestParam(name = "filialeId", required = false) Long filialeId,
+            @RequestParam(name = "annee", required = false) Integer annee) {
+
+        if (filialeId != null && annee != null) {
+            return logRepository.findByFilialeIdAndAnneeOrderByImportDateDesc(filialeId, annee);
+        }
+        if (filialeId != null) {
+            return logRepository.findByFilialeIdOrderByImportDateDesc(filialeId);
+        }
+        if (annee != null) {
+            return logRepository.findByAnneeOrderByImportDateDesc(annee);
+        }
         return logRepository.findAllByOrderByImportDateDesc();
     }
 

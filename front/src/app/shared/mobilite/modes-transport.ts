@@ -10,7 +10,7 @@ import { FacteurDetaille } from '../../services/referential.service';
 
 export type ModeTransport =
   | 'Avion' | 'Train' | 'Voiture' | 'Voiture de location' | 'Taxi'
-  | 'Bus' | 'Motocyclette' | 'Bicyclette' | 'À pied' | 'Hôtel';
+  | 'Bus' | 'Coach' | 'Motocyclette' | 'Bicyclette' | 'À pied' | 'Hôtel';
 
 export interface DefinitionMode {
   cle: ModeTransport;
@@ -67,8 +67,20 @@ export const MODES: DefinitionMode[] = [
   },
   {
     cle: 'Bus', emoji: '🚌', classeBadge: 'mode-bus', facteurSecours: 0.103,
-    signature: /bus|coach|autocar/i,
-    alias: /bus|autocar|coach|navette/i
+    // « coach » et « autocar » sont partis au mode voisin : le bus urbain les
+    // captait, et le facteur d'autocar du référentiel — « Coach », MS3C7ECC —
+    // n'était jamais retenu puisque le premier facteur portant « bus » gagnait.
+    signature: /\bbus\b|autobus|city bus|local bus/i,
+    alias: /\bbus\b|autobus/i
+  },
+  {
+    // L'autocar n'est pas un bus urbain : il roule sur route à taux de
+    // remplissage élevé, et son intensité au passager-kilomètre est plusieurs
+    // fois moindre. Les confondre reportait sur les navettes d'entreprise un
+    // facteur de bus de ville.
+    cle: 'Coach', emoji: '🚍', classeBadge: 'mode-coach', facteurSecours: 0.027,
+    signature: /coach|autocar/i,
+    alias: /coach|autocar|navette/i
   },
   {
     cle: 'Motocyclette', emoji: '🏍️', classeBadge: 'mode-moto', facteurSecours: 0.091,
@@ -98,7 +110,7 @@ export const MODES_VOYAGE: ModeTransport[] =
 
 /** Modes proposés à la saisie d'un trajet domicile-travail, catégorie 7. */
 export const MODES_DOMICILE_TRAVAIL: ModeTransport[] =
-  ['Voiture', 'Bus', 'Train', 'Motocyclette', 'Bicyclette', 'À pied', 'Taxi'];
+  ['Voiture', 'Bus', 'Coach', 'Train', 'Motocyclette', 'Bicyclette', 'À pied', 'Taxi'];
 
 const PAR_CLE = new Map(MODES.map(m => [m.cle, m]));
 
@@ -137,7 +149,7 @@ export function reconnaitreMode(texte: string, defaut: ModeTransport | null = nu
 
   const ordre: ModeTransport[] = [
     'Voiture de location', 'Motocyclette', 'Bicyclette', 'À pied',
-    'Taxi', 'Bus', 'Train', 'Avion', 'Hôtel', 'Voiture'
+    'Taxi', 'Coach', 'Bus', 'Train', 'Avion', 'Hôtel', 'Voiture'
   ];
 
   for (const cle of ordre) {

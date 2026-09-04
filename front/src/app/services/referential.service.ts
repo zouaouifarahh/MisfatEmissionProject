@@ -224,6 +224,9 @@ export class ReferentialService {
 
   private readonly baseUrl = 'http://localhost:8082/api/v1';
 
+  /** Les références carbone sont servies hors du préfixe de version. */
+  private readonly racineReferentiel = 'http://localhost:8082/api/referentiel-carbone';
+
   /**
    * Société consultée, telle que le serveur l'attend pour cloisonner.
    *
@@ -342,6 +345,19 @@ export class ReferentialService {
 
   deleteFactor(id: number): Observable<unknown> {
     return this.http.delete(`${this.baseUrl}/emission-factors/${id}`);
+  }
+
+  /**
+   * Supprime une référence carbone, facteur ou non.
+   *
+   * <p>Le tableau du référentiel montre une ligne par facteur, mais aussi une
+   * ligne pour les sources qui n'en portent aucun — celles qu'un import a
+   * créées sans parvenir à leur rattacher de valeur. Ces lignes-là n'ont pas
+   * d'identifiant de facteur à effacer : c'est la référence elle-même qu'il
+   * faut retirer, faute de quoi le bouton de suppression ne fait rien.</p>
+   */
+  deleteCarbonReference(id: number): Observable<unknown> {
+    return this.http.delete(`${this.racineReferentiel}/${id}`);
   }
 
   /**

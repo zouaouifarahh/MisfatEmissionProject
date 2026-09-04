@@ -3,7 +3,7 @@
   ViewChild, inject, isDevMode
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 // Composants métiers
@@ -52,7 +52,6 @@ import {
   ComptesService,
   ROLES_PROPOSES
 } from '../../../core/comptes.service';
-import { SessionService } from '../../../core/session.service';
 import { OrganizationService } from '../../../services/organization.service';
 import { Filiale, Usine, AnneeReference } from '../../../models/organization.model';
 import { EntityContextService } from '../../../core/entity-context.service';
@@ -64,6 +63,7 @@ import {
   mesuresIncompletes, exercicesRenseignes
 } from '../../../shared/dispatch/mesures-locales';
 import { PerimetreOrganisation } from '../../../core/perimetre';
+import { drapeauDuPays } from '../../../core/drapeaux';
 import { BilanCarboneService } from '../../../core/bilan-carbone.service';
 import { ActivityDataService, ChampActivite } from '../../../core/activity-data.service';
 import { kgVersTonnes, tonnesVersKg } from '../../../core/unites-carbone';
@@ -226,7 +226,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private readonly rolesService = inject(RolesService);
   private readonly comptesService = inject(ComptesService);
-  private readonly sessionService = inject(SessionService);
 
   userRole: string = 'ADMINISTRATEUR';
   droits: DroitsAcces = droitsPourRole(null);
@@ -448,7 +447,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly route = inject(ActivatedRoute, { optional: true });
 
   constructor(
-    private router: Router,
     private organizationService: OrganizationService,
     private entityService: EntityContextService,
     private statsService: EmissionStatsService,
@@ -1902,9 +1900,17 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // 1. La ventilation d'un classeur : société déclarée, à défaut celle du
     //    filtre, à défaut l'unique société du groupe.
-    const ventile = this.dispatchStore.lignesActives
-      .filter(ligne => ligne.ecran)
-      .reduce((somme, ligne) => somme + ligne.emissionKg, 0);
+    //
+    //    Les lignes sont tenues en kgCO₂e quand `byFiliale` est en tCO₂e. Sans
+    //    cette conversion, chaque kilogramme local comptait pour une tonne :
+    //    la répartition par filiale était mille fois trop lourde, ses parts
+    //    fausses, et le garde-fou d'invraisemblance se déclenchait sur des
+    //    bilans parfaitement normaux.
+    const ventile = kgVersTonnes(
+      this.dispatchStore.lignesActives
+        .filter(ligne => ligne.ecran)
+        .reduce((somme, ligne) => somme + ligne.emissionKg, 0)
+    );
 
     ajouter(
       this.dispatchStore.instantane.entityId
@@ -1916,10 +1922,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     // 2. Les saisies des écrans : chacune nomme son usine, et l'organigramme
     //    donne la filiale. Sans ce rapprochement, tout resterait « non
     //    affecté » alors que la réponse figure dans les données.
+    //    Ces totaux sont eux aussi rendus en kgCO₂e : même conversion.
     for (const [usine, valeur] of totauxLocauxParEtablissement(
       this.entityService.filter.year ?? null, this.organisationActive
     )) {
-      ajouter(this.filialeDeLUsine(usine), valeur);
+      ajouter(this.filialeDeLUsine(usine), kgVersTonnes(valeur));
     }
 
     // La répartition par filiale peut manquer d'une réponse partielle : on la
@@ -2909,14 +2916,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return { id, label, icone, couleur, unite, donnees };
   }
 
-  getCroissance(kpi: KpiEntreprise): number {
-    const complets = kpi.donnees.filter(d => !d.provisoire);
-    if (complets.length < 2) return 0;
-    const dernier = complets[complets.length - 1].valeur;
-    const avantDernier = complets[complets.length - 2].valeur;
-    return avantDernier !== 0 ? ((dernier - avantDernier) / avantDernier) * 100 : 0;
-  }
-
   /** Dernier point de la série ; un point neutre quand elle est vide. */
   getValeurActuelle(kpi: KpiEntreprise): DonneeAnnuelle {
     return kpi.donnees[kpi.donnees.length - 1]
@@ -2943,12 +2942,15 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.profilActif ? this.profilActif.pays : 'Groupe MISFAT';
   }
 
-  /** Emoji drapeau d'un pays ; pavillon neutre pour un pays non répertorié. */
+  /**
+   * Emoji drapeau d'un pays ; pavillon neutre pour un pays non répertorié.
+   *
+   * <p>La table est partagée avec la consolidation Groupe : deux copies
+   * finissaient par diverger, une implantation ajoutée d'un côté manquant de
+   * l'autre.</p>
+   */
   drapeauDe(pays: string | null | undefined): string {
-    const parPays: { [pays: string]: string } = {
-      Tunisie: '🇹🇳', Maroc: '🇲🇦', France: '🇫🇷', Algérie: '🇩🇿', Italie: '🇮🇹', Espagne: '🇪🇸'
-    };
-    return parPays[(pays ?? '').trim()] ?? '🏳️';
+    return drapeauDuPays(pays);
   }
 
   /**
@@ -3082,8 +3084,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     };
 
     return [
-      this.construireKpi('ca', 'Chiffre d\'Affaires', '💰', '#9333ea', `M ${this.devise}`,
-        arrondir(this.serieActivite('chiffreAffairesM'), 2)),
+      // Le chiffre d'affaires est stocké en millions, mais s'affiche en unités
+      // de devise : « 182 » ne dit pas de quoi il s'agit, « 182 000 000 TND »
+      // se lit sans conversion mentale. Le diviseur d'un millionième ramène la
+      // série à sa grandeur d'origine.
+      this.construireKpi('ca', 'Chiffre d\'Affaires', '💰', '#9333ea', this.devise,
+        arrondir(this.serieActivite('chiffreAffairesM', 1 / 1_000_000), 0)),
       this.construireKpi('effectifs', 'Effectif Employés', '👥', '#0284c7', 'employés',
         arrondir(this.serieActivite('effectif'), 0)),
       this.construireKpi('production', 'Volume de Production', '📦', '#ea580c', 'M unités',
@@ -3174,28 +3180,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return rapport(this.totalEmissions, this.denominateur('chiffreAffairesM'));
   }
 
-  /**
-   * Productivité carbone : valeur économique produite par tonne émise.
-   *
-   * <p>L'inverse de l'intensité au chiffre d'affaires, et le sens dans lequel
-   * un comité de direction lit la performance : combien l'entreprise crée de
-   * richesse pour chaque tonne qu'elle émet. Plus le ratio monte, mieux
-   * c'est — là où toutes les intensités se lisent à la baisse.</p>
-   *
-   * <p>La carte portait auparavant un chiffre d'affaires par salarié : une
-   * productivité économique, sans aucun CO₂ au numérateur ni au dénominateur,
-   * qui n'avait pas sa place parmi les indicateurs carbone.</p>
-   *
-   * <p>Le chiffre d'affaires est ramené des millions à l'unité pour que le
-   * ratio s'exprime dans la devise du périmètre.</p>
-   */
-  get productiviteCarbone(): number | null {
-    const chiffreAffairesM = this.denominateur('chiffreAffairesM');
-    if (typeof chiffreAffairesM !== 'number' || chiffreAffairesM <= 0) return null;
-
-    return rapport(chiffreAffairesM * 1_000_000, this.totalEmissions);
-  }
-
   // ---------- CARTES DE SYNTHÈSE : SÉRIES ET TENDANCES ----------
 
   /**
@@ -3211,22 +3195,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.serieRatio(point => rapport(
       tonnesVersKg(point.total),
       this.activiteService.valeur(this.entiteActive, point.annee, 'production')));
-  }
-
-  /**
-   * Productivité carbone par exercice.
-   *
-   * <p>Même formule que {@link productiviteCarbone}, étendue à toute la série
-   * pour que la variation se calcule sur l'exercice consulté.</p>
-   */
-  private get serieProductiviteCarbone(): { annee: number; valeur: number }[] {
-    return this.serieRatio(point => {
-      const chiffreAffairesM =
-        this.activiteService.valeur(this.entiteActive, point.annee, 'chiffreAffairesM');
-      if (typeof chiffreAffairesM !== 'number' || chiffreAffairesM <= 0) return null;
-
-      return rapport(chiffreAffairesM * 1_000_000, point.total);
-    });
   }
 
   /**
@@ -3273,90 +3241,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return { pct: ((serie[index].valeur - precedent) / precedent) * 100 };
   }
 
-  /** Variations affichées par les trois cartes de synthèse. */
+  /** Variations affichées par les cartes de synthèse. */
   get tendanceIntensite(): { pct: number } | null {
     return this.tendanceSerie(this.serieIntensite);
   }
 
   get tendanceProduction(): { pct: number } | null {
     return this.tendanceSerie(this.serieActivite('production', 1_000_000));
-  }
-
-  get tendanceProductivite(): { pct: number } | null {
-    return this.tendanceSerie(this.serieProductiviteCarbone);
-  }
-
-  /**
-   * Commentaire de la carte de productivité carbone.
-   *
-   * <p>L'exercice cité est celui sélectionné dans le tableau de bord, et non le
-   * dernier relevé de la série : les deux divergent dès qu'on consulte une
-   * année antérieure.</p>
-   *
-   * <p>Le sens de lecture est inverse de celui des intensités : une
-   * productivité qui monte est une bonne nouvelle, puisqu'elle dit que la même
-   * tonne émise porte davantage de valeur.</p>
-   */
-  get noteProductivite(): string {
-    if (this.productiviteCarbone === null) {
-      return "Renseignez le chiffre d'affaires dans « Données d'Activité & KPI » pour que la "
-        + 'productivité carbone devienne calculable.';
-    }
-
-    const tendance = this.tendanceProductivite;
-    if (tendance === null) {
-      return 'Première année de suivi disponible.';
-    }
-
-    const annee = this.selectedAnnee ?? new Date().getFullYear();
-    return tendance.pct >= 0
-      ? `Davantage de valeur par tonne émise en ${annee}.`
-      : `Recul en ${annee} : chaque tonne émise porte moins de valeur.`;
-  }
-
-  // ---------- COURBES LISSÉES (AREA CHARTS) ----------
-  /**
-   * Repère SVG des séries : viewBox 0 0 100 26, marge verticale de 3.
-   *
-   * <p>Seuls les cinq derniers exercices sont tracés : au-delà, les points se
-   * resserrent au point de rendre la courbe illisible dans une carte de cette
-   * largeur.</p>
-   */
-  private pointsCourbe(kpi: KpiEntreprise): { x: number; y: number }[] {
-    const vals = kpi.donnees.slice(-5).map(d => d.valeur);
-    if (!vals.length) return [];
-    const max = Math.max(...vals);
-    const min = Math.min(...vals);
-    const amplitude = max - min || 1;
-    const pasX = vals.length > 1 ? 100 / (vals.length - 1) : 100;
-    return vals.map((v, i) => ({
-      x: +(i * pasX).toFixed(2),
-      y: +(23 - ((v - min) / amplitude) * 20).toFixed(2)
-    }));
-  }
-
-  /** Tracé de la courbe, lissé par cubiques de Bézier à tangente horizontale. */
-  getCourbe(kpi: KpiEntreprise): string {
-    const p = this.pointsCourbe(kpi);
-    if (p.length < 2) return '';
-    let d = `M ${p[0].x} ${p[0].y}`;
-    for (let i = 0; i < p.length - 1; i++) {
-      const milieuX = +((p[i].x + p[i + 1].x) / 2).toFixed(2);
-      d += ` C ${milieuX} ${p[i].y}, ${milieuX} ${p[i + 1].y}, ${p[i + 1].x} ${p[i + 1].y}`;
-    }
-    return d;
-  }
-
-  /** Même tracé, refermé sur la ligne de base pour le remplissage dégradé. */
-  getAire(kpi: KpiEntreprise): string {
-    const courbe = this.getCourbe(kpi);
-    if (!courbe) return '';
-    const p = this.pointsCourbe(kpi);
-    return `${courbe} L ${p[p.length - 1].x} 26 L ${p[0].x} 26 Z`;
-  }
-
-  getMarqueurs(kpi: KpiEntreprise): { x: number; y: number }[] {
-    return this.pointsCourbe(kpi);
   }
 
   // ---------- GESTION DES GRAPHIQUES (DONUT & SCOPES) ----------
@@ -3457,12 +3348,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.messageAcces = `La demande de ${compte.firstName} ${compte.lastName} a été refusée.`;
     delete this.decisions[compte.id];
     this.cdr.markForCheck();
-  }
-
-  /** Referme la session et ramène à l'écran de connexion. */
-  allerAAccueil(): void {
-    this.sessionService.fermer();
-    this.router.navigate(['/signin']);
   }
 
   toggleMenu(menuName: keyof typeof this.menus): void {

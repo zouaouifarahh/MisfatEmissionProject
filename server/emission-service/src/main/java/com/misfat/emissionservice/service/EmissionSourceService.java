@@ -21,6 +21,28 @@ public class EmissionSourceService {
         return repository.findByCategory(category);
     }
 
+    /**
+     * Code déjà porté par une autre source ?
+     *
+     * <p>Rien ne l'empêchait : deux sources pouvaient partager un code, et les
+     * écrans de saisie proposaient alors deux entrées que rien ne distinguait,
+     * pour des facteurs différents. La comparaison ignore la casse et les
+     * espaces de bordure — c'est la même référence pour qui la saisit.</p>
+     *
+     * @param idExclu la source en cours de modification, qui conserve son
+     *                propre code sans se déclarer en conflit avec elle-même.
+     */
+    public boolean referenceDejaPrise(String referenceCode, Long idExclu) {
+        String code = referenceCode == null ? "" : referenceCode.trim();
+        if (code.isEmpty()) {
+            return false;
+        }
+
+        return repository.findFirstByReferenceCodeIgnoreCase(code)
+                .filter(existante -> idExclu == null || !idExclu.equals(existante.getId()))
+                .isPresent();
+    }
+
     public EmissionSource saveSource(EmissionSource source) {
         return repository.save(source);
     }

@@ -3,6 +3,15 @@
   <!-- BARRE LATÉRALE (SIDEBAR) -->
   <aside class="sidebar" [style.width]="isSidebarCollapsed ? '75px' : '270px'">
 
+    <!-- Bascule à cheval sur le bord droit. Hors de la zone défilante : posée
+         dedans, elle s'en allait avec le menu au premier défilement. -->
+    <button type="button" class="sidebar-edge-toggle" (click)="toggleSidebar()"
+            [attr.aria-expanded]="!isSidebarCollapsed"
+            [attr.aria-label]="isSidebarCollapsed ? 'Déployer le menu' : 'Réduire le menu'"
+            [title]="isSidebarCollapsed ? 'Déployer le menu' : 'Réduire le menu'">
+      <span aria-hidden="true">{{ isSidebarCollapsed ? '›' : '‹' }}</span>
+    </button>
+
     <div class="sidebar-scroll">
       <!-- LOGO ET HEADER SIDEBAR -->
       <div class="sidebar-brand">
@@ -10,10 +19,6 @@
           <img src="misfat logo.jpg" alt="Misfat" [style.height]="isSidebarCollapsed ? '20px' : '35px'">
         </div>
         <p *ngIf="!isSidebarCollapsed" class="sidebar-brand-caption">BACKOFFICE CONSOLE</p>
-
-        <button type="button" (click)="toggleSidebar()" class="sidebar-collapse-btn" title="Réduire / Agrandir">
-          <span>{{ isSidebarCollapsed ? '▶' : '◀' }}</span>
-        </button>
       </div>
 
       <!-- NAVIGATION -->
@@ -155,12 +160,6 @@
       </nav>
     </div>
 
-    <!-- BOUTON QUITTER (PIED DE SIDEBAR) -->
-    <div class="sidebar-footer">
-      <button type="button" (click)="allerAAccueil()" class="btn-quitter" [title]="isSidebarCollapsed ? 'Quitter' : ''">
-        <span>🏠</span> <span *ngIf="!isSidebarCollapsed">Quitter</span>
-      </button>
-    </div>
   </aside>
 
   <!-- CONTENU PRINCIPAL DYNAMIQUE -->
@@ -1061,7 +1060,7 @@
           <div class="synthese-card" data-teinte="chiffre-affaires">
             <div class="synthese-top">
               <span class="synthese-icone" aria-hidden="true">💶</span>
-              <span class="synthese-label">Empreinte par million de CA</span>
+              <span class="synthese-label">Empreinte par CA</span>
             </div>
 
             <div class="synthese-value-row">
@@ -1099,32 +1098,61 @@
 
             <p class="synthese-note">Volume de production, piste d'amélioration prioritaire.</p>
           </div>
-
-          <!-- Productivité carbone : valeur créée par tonne émise. Seule carte
-               dont la hausse est une bonne nouvelle — la flèche montante n'y est
-               donc pas colorée en négatif, contrairement aux intensités. -->
-          <div class="synthese-card" data-teinte="productivite">
-            <div class="synthese-top">
-              <span class="synthese-icone" aria-hidden="true">⚡</span>
-              <span class="synthese-label">Productivité carbone</span>
-            </div>
-
-            <div class="synthese-value-row">
-              <span class="synthese-value">
-                {{ productiviteCarbone !== null ? (productiviteCarbone | number:'1.0-0') : '—' }}
-              </span>
-              <span class="synthese-unite">{{ devise }} / tCO₂e</span>
-            </div>
-
-            <span class="synthese-tendance" *ngIf="tendanceProductivite as t"
-                  [class.negative]="t.pct < 0">
-              <span aria-hidden="true">{{ t.pct >= 0 ? '▲' : '▼' }}</span>
-              {{ t.pct | number:'1.1-1' }}%
-            </span>
-
-            <p class="synthese-note">{{ noteProductivite }}</p>
-          </div>
         </div>
+
+        <!-- Lecture des quatre indicateurs, à l'usage du comité de direction.
+             Les cartes donnent des chiffres sans dire ce qu'ils mesurent :
+             « 2 kg CO₂e / unité » ne se commente pas tout seul en séance. Chaque
+             définition reprend le glyphe et la teinte de sa carte, pour que le
+             regard fasse le rapprochement sans relire les libellés. -->
+        <section class="kpi-lexique" aria-labelledby="kpi-lexique-titre">
+          <h3 class="kpi-lexique-titre" id="kpi-lexique-titre">
+            <span class="kpi-lexique-glyphe" aria-hidden="true">💡</span>
+            Comment lire ces indicateurs
+          </h3>
+
+          <dl class="kpi-lexique-liste">
+            <div class="kpi-lexique-entree" data-teinte="intensite">
+              <dt class="kpi-lexique-terme">
+                <span class="kpi-lexique-puce" aria-hidden="true">🌍</span>Intensité carbone
+              </dt>
+              <dd class="kpi-lexique-def">
+                Mesure l'impact carbone généré par chaque unité produite.
+              </dd>
+            </div>
+
+            <div class="kpi-lexique-entree" data-teinte="effectif">
+              <dt class="kpi-lexique-terme">
+                <span class="kpi-lexique-puce" aria-hidden="true">👥</span>Empreinte par salarié
+              </dt>
+              <dd class="kpi-lexique-def">
+                Évalue la moyenne des émissions attribuées à chaque employé du groupe.
+              </dd>
+            </div>
+
+            <!-- La devise suit le périmètre consulté : elle vaut TND sur le
+                 Groupe, mais MAD sur MISFAT Maroc, et l'écrire en dur ferait
+                 mentir la phrase dès qu'on change de filiale. -->
+            <div class="kpi-lexique-entree" data-teinte="chiffre-affaires">
+              <dt class="kpi-lexique-terme">
+                <span class="kpi-lexique-puce" aria-hidden="true">💶</span>Empreinte par CA
+              </dt>
+              <dd class="kpi-lexique-def">
+                Rapporte le volume total de CO₂ au chiffre d'affaires (en {{ devise }})
+                pour mesurer l'efficacité carbone financière.
+              </dd>
+            </div>
+
+            <div class="kpi-lexique-entree" data-teinte="production">
+              <dt class="kpi-lexique-terme">
+                <span class="kpi-lexique-puce" aria-hidden="true">📦</span>Production
+              </dt>
+              <dd class="kpi-lexique-def">
+                Volume total des unités produites sur la période.
+              </dd>
+            </div>
+          </dl>
+        </section>
 
         <!-- ============================================================== -->
         <!-- JAUGE D'INTENSITÉ ET COMPARATIF MULTI-PAYS                    -->
@@ -1324,51 +1352,6 @@
                 Aucun poste chiffré sur ce scope pour le périmètre consulté.
               </p>
             </ng-container>
-          </div>
-        </div>
-
-        <!-- 4 KPI : libellé, valeur, tendance et courbe en aire -->
-        <div class="kpi-trend-grid">
-          <div class="kpi-trend-card" *ngFor="let kpi of kpisEntreprise" [attr.data-accent]="kpi.id">
-
-            <!-- Libellé à gauche, mention de l'exercice provisoire à droite -->
-            <div class="kpi-trend-header">
-              <span class="kpi-trend-label">
-                <span class="kpi-trend-glyphe" aria-hidden="true">{{ kpi.icone }}</span>{{ kpi.label }}
-              </span>
-              <span *ngIf="getValeurActuelle(kpi).provisoire" class="badge-provisoire"
-                    [title]="'Exercice ' + getValeurActuelle(kpi).annee + ' provisoire'">Provisoire</span>
-            </div>
-
-            <div class="kpi-trend-value-row">
-              <span class="kpi-trend-value">{{ getValeurActuelle(kpi).valeur | number:'1.0-1' }}</span>
-              <span class="kpi-trend-unit">{{ kpi.unite }}</span>
-            </div>
-
-            <div class="kpi-trend-growth" [class.negative]="getCroissance(kpi) < 0">
-              <span class="growth-arrow" aria-hidden="true">{{ getCroissance(kpi) >= 0 ? '▲' : '▼' }}</span>
-              <strong>{{ getCroissance(kpi) | number:'1.1-1' }}%</strong>
-              <span class="growth-context" *ngIf="kpi.donnees.length >= 3">vs {{ kpi.donnees[kpi.donnees.length - 3].annee }}→{{ kpi.donnees[kpi.donnees.length - 2].annee }}</span>
-            </div>
-
-            <!-- Courbe en aire sur les cinq derniers exercices. Les teintes des
-                 arrêts viennent de la feuille de style ; le gabarit ne pose que
-                 l'identifiant du dégradé, qui doit rester unique par carte.
-                 Sous deux exercices renseignés il n'y a pas de tracé : la zone
-                 est retirée plutôt que laissée vide. -->
-            <svg *ngIf="kpi.donnees.length >= 2"
-                 class="kpi-spark" viewBox="0 0 100 26" preserveAspectRatio="none" role="img"
-                 [attr.aria-label]="'Évolution ' + kpi.label">
-              <defs>
-                <linearGradient [attr.id]="'aire-' + kpi.id" x1="0" y1="0" x2="0" y2="1">
-                  <stop class="kpi-spark-haut" offset="0%"></stop>
-                  <stop class="kpi-spark-bas" offset="100%"></stop>
-                </linearGradient>
-              </defs>
-              <path [attr.d]="getAire(kpi)" [attr.fill]="'url(#aire-' + kpi.id + ')'"></path>
-              <path class="kpi-spark-ligne" [attr.d]="getCourbe(kpi)" fill="none" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
-            </svg>
           </div>
         </div>
 

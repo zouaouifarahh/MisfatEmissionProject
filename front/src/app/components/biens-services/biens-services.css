@@ -44,6 +44,94 @@
 /* Les libellés de catégorie carbone sont longs : le tableau défile dans son
    cadre plutôt que d'élargir la page. */
 .table-container { overflow-x: auto; }
+
+/* ==========================================================================
+   Pagination
+
+   La barre est posée hors du cadre défilant : elle reste sous le tableau quand
+   celui-ci glisse latéralement, au lieu de sortir de l'écran avec lui. Le
+   compte reste à gauche — c'est une lecture, pas une commande — et les organes
+   de manœuvre sont groupés à droite, sous le coin où s'arrête le tableau.
+   ========================================================================== */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 11px 16px;
+    border-top: 1px solid var(--sc1-ligne);
+    background: #FBFDFE;
+}
+
+/* Pousse tout le reste à droite sans imposer d'ordre aux autres éléments. */
+.pagination-info {
+    margin-right: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sc1-texte-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.pagination-controls { display: flex; align-items: center; gap: 6px; }
+
+.btn-page {
+    min-width: 30px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--sc1);
+    background: #ffffff;
+    border: 1px solid var(--sc1-ligne);
+    cursor: pointer;
+}
+
+.btn-page:hover:not(:disabled) { border-color: var(--sc1-vif); background: var(--sc1-pale); }
+.btn-page:disabled { color: var(--sc1-texte-3); cursor: not-allowed; opacity: 0.55; }
+
+.page-courante {
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sc1-texte);
+    font-variant-numeric: tabular-nums;
+}
+
+.pagination-taille {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sc1-texte-2);
+}
+
+.pagination-taille select {
+    border: 1px solid var(--sc1-ligne);
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--sc1-texte);
+    background: #ffffff;
+}
+
+/* Sous les écrans étroits, le compte passe seul sur sa ligne et les commandes
+   restent groupées plutôt que de s'étirer d'un bord à l'autre. */
+@media (max-width: 640px) {
+    .pagination-bar { justify-content: space-between; }
+    .pagination-info { margin-right: 0; flex: 1 0 100%; }
+}
+
+/* Portée du total, quand un filtre local restreint l'affichage. */
+.total-portee {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.75;
+}
 .data-table { width: 100%; border-collapse: collapse; min-width: 1300px; }
 
 .cell-strong { font-weight: 600; color: var(--sc1-texte); }

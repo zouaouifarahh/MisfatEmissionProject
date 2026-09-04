@@ -145,3 +145,97 @@
     .actions { margin-left: 0; width: 100%; }
     .btn-import { width: 100%; justify-content: center; }
 }
+
+/* ==========================================================================
+   Identité de la session — profil et sortie
+
+   Poussée à droite par sa marge automatique : c'est là que l'œil cherche son
+   propre compte, et la déconnexion se trouvait jusqu'ici au pied de la barre
+   latérale, sous quarante entrées de menu.
+
+   Les teintes sont celles du thème : le vert MISFAT pour le rôle, le gris
+   ardoise pour le nom, et un rouge retenu pour la sortie — assez visible pour
+   être trouvée, assez discret pour ne pas attirer le clic.
+   ========================================================================== */
+
+.session-zone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.session-profil {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 5px 14px 5px 5px;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.session-profil:hover { background: #f1f5f9; border-color: #cbd5e1; }
+.session-profil:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
+
+/* Le carré de l'image est forcé : une photo rectangulaire déformerait la
+   pastille, et object-fit recadre plutôt que d'écraser. */
+.session-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #eff6fa;
+    border: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.session-texte { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+
+.session-nom {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-role {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0f766e;
+    letter-spacing: 0.3px;
+}
+
+.session-sortie {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #b91c1c;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.session-sortie:hover { background: #fef2f2; border-color: #fecaca; }
+.session-sortie:focus-visible { outline: 2px solid #b91c1c; outline-offset: 2px; }
+
+/* Sous 900 px, l'en-tête se replie déjà sur plusieurs lignes : le mot cède la
+   place à son seul glyphe plutôt que de pousser le sélecteur d'année dessous. */
+@media (max-width: 900px) {
+    .session-sortie-texte { display: none; }
+    .session-nom { max-width: 110px; }
+}

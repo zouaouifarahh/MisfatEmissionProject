@@ -24,7 +24,9 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresServeurService, MesureServeur } from '../../services/mesures-serveur.service';
+import { mesuresDeLEcran, ligneDeLaBase } from '../../shared/ui/mesures-en-tableau';
+import { unitesAvecCourante } from '../../shared/ui/unites-mesure';
 
 // Extension locale de l'interface pour autoriser la propriété nomFacteurDetaille et referenceCode
 export interface ExtendedEmissionFactor extends EmissionFactor {
@@ -33,6 +35,8 @@ export interface ExtendedEmissionFactor extends EmissionFactor {
 }
 
 export interface Emission {
+  /** Ligne venue de la base : ni modifiable ni supprimable depuis cet écran. */
+  lectureSeule?: boolean;
   id: number;
   scope: string;
   categorie: string;
@@ -76,7 +80,7 @@ export interface Emission {
 @Component({
   selector: 'app-emission-list',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './emission-list.html',
   styleUrl: './emission-list.css'
@@ -158,6 +162,12 @@ export class EmissionListComponent implements OnInit {
     'Gazole/Fioul',
     'Fioul lourd',
     'Essence automobile',
+    // Le GPL manquait à la liste alors que c'est le combustible en bouteille et
+    // en citerne le plus courant des sites tunisiens. Le propane et le butane y
+    // figuraient séparément, mais personne n'achète l'un ou l'autre : la
+    // facture porte « GPL », et la source ne pouvait pas être saisie sous ce
+    // nom-là.
+    'GPL / GP',
     'Propane',
     'Butane',
     'Charbon / Lignite',
@@ -203,7 +213,15 @@ export class EmissionListComponent implements OnInit {
     { id: 8, referenceCode: 'MS1GN', scope: 'SCOPE_1', category: 'Combustion dans les établissements', emissionSource: 'Gaz naturel', dataType: 'PHYSIQUE', databaseSource: 'Base Carbone (Interne)', factorValue: 0.204, unit: 'kWh', referenceYear: 2026, hasMargins: false, nomFacteurDetaille: 'Gaz naturel réseau (PCS)' },
     { id: 9, referenceCode: 'MS1GN', scope: 'SCOPE_1', category: 'Combustion dans les établissements', emissionSource: 'Gaz naturel', dataType: 'MONETAIRE', databaseSource: 'Base Carbone (Interne)', factorValue: 1.12, unit: 'TND', referenceYear: 2026, hasMargins: false, nomFacteurDetaille: 'Achat Gaz naturel (Ratio monétaire)' },
 
-    { id: 10, referenceCode: 'MS1FL', scope: 'SCOPE_1', category: 'Combustion dans les établissements', emissionSource: 'Fioul lourd', dataType: 'PHYSIQUE', databaseSource: 'Base Carbone (Interne)', factorValue: 3.15, unit: 'Kg', referenceYear: 2026, hasMargins: false, nomFacteurDetaille: 'Fioul lourd industriel' }
+    { id: 10, referenceCode: 'MS1FL', scope: 'SCOPE_1', category: 'Combustion dans les établissements', emissionSource: 'Fioul lourd', dataType: 'PHYSIQUE', databaseSource: 'Base Carbone (Interne)', factorValue: 3.15, unit: 'Kg', referenceYear: 2026, hasMargins: false, nomFacteurDetaille: 'Fioul lourd industriel' },
+
+    // GPL. Deux unités d'achat cohabitent — la bouteille et la citerne se
+    // facturent au kilogramme, la livraison en vrac au litre — et le facteur
+    // n'est pas le même : c'est à l'exploitant de choisir celui qui correspond
+    // à sa facture. Valeurs DEFRA 2024, données ici en secours seulement : un
+    // facteur « GPL / GP » créé au référentiel les remplace automatiquement.
+    { id: 11, referenceCode: 'MS1GPL', scope: 'SCOPE_1', category: 'Combustion dans les établissements', emissionSource: 'GPL / GP', dataType: 'PHYSIQUE', databaseSource: 'DEFRA', factorValue: 2.93966, unit: 'Kg', referenceYear: 2024, hasMargins: false, nomFacteurDetaille: 'LPG — combustion fixe (au kilogramme)' },
+    { id: 12, referenceCode: 'MS1GPL', scope: 'SCOPE_1', category: 'Combustion dans les établissements', emissionSource: 'GPL / GP', dataType: 'PHYSIQUE', databaseSource: 'DEFRA', factorValue: 1.55537, unit: 'L', referenceYear: 2024, hasMargins: false, nomFacteurDetaille: 'LPG — combustion fixe (au litre)' }
   ];
 
   formModel = {
@@ -234,6 +252,7 @@ export class EmissionListComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    this.chargerMesuresServeur();
     if (isPlatformBrowser(this.platformId)) {
       const donneesSauvegardees = localStorage.getItem('listeEmissions');
       if (donneesSauvegardees) {
@@ -502,7 +521,7 @@ export class EmissionListComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre([...this.lignesServeur, ...this.toutesLignes], this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -1191,6 +1210,53 @@ genererCodeReference() {
   /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
   libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
     return libelleRapprochement(rapprochement);
+  }
+
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /** Mesures que la base porte pour cet écran. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /**
+   * Charge les mesures de la base.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales
+   * restent affichées, seules les mesures de la base manquent.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => { this.mesuresServeur = mesures; this.cdr.markForCheck(); },
+      error: () => { this.mesuresServeur = []; this.cdr.markForCheck(); }
+    });
+  }
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient dans un panneau séparé qui annonçait « N mesure(s)
+   * enregistrée(s) en base » au-dessus d'un tableau disant « aucune donnée » :
+   * deux vues de la même donnée, qui se contredisaient.</p>
+   */
+  get lignesServeur(): Emission[] {
+    return mesuresDeLEcran(
+      this.mesuresServeur, { categories: ['Combustion dans les établissements', 'Stationary combustion'] }, this.exerciceActif, this.perimetreAffiche
+    ).map(m => ligneDeLaBase(m, 'Combustion dans les établissements') as unknown as Emission);
+  }
+
+
+  /**
+   * Unités proposées pour la saisie physique.
+   *
+   * <p>L'unité du facteur retenu reste la valeur par défaut, mais elle ne
+   * s'impose plus : un combustible se relève au litre, au kilogramme ou à
+   * l'énergie facturée selon le contrat, et convertir de tête au bord du
+   * formulaire est une erreur qui attend son tour.</p>
+   */
+  get unitesPhysiquesProposees(): string[] {
+    return unitesAvecCourante(this.formModel.unite);
   }
 
 }

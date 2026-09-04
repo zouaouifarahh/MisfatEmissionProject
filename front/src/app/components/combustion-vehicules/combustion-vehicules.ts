@@ -22,7 +22,9 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresServeurService, MesureServeur } from '../../services/mesures-serveur.service';
+import { mesuresDeLEcran, ligneDeLaBase } from '../../shared/ui/mesures-en-tableau';
+import { unitesAvecCourante } from '../../shared/ui/unites-mesure';
 
 export interface ExtendedEmissionFactor extends EmissionFactor {
   referenceCode?: string;       // Ex: MS1COC, MS1COV, MS2ENDI
@@ -30,6 +32,8 @@ export interface ExtendedEmissionFactor extends EmissionFactor {
 }
 
 export interface Emission {
+  /** Ligne venue de la base : ni modifiable ni supprimable depuis cet écran. */
+  lectureSeule?: boolean;
   id: number;
   scope: string;
   categorie: string;
@@ -67,7 +71,7 @@ export interface Emission {
 @Component({
   selector: 'app-combustion-vehicules',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './combustion-vehicules.html',
   styleUrl: './combustion-vehicules.css'
@@ -246,6 +250,7 @@ export class CombustionVehiculesComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    this.chargerMesuresServeur();
     if (isPlatformBrowser(this.platformId)) {
       const donneesSauvegardees = localStorage.getItem('listeEmissionsVehicules');
       if (donneesSauvegardees) {
@@ -596,7 +601,7 @@ export class CombustionVehiculesComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre([...this.lignesServeur, ...this.toutesLignes], this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -1219,6 +1224,53 @@ export class CombustionVehiculesComponent implements OnInit {
    */
   get usineVentilation(): string {
     return this.etablissementsList[0] || this.societeActiveLabel || '';
+  }
+
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /** Mesures que la base porte pour cet écran. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /**
+   * Charge les mesures de la base.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales
+   * restent affichées, seules les mesures de la base manquent.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => { this.mesuresServeur = mesures; this.cdr.markForCheck(); },
+      error: () => { this.mesuresServeur = []; this.cdr.markForCheck(); }
+    });
+  }
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient dans un panneau séparé qui annonçait « N mesure(s)
+   * enregistrée(s) en base » au-dessus d'un tableau disant « aucune donnée » :
+   * deux vues de la même donnée, qui se contredisaient.</p>
+   */
+  get lignesServeur(): Emission[] {
+    return mesuresDeLEcran(
+      this.mesuresServeur, { categories: ['Combustion des véhicules', 'Company owned cars', 'Company owned vehicles'] }, this.exerciceActif, this.perimetreAffiche
+    ).map(m => ligneDeLaBase(m, 'Combustion des véhicules') as unknown as Emission);
+  }
+
+
+  /**
+   * Unités proposées pour la saisie physique.
+   *
+   * <p>L'unité du facteur retenu reste la valeur par défaut, mais elle ne
+   * s'impose plus : un combustible se relève au litre, au kilogramme ou à
+   * l'énergie facturée selon le contrat, et convertir de tête au bord du
+   * formulaire est une erreur qui attend son tour.</p>
+   */
+  get unitesPhysiquesProposees(): string[] {
+    return unitesAvecCourante(this.formModel.unite);
   }
 
 }

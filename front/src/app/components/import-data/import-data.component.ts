@@ -148,6 +148,22 @@ export class ImportDataComponent implements OnInit {
   exerciceActif: number | null = null;
   entiteActive: number | null = null;
 
+  /**
+   * Usine consultée, quand le filtre en désigne une.
+   *
+   * <p>Distincte de {@link entiteActive} : les deux séries d'identifiants se
+   * recouvrent, et l'écran envoyait jusqu'ici la société à la place du site.</p>
+   */
+  usineActive: number | null = null;
+
+  /**
+   * Périmètre du dernier historique demandé, pour ne pas le redemander.
+   *
+   * <p>Le filtre global émet au changement d'usine comme d'exercice ; seuls les
+   * seconds changent l'historique.</p>
+   */
+  private dernierPerimetreCharge: string | null = null;
+
   /** Exercice retenu pour la dernière ventilation. */
   exerciceVentile: number | null = null;
 
@@ -168,7 +184,20 @@ export class ImportDataComponent implements OnInit {
     this.entityService.filter$.subscribe(filtre => {
       this.exerciceActif = filtre?.year ?? null;
       this.entiteActive = filtre?.entityId ?? null;
+      this.usineActive = filtre?.usineId ?? null;
       this.dispatchStore.suivrePerimetre(this.exerciceActif, this.entiteActive);
+
+      // L'historique appartient au périmètre : passer de MISFAT TUNISIE 2025 à
+      // MISFAT MAROC 2026 doit vider le tableau des dépôts de la première pour
+      // n'y laisser que ceux de la seconde. Le filtre émet aussi au changement
+      // d'usine, qui ne cloisonne pas les dépôts : rappeler le serveur pour
+      // recevoir la même liste serait un aller-retour pour rien.
+      const perimetre = `${this.entiteActive}|${this.exerciceActif}`;
+      if (perimetre !== this.dernierPerimetreCharge) {
+        this.dernierPerimetreCharge = perimetre;
+        this.chargerHistorique();
+      }
+
       this.cdr.markForCheck();
     });
 
@@ -257,11 +286,46 @@ export class ImportDataComponent implements OnInit {
   }
 
   get pretAEnvoyer(): boolean {
-    return !!this.fichier && this.etat !== 'upload' && this.etat !== 'traitement';
+    return !!this.fichier
+      && this.perimetreComplet
+      && this.etat !== 'upload'
+      && this.etat !== 'traitement';
+  }
+
+  /**
+   * Une société et un exercice sont-ils arrêtés ?
+   *
+   * <p>Le dépôt les exige tous les deux. Un classeur déposé depuis la vue
+   * Groupe n'appartenait à aucune société en particulier : il remontait donc
+   * dans l'historique de toutes, et ses lignes ventilées alimentaient le bilan
+   * de chacune — le cloisonnement du magasin ne retient une répartition que
+   * lorsqu'elle nomme sa société.</p>
+   */
+  get perimetreComplet(): boolean {
+    return this.entiteActive !== null && this.exerciceActif !== null;
+  }
+
+  /** Ce qui manque au périmètre, dit à l'utilisateur plutôt que deviné. */
+  get motifPerimetreIncomplet(): string {
+    if (this.perimetreComplet) return '';
+
+    const manquants: string[] = [];
+    if (this.entiteActive === null) manquants.push('une société');
+    if (this.exerciceActif === null) manquants.push('un exercice');
+
+    return `Choisissez ${manquants.join(' et ')} dans les listes du bandeau avant `
+      + "de déposer un classeur : sans ce périmètre, l'import ne se rattacherait à "
+      + "aucune année ni à aucun site, et remonterait dans l'historique de tous.";
   }
 
   envoyer(): void {
     if (!this.pretAEnvoyer || !this.fichier) return;
+
+    // Relus ici plutôt que passés en champs : le filtre a pu changer entre le
+    // choix du fichier et le clic, et c'est le périmètre du clic qui fait foi.
+    const filiale = this.entiteActive;
+    const exercice = this.exerciceActif;
+    if (filiale === null || exercice === null) return;
 
     this.etat = 'upload';
     this.progression = 0;
@@ -272,7 +336,7 @@ export class ImportDataComponent implements OnInit {
     // navigateur et n'attend pas la réponse du serveur.
     this.ventiler(this.fichier);
 
-    this.importService.upload(this.fichier).subscribe({
+    this.importService.upload(this.fichier, filiale, exercice).subscribe({
       next: evenement => {
         if (evenement.kind === 'progress') {
           this.progression = evenement.percent;
@@ -449,7 +513,14 @@ export class ImportDataComponent implements OnInit {
       errorDetail: rapport.nonVentilees
         ? `${rapport.nonVentilees} ligne(s) sans destination, ${rapport.exclues} écartée(s) du bilan.`
         : null,
-      importedBy: 'Ventilation locale'
+      importedBy: 'Ventilation locale',
+
+      // Le périmètre est inscrit sur l'entrée elle-même. Sans lui, une
+      // ventilation faite pour MISFAT MAROC réapparaissait dans l'historique de
+      // toutes les sociétés : le tableau mêlait des dépôts filtrés par le
+      // serveur et des entrées locales qui ne l'étaient par personne.
+      filialeId: this.entiteActive,
+      annee: this.exerciceVentile ?? this.exerciceActif
     };
 
     this.historiqueVentilation = [entree, ...this.historiqueVentilation];
@@ -708,7 +779,13 @@ export class ImportDataComponent implements OnInit {
       unit: ligne.uniteFacteur || 'TND',
       categoryCode: ligne.categorieCarboneTexte || null,
       sourceCode: ligne.referenceCarbone || null,
-      usineId: this.entiteActive,
+
+      // La société part dans son propre champ. Elle voyageait dans usineId, et
+      // le serveur remontait alors à la société du site de même numéro : une
+      // correction validée depuis MISFAT MAROC (société 2) était lue comme
+      // l'usine 2, « MISFAT 2 », et venait grossir le bilan de MISFAT TUNISIE.
+      filialeId: this.entiteActive,
+      usineId: this.usineActive,
       importLogId: null
     };
   }
@@ -993,6 +1070,8 @@ export class ImportDataComponent implements OnInit {
         lignesVentilees: this.ventilationsParEntree.get(log.id) ?? log.totalRows,
         repartition: this.repartitionsParEntree.get(log.id) ?? [],
         ecartees: this.ecarteesParEntree.get(log.id) ?? 0,
+        // Le journal porte déjà filialeId et annee : rien de plus à mémoriser
+        // ici, l exercice restant écrit à part pour les entrées d avant.
         exercice: this.exercicesParEntree.get(log.id) ?? null,
         avertissements: this.avertissementsParEntree.get(log.id) ?? []
       }));
@@ -1117,13 +1196,34 @@ export class ImportDataComponent implements OnInit {
    * même fichier ne dirait rien de vrai à l'utilisateur.</p>
    */
   get historiqueComplet(): ReferentialImportLog[] {
-    const ventiles = new Set(this.historiqueVentilation.map(l => l.fileName));
+    // Les entrées locales survivent au navigateur, pas au changement de
+    // société : le serveur a déjà filtré les siennes, celles-ci se filtrent
+    // ici, faute de quoi le tableau mêlerait deux périmètres.
+    const locales = this.historiqueVentilation.filter(log => this.relevePerimetre(log));
+    const ventiles = new Set(locales.map(l => l.fileName));
 
     const serveur = this.historique
       .filter(log => !(log.status === 'FAILED' && ventiles.has(log.fileName)))
       .filter(log => !this.depotsMasques.has(log.id));
 
-    return [...this.historiqueVentilation, ...serveur];
+    return [...locales, ...serveur];
+  }
+
+  /**
+   * Une entrée relève-t-elle du périmètre consulté ?
+   *
+   * <p>Un critère non arrêté ne filtre pas : la vue Groupe montre les dépôts de
+   * toutes les sociétés, comme le fait le serveur de son côté.</p>
+   *
+   * <p>Une entrée sans périmètre n'est en revanche retenue que lorsqu'on n'en
+   * demande aucun. Les ventilations mémorisées avant ce cloisonnement ne disent
+   * pas à qui elles appartiennent, et les attribuer à la société consultée
+   * afficherait sous MISFAT MAROC un classeur déposé pour une autre.</p>
+   */
+  private relevePerimetre(log: ReferentialImportLog): boolean {
+    if (this.entiteActive !== null && (log.filialeId ?? null) !== this.entiteActive) return false;
+    if (this.exerciceActif !== null && (log.annee ?? null) !== this.exerciceActif) return false;
+    return true;
   }
 
   /** Dépôts serveur retirés de l'affichage, faute de suppression en base. */
@@ -1211,7 +1311,7 @@ export class ImportDataComponent implements OnInit {
 
   chargerHistorique(): void {
     this.chargementHistorique = true;
-    this.importService.getHistory().subscribe({
+    this.importService.getHistory(this.entiteActive, this.exerciceActif).subscribe({
       next: logs => {
         this.historique = logs;
         this.chargementHistorique = false;

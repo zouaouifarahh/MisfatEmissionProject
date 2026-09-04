@@ -22,8 +22,13 @@
 /* 🚗 Voiture, location et taxi partagent la palette du véhicule particulier. */
 .mode-voiture { color: #1D4ED8; background: #DBEAFE; border-color: #BFDBFE; }
 
-/* 🚌 Bus et autocar. */
+/* 🚌 Bus urbain. */
 .mode-bus { color: #D97706; background: #FEF3C7; border-color: #FDE68A; }
+
+/* 🚍 Autocar et navette d'entreprise. Teinte voisine du bus mais distincte :
+   les deux se lisent comme du transport collectif routier sans se confondre,
+   ce qu'une pastille commune interdisait. */
+.mode-coach { color: #B45309; background: #FDF3E3; border-color: #F5D9A8; }
 
 /* 🚆 Train, TER et transports guidés. */
 .mode-train { color: #6D28D9; background: #EDE9FE; border-color: #DDD6FE; }

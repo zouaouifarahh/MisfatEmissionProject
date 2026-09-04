@@ -1919,3 +1919,42 @@
   .doc-analyse p { font-size: 9.5pt; }
   .doc-tableau table, .doc-total { font-size: 8.5pt; }
 }
+
+/* ==========================================================================
+   Plan d'actions de la synthèse exécutive
+
+   Le plan se saisit ici, où la direction décide ; le rapport normé se contente
+   d'en rendre compte. Les commandes portent « ecran-seul » et disparaissent à
+   l'impression — le tableau, lui, fait partie du document remis.
+   ========================================================================== */
+.plan-actions td { vertical-align: top; }
+
+/* Les boutons du plan ne sont pas dans un `.solution` : sans cette règle ils
+   resteraient à l'opacité de repos, invisibles au survol de leur ligne. */
+.plan-actions tr:hover .solution-actions button { opacity: 1; }
+
+.plan-horizon {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--texte-2, #475569);
+  background: var(--fond-2, #EEF2F7);
+}
+
+.plan-statut {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--texte-2, #475569);
+  background: var(--fond-2, #EEF2F7);
+  white-space: nowrap;
+}
+
+/* La saisie occupe toute la largeur du tableau : elle n'a pas à se plier aux
+   colonnes du rendu, qui ne sont pas celles du formulaire. */
+.plan-actions .solution-edition { padding: 12px 2px 4px; }

@@ -300,6 +300,55 @@ public class ReferentialService {
     }
 
     /**
+     * Libellés de classeur qui désignent une référence carbone sous un autre nom.
+     *
+     * <p>Le classeur d'achats nomme une matière — « Leather », « Copper » — là où
+     * le référentiel nomme un secteur d'activité — « All Other Leather Good and
+     * Allied Product Manufacturing ». Aucun rapprochement textuel ne relie les
+     * deux : sans cette table, les lignes sont écartées faute de facteur alors
+     * que le facteur existe.</p>
+     *
+     * <p>Trois causes distinctes s'y mêlent, et chacune se lit dans l'entrée :
+     * une faute de frappe de la source (« expect » pour « except », qui écartait
+     * 519 lignes à elle seule), une langue différente (« Médicaments »,
+     * « ciment »), ou un nom de matière face à un nom de secteur.</p>
+     *
+     * <p>La casse et les accents sont neutralisés par {@link #cleSynonyme} :
+     * « steel » et « Steel », « Metals » et « metals » tombent sur la même
+     * entrée, il est donc inutile de décliner les variantes d'écriture.</p>
+     */
+    private static final Map<String, String> SYNONYMES_REFERENCE = Map.ofEntries(
+            Map.entry("urethaneandotherfoamproductexpectpolystyrenemanufacturing", "MS3C1UF"),
+            Map.entry("medicaments", "MS3C1DD"),
+            Map.entry("leather", "MS3C1LG"),
+            Map.entry("copper", "MS3C1CR"),
+            Map.entry("steel", "MS3C1ISM"),
+            Map.entry("inox", "MS3C1ISM"),
+            Map.entry("galvanizedsteelsheet", "MS3C1ISM"),
+            Map.entry("arbre", "MS3C1ISM"),
+            Map.entry("rolledsteelshapemanufacturing", "MS3C1ISM"),
+            Map.entry("ciment", "MS3C1CM"));
+
+    /**
+     * Code de référence désigné par un libellé de classeur, ou {@code null}.
+     *
+     * <p>Rend {@code null} plutôt que de deviner : un libellé inconnu doit faire
+     * écarter la ligne, non la rattacher au premier facteur venu. C'est le rejet
+     * qui dit à l'exploitante quel facteur créer.</p>
+     */
+    public static String referenceDuSynonyme(String libelle) {
+        return libelle == null ? null : SYNONYMES_REFERENCE.get(cleSynonyme(libelle));
+    }
+
+    /** Clé de rapprochement : sans accents, sans séparateurs, en minuscules. */
+    private static String cleSynonyme(String libelle) {
+        return java.text.Normalizer.normalize(libelle.trim(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z0-9]+", "")
+                .toLowerCase();
+    }
+
+    /**
      * Numéro de catégorie GHG porté par un libellé, ou {@code null}.
      *
      * <p>Reconnaît « Category 15: Investments » comme « Categorie 15 » ou

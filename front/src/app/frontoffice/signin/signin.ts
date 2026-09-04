@@ -129,7 +129,30 @@ export class SigninComponent implements OnInit {
     // Tous les profils rejoignent la console : c'est la navigation latérale qui
     // s'adapte au rôle, et elle seule. Une adresse demandée avant la
     // redirection reprend la main, pour ne pas perdre le lien suivi.
-    this.router.navigateByUrl(this.retour ?? '/dashboard');
+    //
+    // Sauf « Mon Profil ». La garde y renvoyait après connexion dès qu'une
+    // session avait expiré sur cet écran — un clic sur l'avatar, puis un retour
+    // par le formulaire, et l'on ouvrait la console sur sa fiche personnelle au
+    // lieu du tableau de bord. Une page de compte n'est pas un point d'entrée.
+    this.router.navigateByUrl(this.destinationApresConnexion());
+  }
+
+  /**
+   * Écran ouvert au retour de la connexion.
+   *
+   * <p>L'adresse demandée avant la redirection reprend la main, à l'exception
+   * des écrans de compte : ils se consultent, ils ne s'habitent pas.</p>
+   */
+  private destinationApresConnexion(): string {
+    const demandee = (this.retour ?? '').trim();
+    if (!demandee) return '/dashboard';
+
+    // Comparaison de chemins plutôt qu'expression régulière : deux adresses
+    // fixes n'appellent pas de motif, et la question posée reste lisible.
+    const ecransDeCompte = ['/mon-profil', '/settings/profile'];
+    const chemin = demandee.split('?')[0].split('#')[0];
+
+    return ecransDeCompte.includes(chemin) ? '/dashboard' : demandee;
   }
 
   /**

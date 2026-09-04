@@ -1196,6 +1196,41 @@ export class BiensServicesComponent implements OnInit {
     return this.pageServeur?.totalLignes ?? 0;
   }
 
+  /**
+   * Un filtre de l'écran restreint-il l'affichage sous le périmètre serveur ?
+   *
+   * <p>Les totaux du serveur décrivent la catégorie entière. Dès qu'un filtre
+   * local trie parmi les lignes remontées, ils ne décrivent plus ce qui est à
+   * l'écran : le pied doit alors compter ce qu'il montre, non ce qu'il ignore.</p>
+   */
+  get filtreLocalActif(): boolean {
+    return this.rechercheTexte.trim() !== ''
+      || this.filtreMetier !== 'Tous'
+      || this.filtreProvenance !== 'Toutes'
+      || this.filtreStatut !== 'Tous'
+      || this.filtreEtablissement !== 'Tous';
+  }
+
+  /**
+   * Lignes annoncées par le pied de tableau.
+   *
+   * <p>Sans filtre local, c'est le compte du périmètre entier — trente-huit
+   * mille achats, non les cinquante de la page. Un pied qui annonçait « Total —
+   * 50 ligne(s) » au-dessus d'une barre disant « sur 38 012 » se contredisait à
+   * deux lignes d'intervalle.</p>
+   */
+  get lignesDuTotal(): number {
+    return this.filtreLocalActif ? this.emissionsFiltrees.length : this.lignesDuServeur;
+  }
+
+  /** Émissions annoncées par le pied, en kgCO₂e — même règle que le compte. */
+  get emissionsDuTotal(): number {
+    if (this.filtreLocalActif) {
+      return this.totalEmissions;
+    }
+    return this.pageServeur?.totalCo2eKg ?? this.totalEmissions;
+  }
+
   get premierIndexPage(): number {
     return this.lignesDuServeur ? (this.pageCourante - 1) * this.taillePage + 1 : 0;
   }

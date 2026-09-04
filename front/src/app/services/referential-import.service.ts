@@ -7,6 +7,10 @@ export interface ReferentialImportLog {
   id: number;
   fileName: string;
   importDate: string;
+  /** Société du dépôt. Nulle sur les dépôts antérieurs au cloisonnement. */
+  filialeId?: number | null;
+  /** Exercice du dépôt. Même régime que {@link filialeId}. */
+  annee?: number | null;
   totalRows: number;
   createdReferences: number;
   createdSources: number;
@@ -39,15 +43,43 @@ export class ReferentialImportService {
     return `${this.baseUrl}/template`;
   }
 
-  getHistory(): Observable<ReferentialImportLog[]> {
-    return this.http.get<ReferentialImportLog[]>(`${this.baseUrl}/imports`);
+  /**
+   * Historique du périmètre consulté.
+   *
+   * <p>Le filtrage est fait par le serveur, non par le navigateur : rapatrier
+   * tous les dépôts du groupe pour n'en afficher qu'une poignée fait transiter
+   * l'historique des autres sociétés jusqu'au poste de l'utilisateur.</p>
+   *
+   * <p>Un critère nul vaut « tous », ce que la vue Groupe demande légitimement ;
+   * il n'est donc pas transmis plutôt que transmis vide.</p>
+   */
+  getHistory(filialeId?: number | null, annee?: number | null): Observable<ReferentialImportLog[]> {
+    let params = new HttpParams();
+    if (filialeId != null) params = params.set('filialeId', filialeId);
+    if (annee != null) params = params.set('annee', annee);
+
+    return this.http.get<ReferentialImportLog[]>(`${this.baseUrl}/imports`, { params });
   }
 
-  upload(file: File, importedBy?: string | null): Observable<ReferentialUploadEvent> {
+  /**
+   * Dépose un classeur pour une société et un exercice.
+   *
+   * <p>Les deux sont des paramètres exigés, et non facultatifs : le serveur les
+   * refuse absents, et un appelant qui les oublierait doit s'en apercevoir à la
+   * compilation plutôt qu'en lisant un 400 à l'exécution.</p>
+   */
+  upload(
+    file: File,
+    filialeId: number,
+    annee: number,
+    importedBy?: string | null
+  ): Observable<ReferentialUploadEvent> {
     const formData = new FormData();
     formData.append('file', file, file.name);
 
-    let params = new HttpParams();
+    let params = new HttpParams()
+      .set('filialeId', filialeId)
+      .set('annee', annee);
     if (importedBy) params = params.set('importedBy', importedBy);
 
     return this.http

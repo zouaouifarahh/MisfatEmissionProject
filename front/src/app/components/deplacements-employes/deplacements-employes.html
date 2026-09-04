@@ -94,12 +94,6 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
-      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
-           comptait deja ; cet ecran les niait. -->
-      <app-mesures-serveur
-        [numeroGhg]="7"
-        [exercice]="exerciceActif"
-        [organisation]="perimetreAffiche"></app-mesures-serveur>
 
       <table class="data-table">
         <thead>
@@ -178,15 +172,19 @@
 
             <td class="cell-note">{{ periodeLisible(item) }}</td>
             <td class="ta-center">
-              <div class="action-buttons">
+              <div class="action-buttons" *ngIf="!item.lectureSeule; else venueDeLaBase">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
                 <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
               </div>
+              <ng-template #venueDeLaBase>
+                <span class="lecture-seule"
+                      title="Mesure enregistrée en base : modifiable depuis l'import, non depuis cet écran">base</span>
+              </ng-template>
             </td>
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="11" class="empty-row">
+            <td colspan="13" class="empty-row">
               Aucun trajet domicile-travail enregistré sur ce périmètre.
             </td>
           </tr>

@@ -71,13 +71,11 @@
 
     <!-- TABLEAU DE DONNÉES : séquence commune aux catégories Scope 1 et 2 -->
     <div class="table-container">
-      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
-           comptait deja ; cet ecran les niait. -->
-      <app-mesures-serveur
-        [categories]="['Électricité achetée','Energy','Purchased electricity']"
-        [exercice]="exerciceActif"
-        [organisation]="perimetreAffiche"></app-mesures-serveur>
-
+      <!-- Les mesures de la base sont versées dans le tableau lui-meme. Elles
+           s'affichaient dans un panneau separe qui annoncait « 1 mesure(s)
+           enregistree(s) en base » au-dessus d'un tableau disant « aucune
+           consommation enregistree » : deux vues de la meme donnee, qui se
+           contredisaient. -->
       <table class="data-table">
         <thead>
           <tr>
@@ -126,15 +124,21 @@
               </span>
             </td>
             <td class="ta-center">
-              <div class="action-buttons">
+              <!-- Une mesure de la base ne se corrige pas d'ici : la base
+                   n'offre pas encore de chemin d'ecriture pour cet ecran. -->
+              <div class="action-buttons" *ngIf="!item.lectureSeule; else venueDeLaBase">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
                 <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
               </div>
+              <ng-template #venueDeLaBase>
+                <span class="lecture-seule"
+                      title="Mesure enregistrée en base : modifiable depuis l'import, non depuis cet écran">base</span>
+              </ng-template>
             </td>
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="12" class="empty-row">
+            <td colspan="14" class="empty-row">
               Aucune consommation d'électricité enregistrée sur ce périmètre.
             </td>
           </tr>

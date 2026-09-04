@@ -105,8 +105,19 @@ describe('Facteurs : référentiel MS SQL puis repli', () => {
     const moto = retenirFacteur(FACTEURS_BDD, 'Motocyclette');
     expect(moto.reference).toBe('MS3C7ECM');
 
+    // L'autocar retient son propre facteur, et lui seul.
+    const coach = retenirFacteur(FACTEURS_BDD, 'Coach');
+    expect(coach.origine).toBe('MS SQL');
+    expect(coach.reference).toBe('MS3C7ECC');
+    expect(coach.valeur).toBeCloseTo(0.0332522207, 8);
+
+    // Le bus urbain, lui, n'est pas documenté par cette base : il retombe sur
+    // son repli. Il empruntait auparavant « Coach » — sa signature captait le
+    // mot —, et un trajet en bus de ville était donc valorisé au facteur d'un
+    // autocar, huit fois moindre.
     const bus = retenirFacteur(FACTEURS_BDD, 'Bus');
-    expect(bus.reference).toBe('MS3C7ECC');
+    expect(bus.origine).toBe('Repli ADEME');
+    expect(bus.valeur).toBe(0.103);
   });
 
   it('bascule sur le repli ADEME quand la base est vide ou partielle', () => {

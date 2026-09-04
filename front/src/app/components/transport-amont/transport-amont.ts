@@ -23,7 +23,7 @@ import { inject } from '@angular/core';
 import {
   ModeTransport, MODES_TRANSPORT, choisirFacteur, classerFacteurs,
   calculerEmission, deduireMode, libelleFormule, modeCalculDe,
-  poidsTotalDepuisQuantite, tonnesKilometres
+  poidsTotalDepuisQuantite, tonnesKilometres, POIDS_MOYEN_FILTRE_KG
 } from './transport-facteur';
 import { enregistrerLignes } from '../../shared/dispatch/mesures-locales';
 import { PerimetreOrganisation } from '../../core/perimetre';
@@ -169,8 +169,14 @@ export class TransportAmontComponent implements OnInit {
      * référence.</p>
      */
     quantite: null as number | null,
-    /** Poids moyen d'une unité, en kilogrammes. */
-    poidsMoyenKg: null as number | null,
+    /**
+     * Poids moyen d'une unité, en kilogrammes.
+     *
+     * <p>Pré-rempli au poids d'un filtre : c'est ce que MISFAT expédie, et
+     * l'exploitant n'a rien à saisir dans le cas ordinaire. Le champ reste
+     * modifiable pour les références qui s'en écartent.</p>
+     */
+    poidsMoyenKg: POIDS_MOYEN_FILTRE_KG as number | null,
     poidsKg: null as number | null,
     distanceKm: null as number | null,
     montant: null as number | null,
@@ -456,7 +462,7 @@ export class TransportAmontComponent implements OnInit {
         // total, lui, l'est. Rouvrir une ligne repart donc du poids, ce qui la
         // laisse modifiable sans reconstituer un détail qu'on n'a pas gardé.
         quantite: null,
-        poidsMoyenKg: null,
+        poidsMoyenKg: POIDS_MOYEN_FILTRE_KG,
         poidsKg: emission.poidsKg,
         distanceKm: emission.distanceKm,
         montant: emission.montant,
@@ -483,7 +489,7 @@ export class TransportAmontComponent implements OnInit {
         client: '',
         monetaire: false,
         quantite: null,
-        poidsMoyenKg: null,
+        poidsMoyenKg: POIDS_MOYEN_FILTRE_KG,
         poidsKg: null,
         distanceKm: null,
         montant: null,
@@ -588,6 +594,45 @@ export class TransportAmontComponent implements OnInit {
     ));
   }
 
+  /**
+   * Décomposition du calcul tonne-kilomètre, pour l'aperçu de la modale.
+   *
+   * <p>Trois multiplications séparent la quantité expédiée de l'émission, et
+   * l'aperçu n'en montrait que le résultat : impossible de savoir lequel des
+   * trois nombres était en cause quand le total surprenait. Chaque étape est
+   * ici rendue avec ses valeurs du moment.</p>
+   *
+   * <p>Rend {@code null} hors du mode tonne-kilomètre : un facteur au kilomètre
+   * ou au poids n'emprunte pas cette chaîne, et l'afficher tromperait.</p>
+   */
+  get detailTonneKm(): {
+    quantite: number; poidsMoyenKg: number; poidsTotalTonnes: number;
+    distanceKm: number; tonnesKm: number;
+  } | null {
+
+    if (this.formModel.monetaire) return null;
+    if (modeCalculDe(this.formModel.uniteFacteur, 'PHYSIQUE') !== 'TONNE_KM') return null;
+
+    const quantite = this.formModel.quantite;
+    const distanceKm = this.formModel.distanceKm;
+    if (!quantite || quantite <= 0) return null;
+    if (!distanceKm || distanceKm <= 0) return null;
+
+    // Même repli que le calcul : la décomposition doit montrer le poids
+    // réellement appliqué, non celui que le champ laisse voir.
+    const saisi = this.formModel.poidsMoyenKg;
+    const poidsMoyenKg = saisi !== null && Number.isFinite(saisi) && saisi > 0
+      ? saisi
+      : POIDS_MOYEN_FILTRE_KG;
+
+    const poidsTotalTonnes = quantite * poidsMoyenKg * 0.001;
+
+    return {
+      quantite, poidsMoyenKg, poidsTotalTonnes, distanceKm,
+      tonnesKm: distanceKm * poidsTotalTonnes
+    };
+  }
+
   get emissionPrevisionnelle(): number {
     return calculerEmission({
       facteur: this.formModel.facteur,
@@ -620,6 +665,44 @@ export class TransportAmontComponent implements OnInit {
    * <p>Montrer la grandeur intermédiaire évite d'avoir à croire le total sur
    * parole : c'est elle que le facteur multiplie.</p>
    */
+  /** Poids de référence, rappelé sous le champ de saisie. */
+  readonly poidsFiltreParDefaut = POIDS_MOYEN_FILTRE_KG;
+
+  /**
+   * Tonnage du chargement, quelle que soit l'unité du facteur retenu.
+   *
+   * <p>Distinct de {@link detailTonneKm}, qui ne parle que du mode
+   * tonne-kilomètre : le tonnage est une propriété de l'expédition, pas du
+   * facteur. Il doit s'afficher sous les champs dès que la quantité est saisie,
+   * même quand le facteur retenu se compte au kilomètre — c'est ce qui permet
+   * de vérifier la conversion avant de regarder le total.</p>
+   */
+  get tonnageSaisi(): { quantite: number; poidsMoyenKg: number; tonnes: number } | null {
+    const quantite = this.formModel.quantite;
+    if (!quantite || !Number.isFinite(quantite) || quantite <= 0) return null;
+
+    const saisi = this.formModel.poidsMoyenKg;
+    const poidsMoyenKg = saisi !== null && Number.isFinite(saisi) && saisi > 0
+      ? saisi
+      : POIDS_MOYEN_FILTRE_KG;
+
+    return { quantite, poidsMoyenKg, tonnes: quantite * poidsMoyenKg * 0.001 };
+  }
+
+  /**
+   * Le facteur retenu se compte-t-il au kilomètre parcouru ?
+   *
+   * <p>Le cadre d'aperçu annonçait « Distance × Facteur » sans dire pourquoi.
+   * La raison tient à l'unité du facteur : « Diesel medium and heavy duty
+   * truck » est publié au kilomètre de véhicule, charge comprise, et le
+   * multiplier par un tonnage compterait la charge deux fois. Le dire évite
+   * qu'on prenne la formule pour une erreur.</p>
+   */
+  get facteurAuKilometre(): boolean {
+    if (this.formModel.monetaire) return false;
+    return modeCalculDe(this.formModel.uniteFacteur, 'PHYSIQUE') === 'KM';
+  }
+
   get tonnesKmPrevisionnelles(): number | null {
     return tonnesKilometres(
       this.formModel.distanceKm, this.formModel.quantite, this.formModel.poidsMoyenKg);

@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID, inject } from '@angular/core';
 import { colonnesIdentite } from '../../core/colonnes-identite';
 import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
@@ -28,7 +28,9 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresServeurService, MesureServeur } from '../../services/mesures-serveur.service';
+import { mesuresDeLEcran, ligneDeLaBase } from '../../shared/ui/mesures-en-tableau';
+import { posteParId } from '../../core/nomenclature-scopes';
 import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
@@ -36,6 +38,8 @@ export type Provenance = 'Réel' | 'Estimation' | 'Excel';
 
 /** Actif loué en amont, catégorie 8 du Scope 3. */
 export interface EmissionActifLoue {
+  /** Ligne venue de la base : ni modifiable ni supprimable depuis cet écran. */
+  lectureSeule?: boolean;
   /**
    * Code article de l'ERP, second degré de rapprochement.
    *
@@ -97,7 +101,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-actifs-loues-amont',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './actifs-loues-amont.html',
   styleUrl: './actifs-loues-amont.css'
@@ -209,6 +213,7 @@ export class ActifsLouesAmontComponent implements OnInit {
    * son rendu : l'échec est rapporté dans l'interface, jamais propagé.</p>
    */
   ngOnInit(): void {
+    this.chargerMesuresServeur();
     try {
       if (isPlatformBrowser(this.platformId)) {
         const sauvegarde = localStorage.getItem(CLE_STOCKAGE);
@@ -345,7 +350,7 @@ export class ActifsLouesAmontComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.listeEmissions, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre([...this.lignesServeur, ...this.listeEmissions], this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -963,6 +968,43 @@ export class ActifsLouesAmontComponent implements OnInit {
   /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
   libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
     return libelleRapprochement(rapprochement);
+  }
+
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /** Mesures que la base porte pour cet écran. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /** Intitulé de repli si la nomenclature ne nomme pas ce poste. */
+  private readonly CATEGORIE_REPLI = 'actifs-loues-amont';
+
+  /**
+   * Charge les mesures de la base.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales
+   * restent affichées, seules les mesures de la base manquent.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => { this.mesuresServeur = mesures; this.cdr.markForCheck(); },
+      error: () => { this.mesuresServeur = []; this.cdr.markForCheck(); }
+    });
+  }
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient dans un panneau séparé qui annonçait « N mesure(s)
+   * enregistrée(s) en base » au-dessus d'un tableau disant « aucune donnée » :
+   * deux vues de la même donnée, qui se contredisaient.</p>
+   */
+  get lignesServeur(): EmissionActifLoue[] {
+    return mesuresDeLEcran(
+      this.mesuresServeur, { numeroGhg: 8 }, this.exerciceActif, this.perimetreAffiche
+    ).map(m => ligneDeLaBase(m, posteParId('actifs-loues-amont')?.libelle ?? this.CATEGORIE_REPLI) as unknown as EmissionActifLoue);
   }
 
 }

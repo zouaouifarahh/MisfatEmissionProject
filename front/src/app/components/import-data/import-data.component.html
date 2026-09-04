@@ -149,6 +149,11 @@
         <p class="result-detail-body">{{ dernierLog!.errorDetail }}</p>
       </div>
 
+      <!-- Le dépôt se rattache au périmètre du bandeau. Tant qu'il n'est pas
+           arrêté, le bouton reste fermé et la raison est écrite : un import
+           refusé sans un mot passerait pour une panne. -->
+      <p class="avis-perimetre" *ngIf="!perimetreComplet">{{ motifPerimetreIncomplet }}</p>
+
       <div class="actions-row">
         <button type="button" class="btn-primary" [disabled]="!pretAEnvoyer" (click)="envoyer()">
           {{ etat === 'upload' || etat === 'traitement' ? 'Import en cours…' : "Lancer l'import" }}
@@ -163,7 +168,15 @@
       <span class="step">3</span>
       <div>
         <h2>Historique des imports</h2>
-        <p>{{ historiqueComplet.length }} dépôt(s) enregistré(s).</p>
+        <!-- Le périmètre est rappelé sous le titre : un tableau qui se vide en
+             changeant de société doit dire ce qu'il montre, sinon l'absence de
+             ligne se lit comme une perte de données. -->
+        <p>
+          {{ historiqueComplet.length }} dépôt(s) pour
+          <strong>{{ entite?.label || 'toutes les sociétés' }}</strong>
+          <ng-container *ngIf="exerciceActif !== null"> — exercice
+            <strong>{{ exerciceActif }}</strong></ng-container>.
+        </p>
       </div>
       <button type="button" class="btn-ghost" (click)="chargerHistorique()">Actualiser</button>
       <button type="button" class="btn-ghost" *ngIf="historiqueVentilation.length"
@@ -205,7 +218,11 @@
               </td>
             </tr>
             <tr *ngIf="!historiqueComplet.length">
-              <td colspan="5" class="cell-empty">Aucun import enregistré.</td>
+              <td colspan="5" class="cell-empty">
+                Aucun import enregistré pour
+                {{ entite?.label || 'ce périmètre' }}<ng-container
+                  *ngIf="exerciceActif !== null"> en {{ exerciceActif }}</ng-container>.
+              </td>
             </tr>
           </tbody>
         </table>

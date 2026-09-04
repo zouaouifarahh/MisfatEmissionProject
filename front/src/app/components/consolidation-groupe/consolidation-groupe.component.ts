@@ -15,6 +15,17 @@ import {
   consoliderGroupe, ecartMediane,
   ConsolidationGroupe, EmpreinteFiliale, DenominateursFiliale, LigneComparative
 } from '../../core/consolidation-groupe';
+import { drapeauDuPays } from '../../core/drapeaux';
+
+/**
+ * Teintes des barres comparatives, dans l'ordre où les filiales se présentent.
+ *
+ * <p>Une seule couleur pour toutes les barres laissait le lecteur compter les
+ * lignes pour savoir laquelle il regardait. Ces six-là se distinguent aussi en
+ * niveaux de gris, condition d'un tableau qui s'imprime.</p>
+ */
+const COULEURS_FILIALE: readonly string[] =
+  ['#1E92CD', '#2FA37A', '#C9922E', '#8C6BC8', '#D46A5A', '#4C7FA8'];
 
 /**
  * Rapport Groupe : chaque filiale pour elle-même, puis toutes ensemble.
@@ -210,8 +221,9 @@ export class ConsolidationGroupeComponent implements OnInit, OnDestroy {
    * reléguées à zéro : elles figurent à part, avec la mention du dénominateur
    * manquant. Les mettre à zéro les ferait passer pour exemplaires.</p>
    */
-  get barres(): { libelle: string; pays: string; valeur: number | null;
-                  largeur: number; ecart: number | null; manque: string }[] {
+  get barres(): { libelle: string; pays: string; drapeau: string; couleur: string;
+                  valeur: number | null; largeur: number; ecart: number | null;
+                  manque: string }[] {
 
     const lignes = this.consolidation?.lignes ?? [];
     const valeurs = lignes.map(l => this.valeurAffichee(l));
@@ -221,6 +233,11 @@ export class ConsolidationGroupeComponent implements OnInit, OnDestroy {
       .map((ligne, i) => ({
         libelle: ligne.libelle,
         pays: ligne.pays || 'Non renseigné',
+        drapeau: drapeauDuPays(ligne.pays),
+        // La couleur suit la filiale, jamais son rang : le classement change
+        // avec la base de comparaison choisie, et une barre qui change de
+        // teinte à chaque onglet ferait perdre de vue qui est qui.
+        couleur: COULEURS_FILIALE[i % COULEURS_FILIALE.length],
         valeur: valeurs[i],
         largeur: maximum > 0 && typeof valeurs[i] === 'number'
           ? (valeurs[i]! / maximum) * 100
@@ -231,6 +248,23 @@ export class ConsolidationGroupeComponent implements OnInit, OnDestroy {
         manque: ligne.denominateursManquants.join(', ')
       }))
       .sort((a, b) => (b.valeur ?? -1) - (a.valeur ?? -1));
+  }
+
+  /**
+   * Identité d'une barre pour le *ngFor, prise sur le nom de la filiale.
+   *
+   * <p>{@link barres} est un accesseur : il reforge ses objets à chaque cycle
+   * de détection, et l'identité par défaut faisait donc détruire puis recréer
+   * toutes les lignes à chaque cycle. La barre repartait de zéro au lieu de
+   * glisser vers sa nouvelle longueur, et le survol perdait la ligne pointée.</p>
+   */
+  parLibelle(_index: number, barre: { libelle: string }): string {
+    return barre.libelle;
+  }
+
+  /** Pavillon d'un pays, pour les badges des tableaux. */
+  drapeauDe(pays: string | null | undefined): string {
+    return drapeauDuPays(pays);
   }
 
   /** Filiales dont un dénominateur reste à saisir, pour le bandeau d'appel. */

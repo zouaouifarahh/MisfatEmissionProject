@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, OnInit, PLATFORM_ID, inject } from '@angular/core';
 import { FiltreMasseComponent } from '../../shared/ui/filtre-masse';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,10 +14,14 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresServeurService, MesureServeur } from '../../services/mesures-serveur.service';
+import { mesuresDeLEcran, ligneDeLaBase } from '../../shared/ui/mesures-en-tableau';
+import { posteParId } from '../../core/nomenclature-scopes';
 
 /** Ligne d'acquisition de bien d'équipement, catégorie 2 du Scope 3. */
 export interface EmissionBienEquipement {
+  /** Ligne venue de la base : ni modifiable ni supprimable depuis cet écran. */
+  lectureSeule?: boolean;
   id: number;
   scope: string;
   categorie: string;
@@ -76,7 +80,7 @@ const LIBELLE_CATEGORIE = 'Biens d\'équipement';
 @Component({
   selector: 'app-biens-equipement',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './biens-equipement.html',
   styleUrl: './biens-equipement.css'
@@ -156,6 +160,7 @@ export class BiensEquipementComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.chargerMesuresServeur();
     if (isPlatformBrowser(this.platformId)) {
       const sauvegarde = localStorage.getItem(CLE_STOCKAGE);
       if (sauvegarde) {
@@ -448,7 +453,7 @@ export class BiensEquipementComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.listeEmissions, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre([...this.lignesServeur, ...this.listeEmissions], this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -913,4 +918,41 @@ export class BiensEquipementComponent implements OnInit {
     XLSX.utils.book_append_sheet(classeur, feuille, 'Immobilisations');
     XLSX.writeFile(classeur, `biens-equipement-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /** Mesures que la base porte pour cet écran. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /** Intitulé de repli si la nomenclature ne nomme pas ce poste. */
+  private readonly CATEGORIE_REPLI = 'biens-equipement';
+
+  /**
+   * Charge les mesures de la base.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales
+   * restent affichées, seules les mesures de la base manquent.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => { this.mesuresServeur = mesures; this.cdr.markForCheck(); },
+      error: () => { this.mesuresServeur = []; this.cdr.markForCheck(); }
+    });
+  }
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient dans un panneau séparé qui annonçait « N mesure(s)
+   * enregistrée(s) en base » au-dessus d'un tableau disant « aucune donnée » :
+   * deux vues de la même donnée, qui se contredisaient.</p>
+   */
+  get lignesServeur(): EmissionBienEquipement[] {
+    return mesuresDeLEcran(
+      this.mesuresServeur, { numeroGhg: 2 }, this.exerciceActif, this.perimetreAffiche
+    ).map(m => ligneDeLaBase(m, posteParId('biens-equipement')?.libelle ?? this.CATEGORIE_REPLI) as unknown as EmissionBienEquipement);
+  }
+
 }

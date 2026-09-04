@@ -25,6 +25,27 @@ public class ReferentialImportLog {
     @Column(name = "import_date", nullable = false)
     private LocalDateTime importDate;
 
+    /**
+     * Société pour laquelle le classeur a été déposé.
+     *
+     * <p>Sans elle, l'historique était commun à tout le groupe : un dépôt fait
+     * pour MISFAT MAROC s'affichait à l'identique sous MISFAT TUNISIE, et rien
+     * ne disait à qui il appartenait.</p>
+     *
+     * <p>Nullable en base bien que le dépôt l'exige : la colonne s'ajoute à une
+     * table qui porte déjà des lignes, et {@code ddl-auto=update} ne sait pas
+     * poser un NOT NULL sur celles-là. L'obligation est tenue à l'entrée du
+     * contrôleur, où elle protège les dépôts à venir. Les anciennes lignes
+     * restent sans périmètre : elles n'en ont jamais eu, et les rattacher
+     * d'office à une société serait inventer une information.</p>
+     */
+    @Column(name = "filiale_id")
+    private Long filialeId;
+
+    /** Exercice auquel le dépôt se rattache. Même régime que {@link #filialeId}. */
+    @Column(name = "annee")
+    private Integer annee;
+
     /** Lignes de données rencontrées, en-tête exclu. */
     @Column(name = "total_rows")
     private Integer totalRows;
@@ -60,6 +81,10 @@ public class ReferentialImportLog {
     public void setFileName(String fileName) { this.fileName = fileName; }
     public LocalDateTime getImportDate() { return importDate; }
     public void setImportDate(LocalDateTime importDate) { this.importDate = importDate; }
+    public Long getFilialeId() { return filialeId; }
+    public void setFilialeId(Long filialeId) { this.filialeId = filialeId; }
+    public Integer getAnnee() { return annee; }
+    public void setAnnee(Integer annee) { this.annee = annee; }
     public Integer getTotalRows() { return totalRows; }
     public void setTotalRows(Integer totalRows) { this.totalRows = totalRows; }
     public Integer getCreatedReferences() { return createdReferences; }

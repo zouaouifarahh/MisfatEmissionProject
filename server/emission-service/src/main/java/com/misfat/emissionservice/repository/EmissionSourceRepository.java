@@ -17,4 +17,14 @@ public interface EmissionSourceRepository extends JpaRepository<EmissionSource, 
 
     java.util.Optional<com.misfat.emissionservice.entity.EmissionSource> findByReferenceCode(String referenceCode);
 
+    /**
+     * Source portant ce code, quelle que soit la casse.
+     *
+     * <p>« MS1GPL » et « ms1gpl » désignent la même référence pour qui la
+     * saisit : les distinguer laisserait entrer deux fois le même facteur, que
+     * plus rien ne départagerait ensuite dans les menus de saisie.</p>
+     */
+    java.util.Optional<com.misfat.emissionservice.entity.EmissionSource>
+        findFirstByReferenceCodeIgnoreCase(String referenceCode);
+
 }

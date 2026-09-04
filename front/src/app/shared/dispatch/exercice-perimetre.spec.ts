@@ -83,10 +83,26 @@ describe('Rattachement à l\'exercice et à la société', () => {
 
   it('laisse visible une répartition sans exercice renseigné', () => {
     // Une répartition antérieure à ce rattachement ne doit pas disparaître
-    // sans explication : faute d'exercice, elle vaut pour tous.
-    publier(null, null);
+    // sans explication : faute d'exercice, elle vaut pour tous. La société,
+    // elle, est nommée — c'est l'exercice seul qu'on éprouve ici.
+    publier(null, 3);
 
     store.suivrePerimetre(2026, 3);
+    expect(store.lignesActives.length).toBe(3);
+  });
+
+  it('écarte une répartition qui ne nomme pas sa société', () => {
+    // Une répartition sans société n'est pas « valable partout » : elle est
+    // d'origine inconnue. Retenue sous chaque filiale, elle comptait une fois
+    // pour MISFAT TUNISIE, une fois pour MISFAT MAROC et une fois pour
+    // SOLAUFIL — le groupe valant alors trois fois le contenu du fichier.
+    publier(2025, null);
+
+    store.suivrePerimetre(2025, 3);
+    expect(store.lignesActives).toEqual([]);
+
+    // La vue consolidée ne demande aucune société : elle la voit toujours.
+    store.suivrePerimetre(2025, null);
     expect(store.lignesActives.length).toBe(3);
   });
 

@@ -59,7 +59,43 @@ export interface SolutionRSE {
    * du texte que quelqu'un avait écrit.</p>
    */
   texte?: string;
+
+  /**
+   * Scope ou catégorie que la mesure vise.
+   *
+   * <p>Distinct de la portée, qui nomme des sites et des flux : celui-ci
+   * rattache l'action à un poste du bilan, de sorte qu'on puisse lire ce que
+   * chaque scope reçoit d'efforts.</p>
+   */
+  scopeVise?: string;
+
+  /**
+   * Réduction estimée, en tCO₂e par an.
+   *
+   * <p>Chiffrée, quand {@link impact} reste littéraire. Les deux coexistent :
+   * une direction annonce parfois « −12 % du Scope 2 » sans avoir arrêté de
+   * tonnage, et forcer un nombre ferait inventer une précision absente.
+   * {@code null} dit « non chiffré », jamais « zéro ».</p>
+   */
+  impactTco2e?: number | null;
+
+  /** Avancement de la mesure, tel que la direction le suit. */
+  statut?: StatutSolution;
 }
+
+/**
+ * Avancement d'une mesure du plan d'actions.
+ *
+ * <p>Cinq états et pas davantage : un plan que l'on ne sait plus lire d'un coup
+ * d'œil ne se pilote pas. « Écartée » est conservé plutôt que supprimé — savoir
+ * qu'une piste a été examinée puis rejetée vaut mieux que de la voir
+ * disparaître, et évite qu'on la propose à nouveau.</p>
+ */
+export type StatutSolution = 'Proposée' | 'Engagée' | 'En cours' | 'Réalisée' | 'Écartée';
+
+/** Les statuts, dans l'ordre où le plan les présente. */
+export const STATUTS_SOLUTION: readonly StatutSolution[] =
+  ['Proposée', 'Engagée', 'En cours', 'Réalisée', 'Écartée'];
 
 /**
  * Ramène une solution relue à la forme courante.
@@ -77,7 +113,15 @@ export function migrerSolution(solution: SolutionRSE): SolutionRSE {
     titre: solution.titre ?? '',
     horizon: solution.horizon ?? '',
     portee: portee || (solution.texte ?? ''),
-    impact: solution.impact ?? ''
+    impact: solution.impact ?? '',
+
+    // Les trois champs du plan d'actions sont postérieurs aux premières
+    // saisies. Une solution relue d'avant leur existence les reçoit vides
+    // plutôt que devinés : « Proposée » serait une affirmation sur un
+    // avancement que personne n'a déclaré.
+    scopeVise: solution.scopeVise ?? '',
+    impactTco2e: solution.impactTco2e ?? null,
+    statut: solution.statut
   };
 }
 

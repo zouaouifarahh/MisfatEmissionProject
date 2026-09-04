@@ -33,6 +33,39 @@ export const UNITES_PHYSIQUES: { grandeur: string; unites: string[] }[] = [
 ];
 
 /**
+ * Unités de saisie des postes de combustion du Scope 1.
+ *
+ * <p>Les combustibles se relèvent au volume livré, à la masse, ou à l'énergie
+ * facturée : un gazole en litres, un GPL en kilogrammes, un gaz naturel en kWh
+ * ou en térajoules selon le contrat. L'unité était jusqu'ici imposée par le
+ * facteur retenu, ce qui obligeait à convertir la donnée avant de la saisir —
+ * et une conversion faite de tête au bord d'un formulaire est une erreur qui
+ * attend son tour.</p>
+ *
+ * <p>Distincte de {@link UNITES_PHYSIQUES}, qui sert les écrans de mesure et
+ * n'a pas les mêmes grandeurs : les fondre ferait entrer les kilomètres dans
+ * une modale de combustion et les térajoules dans un relevé de déplacement.</p>
+ */
+export const UNITES_SCOPE_1: readonly string[] = ['L', 'kg', 'Tonne', 'm³', 'kWh', 'MWh', 'TJ'];
+
+/**
+ * Liste d'unités augmentée de celle qui est déjà retenue.
+ *
+ * <p>Le référentiel documente des grandeurs que la liste standard n'épuise
+ * pas. Sans ce complément, ouvrir une mesure dont l'unité n'y figure pas la
+ * ferait disparaître du menu — et le premier enregistrement la remplacerait en
+ * silence par une unité que personne n'a choisie.</p>
+ */
+export function unitesAvecCourante(courante: string | null | undefined,
+                                   liste: readonly string[] = UNITES_SCOPE_1): string[] {
+  const valeur = String(courante ?? '').trim();
+  if (!valeur) return [...liste];
+
+  const deja = liste.some(u => u.toLowerCase() === valeur.toLowerCase());
+  return deja ? [...liste] : [valeur, ...liste];
+}
+
+/**
  * Devises admises comme unité d'un facteur monétaire.
  *
  * <p>Le dinar ouvre la liste : c'est la monnaie de tenue des comptes, et donc

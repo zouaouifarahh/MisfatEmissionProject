@@ -110,10 +110,27 @@ export function choisirFacteurVoyage(
 }
 
 /**
+ * Trajets comptés pour une mission : l'aller et le retour.
+ *
+ * <p>La distance saisie est celle de l'aller — l'écran la propose de capitale à
+ * capitale, d'un point de départ vers une destination. Une mission ramène son
+ * voyageur : n'en compter que la moitié sous-évaluait le poste de moitié.</p>
+ *
+ * <p>Un aller simple se saisit en divisant la distance par deux, ou en passant
+ * par la valorisation monétaire. Le cas est rare devant celui du voyage
+ * d'affaires ordinaire, et c'est le cas ordinaire qui doit être juste sans
+ * intervention.</p>
+ */
+export const TRAJETS_PAR_MISSION = 2;
+
+/**
  * Émissions d'une mission : grandeur × facteur.
  *
  * <p>Un facteur au passager-kilomètre porte sur un voyageur : la distance est
- * donc multipliée par le nombre de participants.</p>
+ * donc multipliée par le nombre de participants, puis par l'aller-retour.</p>
+ *
+ * <p>La valorisation monétaire n'est pas doublée : un montant de mission couvre
+ * déjà le billet entier.</p>
  */
 export function calculerEmissionVoyage(source: {
   facteur: number | null;
@@ -128,6 +145,7 @@ export function calculerEmissionVoyage(source: {
   if (source.monetaire) return (source.montant ?? 0) * facteur;
 
   const participants = source.participants && source.participants > 0 ? source.participants : 1;
-  const emission = (source.distanceKm ?? 0) * facteur * participants;
+  const emission =
+    (source.distanceKm ?? 0) * facteur * participants * TRAJETS_PAR_MISSION;
   return Number.isFinite(emission) ? emission : 0;
 }

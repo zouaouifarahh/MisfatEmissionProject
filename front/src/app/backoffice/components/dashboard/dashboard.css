@@ -43,20 +43,61 @@
    1. BARRE LATÉRALE — CONSERVÉE EN BLEU NUIT
    ========================================================================== */
 
+/* La barre suit la lecture. Elle s'étirait sur toute la hauteur du document :
+   sur un tableau de bord de plusieurs écrans de haut, descendre au bas de la
+   page emportait le menu hors du champ, et il fallait remonter jusqu'en haut
+   pour changer d'écran.
+
+   « sticky » plutôt que « fixed » : la largeur de la barre s'anime au repli, et
+   une barre sortie du flux obligerait à répercuter cette animation sur la marge
+   du contenu, qui se décalerait d'un cran à chaque bascule.
+
+   align-self est indispensable : sans lui, l'étirement par défaut du conteneur
+   flex donne à la barre la hauteur du document, et « sticky » n'a plus aucune
+   marge de manœuvre pour coller. */
 .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
     background: #0f172a;
     color: #ffffff;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     box-shadow: 2px 0 24px rgba(0, 0, 0, 0.45);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
     flex-shrink: 0;
+    z-index: 20;
 }
 
-.sidebar-scroll { display: flex; flex-direction: column; overflow-y: auto; flex: 1; }
+/* La barre rognait tout ce qui dépassait d'elle : la bascule posée à cheval sur
+   son bord droit y aurait été coupée en deux. Le rognage descend d'un cran, sur
+   la seule zone qui en a besoin — celle dont le contenu déborde en largeur au
+   moment où la barre se rétracte. */
+
+/* min-height: 0 lève la taille plancher d'un enfant de conteneur flex, qui sans
+   cela refuse de se comprimer sous la hauteur de son contenu — et le
+   défilement interne ne se déclenche jamais. */
+.sidebar-scroll {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    overscroll-behavior: contain;
+}
+
+/* Filet discret sur fond sombre : la barre du navigateur, en clair, tranchait
+   sur le bleu nuit. */
+.sidebar-scroll::-webkit-scrollbar { width: 8px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
 
 .sidebar-brand {
     padding: 15px 10px;
@@ -77,19 +118,75 @@
     margin: 10px 0 0 0;
 }
 
-.sidebar-collapse-btn {
-    margin-top: 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: #ffffff;
-    border-radius: 4px;
-    padding: 4px 8px;
+/* Bascule de la barre latérale.
+
+   Elle était un petit rectangle gris sous « BACKOFFICE CONSOLE », dans la zone
+   défilante : au premier défilement elle disparaissait avec le menu, et il
+   fallait remonter en haut pour replier la barre.
+
+   Elle est désormais ancrée sur le bord droit, moitié dedans moitié dehors —
+   la forme que l'on cherche du regard sur ce bord, et qui suit l'animation de
+   la largeur puisqu'elle est positionnée contre la barre elle-même. */
+.sidebar-edge-toggle {
+    position: absolute;
+    top: 24px;
+    right: -13px;
+    z-index: 5;
+
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Blanc sur le plan de travail clair, cerclé du bleu nuit de la barre : la
+       capsule se détache des deux fonds qu'elle chevauche. */
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #0f172a;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+
     cursor: pointer;
-    font-size: 12px;
-    transition: background 0.2s ease;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: inherit;
+
+    transition: all 0.3s ease;
 }
 
-.sidebar-collapse-btn:hover { background: rgba(255, 255, 255, 0.18); }
+.sidebar-edge-toggle:hover {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+    transform: scale(1.12);
+}
+
+.sidebar-edge-toggle:active { transform: scale(0.96); }
+
+.sidebar-edge-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Le chevron est un glyphe de ponctuation : il ne tombe pas sur la ligne de
+   base au centre de son cadratin, et un simple centrage le laisse haut. */
+.sidebar-edge-toggle span {
+    display: block;
+    transform: translateY(-1px);
+}
+
+/* Certains préfèrent que rien ne bouge : le repli reste instantané, la capsule
+   garde ses couleurs et perd son agrandissement. */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-edge-toggle { transition: none; }
+    .sidebar-edge-toggle:hover { transform: none; }
+}
 
 .sidebar-nav { padding: 15px 10px; display: flex; flex-direction: column; gap: 5px; }
 
@@ -248,30 +345,6 @@
     background: rgba(249, 115, 22, 0.14);
     font-weight: 700;
 }
-
-.sidebar-footer {
-    padding: 15px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.3);
-}
-
-.btn-quitter {
-    width: 100%;
-    background: linear-gradient(135deg, var(--accent) 0%, #E0803F 100%);
-    color: #ffffff;
-    border: none;
-    padding: 12px 6px;
-    border-radius: 8px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: filter 0.2s ease, transform 0.2s ease;
-}
-
-.btn-quitter:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
 /* ==========================================================================
    2. ZONE DE DONNÉES — THÈME CLAIR PASTEL
@@ -983,9 +1056,14 @@
 .entreprise-heading { color: var(--text-primary); font-size: 17px; font-weight: 800; margin: 0; }
 .entreprise-note { color: var(--text-muted); font-size: 12.5px; }
 
+/* Quatre cartes, quatre colonnes égales. L'ajustement automatique en
+   repliait une seule sur la ligne du bas dès que la largeur ne suffisait plus
+   pour cinq : la grille se lisait comme un oubli. minmax(0, 1fr) plutôt que
+   1fr, sans quoi une valeur longue — un chiffre d'affaires en dinars —
+   élargirait sa colonne au détriment des trois autres. */
 .synthese-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
     margin-bottom: 14px;
 }
@@ -994,27 +1072,22 @@
    teintes via data-teinte : le dégradé et la bordure pour le fond, la teinte
    pleine pour l'icône, la foncée pour le libellé et la valeur, la moyenne pour
    l'unité et la note. */
-.synthese-card[data-teinte="intensite"] {
+.entreprise-block [data-teinte="intensite"] {
     --syn-fond-a: #FFF4EC; --syn-fond-b: #FFEAD9; --syn-bordure: #FBDCC0;
     --syn-icone: #F5A15C; --syn-ink: #5C2E0C; --syn-ink-doux: #8A4A15;
 }
 
-.synthese-card[data-teinte="production"] {
+.entreprise-block [data-teinte="production"] {
     --syn-fond-a: #EEF3FF; --syn-fond-b: #E4ECFF; --syn-bordure: #CBDBFA;
     --syn-icone: #4C7EDB; --syn-ink: #12244D; --syn-ink-doux: #1E3A75;
 }
 
-.synthese-card[data-teinte="productivite"] {
-    --syn-fond-a: #F1FBF6; --syn-fond-b: #E3F7EC; --syn-bordure: #C7EBD9;
-    --syn-icone: #2FA97A; --syn-ink: #0A3B28; --syn-ink-doux: #0F5A3E;
-}
-
-.synthese-card[data-teinte="effectif"] {
+.entreprise-block [data-teinte="effectif"] {
     --syn-fond-a: #F5F1FF; --syn-fond-b: #EBE4FF; --syn-bordure: #D8CBF7;
     --syn-icone: #7C5CD6; --syn-ink: #2C1B5C; --syn-ink-doux: #4A2F8F;
 }
 
-.synthese-card[data-teinte="chiffre-affaires"] {
+.entreprise-block [data-teinte="chiffre-affaires"] {
     --syn-fond-a: #EFF9FB; --syn-fond-b: #E1F2F7; --syn-bordure: #C4E2EC;
     --syn-icone: #3D93AE; --syn-ink: #0D3844; --syn-ink-doux: #145A6E;
 }
@@ -1099,112 +1172,81 @@
     .synthese-value { font-size: 21px; }
 }
 
-.kpi-trend-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 14px;
-}
+/* ---------- Lexique des indicateurs, à l'usage de la direction ----------
 
-/* Palette par carte : une seule teinte de base par indicateur. Elle est déclinée
-   en opacités pour le fond, la bordure et le badge — d'où --kpi-rgb, que rgba()
-   consomme — et en trois valeurs assombries pour les textes. L'attribut
-   data-accent est déjà porté par la carte : aucune couleur ne transite par le
-   composant. */
-.kpi-trend-card[data-accent="ca"] {
-    --kpi-base: #7C6CD9; --kpi-rgb: 124, 108, 217;
-    --kpi-fonce: #443B77; --kpi-tres-fonce: #383162; --kpi-moyen: #594E9C;
-}
+   Les quatre cartes ci-dessus donnent des chiffres sans dire ce qu'ils
+   mesurent. Chaque définition emprunte à sa carte son glyphe et sa teinte —
+   par le même attribut data-teinte — de sorte qu'elle se rattache au bon
+   chiffre sans qu'on ait à la nommer. */
 
-.kpi-trend-card[data-accent="effectifs"] {
-    --kpi-base: #378ADD; --kpi-rgb: 55, 138, 221;
-    --kpi-fonce: #1E4C7A; --kpi-tres-fonce: #193E63; --kpi-moyen: #28639F;
-}
-
-.kpi-trend-card[data-accent="production"] {
-    --kpi-base: #EB6834; --kpi-rgb: 235, 104, 52;
-    --kpi-fonce: #81391D; --kpi-tres-fonce: #6A2F17; --kpi-moyen: #A94B25;
-}
-
-.kpi-trend-card[data-accent="ventes"] {
-    --kpi-base: #1D9E75; --kpi-rgb: 29, 158, 117;
-    --kpi-fonce: #105740; --kpi-tres-fonce: #0D4735; --kpi-moyen: #157254;
-}
-
-.kpi-trend-card {
-    background: rgba(var(--kpi-rgb), 0.07);
-    border: 1px solid rgba(var(--kpi-rgb), 0.22);
+.kpi-lexique {
+    background: #ffffff;
+    border: 1px solid #E3EAF2;
     border-radius: 14px;
-    padding: 18px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    padding: 16px 18px 18px;
+    margin-bottom: 14px;
 }
 
-.kpi-trend-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.12); }
-
-.kpi-trend-header {
+.kpi-lexique-titre {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
-}
-
-.badge-provisoire {
-    background: rgba(var(--kpi-rgb), 0.15);
-    color: var(--kpi-fonce);
-    font-size: 9.5px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 20px;
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    white-space: nowrap;
+    color: #1E3A52;
 }
 
-.kpi-trend-label {
-    display: inline-flex;
+.kpi-lexique-glyphe { font-size: 15px; }
+
+/* Même gabarit que la grille des cartes : chaque définition tombe sous la
+   sienne, et les deux blocs se replient aux mêmes largeurs. */
+.kpi-lexique-liste {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.kpi-lexique-entree {
+    background: linear-gradient(135deg, var(--syn-fond-a), var(--syn-fond-b));
+    border-left: 3px solid var(--syn-icone);
+    border-radius: 0 10px 10px 0;
+    padding: 10px 13px 11px;
+    min-width: 0;
+}
+
+.kpi-lexique-terme {
+    display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    margin-bottom: 5px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--kpi-fonce);
+    color: var(--syn-ink);
 }
 
-/* L'emoji ne suit pas la casse du libellé et garde sa taille propre. */
-.kpi-trend-glyphe { font-size: 13px; }
+.kpi-lexique-puce { font-size: 13px; }
 
-.kpi-trend-value-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.kpi-trend-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--kpi-tres-fonce);
-    line-height: 1.1;
-    font-variant-numeric: tabular-nums;
-}
-.kpi-trend-unit { font-size: 12px; color: var(--kpi-moyen); font-weight: 600; }
-
-.kpi-trend-growth {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
+.kpi-lexique-def {
+    margin: 0;
     font-size: 11.5px;
-    font-weight: 700;
-    color: #1D9E75;
-    margin-bottom: 10px;
+    line-height: 1.5;
+    color: var(--syn-ink-doux);
 }
 
-.kpi-trend-growth.negative { color: #A32B21; }
-.kpi-trend-growth .growth-context { font-weight: 500; color: var(--kpi-moyen); }
+/* Sous 1100 px, quatre colonnes réduiraient chaque définition à deux mots par
+   ligne ; sous 768 px la règle générale plus bas les met en pile. */
+@media (max-width: 1100px) {
+    .synthese-grid,
+    .kpi-lexique-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
-/* Courbe en aire. stop-color et stop-opacity sont des propriétés CSS : la teinte
-   du dégradé se pilote donc depuis la palette de la carte, sans passer par le
-   gabarit. */
-.kpi-spark { display: block; width: 100%; height: 46px; overflow: visible; }
-.kpi-spark-haut { stop-color: var(--kpi-base); stop-opacity: 0.35; }
-.kpi-spark-bas { stop-color: var(--kpi-base); stop-opacity: 0; }
-.kpi-spark-ligne { stroke: var(--kpi-base); }
+@media (max-width: 768px) {
+    .kpi-lexique-liste { grid-template-columns: 1fr; }
+}
 
 /* ==========================================================================
    9. DÉTAILS ANALYTIQUES
@@ -2313,7 +2355,6 @@
 
     .kpi-grid,
     .synthese-grid,
-    .kpi-trend-grid,
     .details-grid,
     .filter-summary { grid-template-columns: 1fr; }
 
@@ -2432,7 +2473,7 @@
 
 /* ---------- Cartes d'indicateurs plus fines ---------- */
 
-.synthese-grid { grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 11px; }
+.synthese-grid { gap: 11px; }
 
 /* Les cartes de synthèse portent désormais leurs propres tailles et teintes,
    groupées avec leur palette plus haut : plus de surcharge ici. */

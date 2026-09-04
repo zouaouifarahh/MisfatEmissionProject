@@ -148,8 +148,13 @@
 
         <tfoot *ngIf="emissionsFiltrees.length">
           <tr>
-            <td colspan="10">Total — {{ emissionsFiltrees.length }} ligne(s)</td>
-            <td class="ta-right num-fort">{{ totalEmissions | number:'1.0-2' }}</td>
+            <!-- Les dix premieres colonnes portent le libelle, la onzieme le
+                 total des emissions : le chiffre tombe sous sa propre colonne. -->
+            <td colspan="10">
+              Total — {{ lignesDuTotal | number }} ligne(s)
+              <span class="total-portee" *ngIf="filtreLocalActif">sur la sélection</span>
+            </td>
+            <td class="ta-right num-fort">{{ emissionsDuTotal | number:'1.0-2' }}</td>
             <td colspan="3"></td>
           </tr>
         </tfoot>
@@ -160,7 +165,8 @@
          monter toutes dans le document figeait la page avant d'avoir fini. -->
     <div class="pagination-bar" *ngIf="emissionsFiltrees.length">
       <span class="pagination-info">
-        {{ premierIndexPage }} – {{ dernierIndexPage }} sur {{ emissionsFiltrees.length }}
+        {{ premierIndexPage | number }} – {{ dernierIndexPage | number }}
+        sur {{ lignesDuServeur | number }}
       </span>
 
       <div class="pagination-controls">

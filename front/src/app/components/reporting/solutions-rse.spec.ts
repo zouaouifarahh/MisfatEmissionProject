@@ -225,10 +225,11 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
       expect(hote.querySelector('#chapitre-solutions .norme-avis')).toBeTruthy();
     });
 
-    it('garde les commandes hors du document imprimé', () => {
-      // Les boutons portent « ecran-seul », que la feuille d'impression masque.
-      // Le texte de la solution, lui, n'en porte pas : il fait partie du rapport
-      // remis, au même titre qu'un tableau d'émissions.
+    it('restitue la solution sans proposer de la saisir', () => {
+      // Le rapport normé rend compte, il ne saisit plus : le plan se tient dans
+      // la synthèse exécutive, où il se décide. Deux formulaires sur la même
+      // donnée finissaient par diverger, sans que rien ne dise lequel faisait
+      // foi.
       const fixture = monter();
       saisir(fixture.componentInstance, 'Relamping LED', 'Mesure engagée.');
       fixture.detectChanges();
@@ -236,9 +237,12 @@ describe('Rapport normé — solutions et recommandations RSE', () => {
       const solution = (fixture.nativeElement as HTMLElement)
         .querySelector('#chapitre-solutions .solution')!;
 
-      expect(solution.querySelector('.solution-actions')?.className).toContain('ecran-seul');
+      // Le texte fait partie du rapport remis, au même titre qu'un tableau
+      // d'émissions : il n'est pas masqué à l'impression.
       expect(solution.querySelector('.solution-champs')?.className ?? '')
         .not.toContain('ecran-seul');
+
+      expect(solution.querySelector('.solution-actions')).toBeNull();
       expect(solution.querySelector('.solution-edition')).toBeNull();
     });
   });

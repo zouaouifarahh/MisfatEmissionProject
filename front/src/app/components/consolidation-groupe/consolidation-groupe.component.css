@@ -261,11 +261,14 @@
     overflow: hidden;
 }
 
+/* La teinte est posée en ligne, une par filiale : elle suit la société et non
+   son rang, de sorte qu'un changement d'onglet ne redistribue pas les couleurs.
+   Celle-ci ne sert que de repli si le composant n'en fournit aucune. */
 .barre-remplie {
     height: 100%;
     border-radius: 5px;
-    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-    transition: width .25s ease;
+    background: #1E92CD;
+    transition: width .25s ease, background .25s ease;
 }
 
 .barre-ecart {
@@ -334,3 +337,96 @@
 }
 
 .non-renseigne { color: #cbd5e1; }
+
+/* ============================================================
+   Couleurs — cartes d'en-tête, badges de pays, tableaux
+
+   L'écran était lisible mais uniforme : tout y avait le même
+   poids visuel, et l'œil devait lire chaque libellé pour savoir
+   ce qu'il regardait. Les teintes portent ici une information —
+   le scope, le pays, la filiale — jamais un simple ornement.
+   ============================================================ */
+
+/* --- Cartes d'en-tête --- */
+
+.cg-chiffre {
+    position: relative;
+    padding-left: 17px;
+    overflow: hidden;
+}
+
+/* Le liseré porte la couleur : un aplat plein derrière un grand
+   nombre nuirait au contraste du chiffre, qui est l'information. */
+.cg-chiffre::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--cg-teinte, #94a3b8);
+}
+
+.chiffre-icone {
+    position: absolute;
+    top: 11px;
+    right: 13px;
+    font-size: 15px;
+    opacity: .45;
+}
+
+.cg-chiffre-groupe    { --cg-teinte: #1E3A52; background: #F4F8FB; }
+.cg-chiffre-s1        { --cg-teinte: #C9722E; background: #FDF6F0; }
+.cg-chiffre-s2        { --cg-teinte: #C9A22E; background: #FDFAEE; }
+.cg-chiffre-s3        { --cg-teinte: #1E92CD; background: #F0F8FC; }
+.cg-chiffre-intensite { --cg-teinte: #2FA37A; background: #F0FAF5; }
+
+.cg-chiffre-groupe .chiffre-valeur { color: #1E3A52; }
+
+/* --- Badges de pays --- */
+
+.badge-pays {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px 2px 6px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.barre-drapeau {
+    margin-right: 5px;
+    font-size: 13px;
+}
+
+/* --- Tableaux --- */
+
+/* Une ligne sur deux teintée : sur dix colonnes de chiffres, l'œil
+   perd la ligne qu'il suit dès qu'il arrive au bout. */
+.cg-tableau tbody tr:nth-child(even) { background: #FAFCFE; }
+.cg-tableau tbody tr:hover { background: #EFF6FA; }
+
+.cg-tableau thead th {
+    background: #1E3A52;
+    color: #E2E8F0;
+    border-bottom: none;
+}
+
+.cg-tableau thead th.ta-right { text-align: right; }
+
+/* Le total prime sur les composantes qui le forment. */
+.cg-tableau tbody td.num-fort {
+    color: #1E3A52;
+    background: rgba(30, 146, 205, .07);
+}
+
+.cg-tableau tfoot td {
+    background: #1E3A52;
+    color: #ffffff;
+    border-top: none;
+    font-weight: 700;
+}
+
+.cg-tableau tfoot .num-fort { color: #ffffff; }

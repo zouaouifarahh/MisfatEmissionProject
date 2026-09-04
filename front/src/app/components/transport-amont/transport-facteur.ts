@@ -38,7 +38,10 @@ export function modeCalculDe(uniteFacteur: string, dataType: string): ModeCalcul
 export function libelleFormule(mode: ModeCalcul): string {
   switch (mode) {
     case 'MONETAIRE': return 'Montant × Facteur';
-    case 'TONNE_KM': return '(Poids ÷ 1000) × Distance × Facteur';
+    // La forme « (Poids ÷ 1000) × Distance » disait le vrai sans dire d'où le
+    // poids venait : l'expéditeur compte des pièces, et la chaîne qui va de sa
+    // quantité au tonnage doit être lisible pour être vérifiable.
+    case 'TONNE_KM': return 'Distance × Quantité × Poids × 0,001 × Facteur';
     case 'KM': return 'Distance × Facteur — facteur par kilomètre parcouru, indépendant de la charge';
     default: return 'Poids × Facteur';
   }
@@ -130,15 +133,31 @@ export interface DonneesCalcul {
 }
 
 /**
+ * Poids moyen d'un filtre MISFAT, en kilogrammes.
+ *
+ * <p>Valeur de référence de la production : un filtre pèse deux cents grammes.
+ * Elle sert de repli quand l'expédition n'en déclare pas d'autre — un
+ * expéditeur qui compte ses pièces sans renseigner leur masse décrit malgré
+ * tout un chargement réel, et l'écarter du bilan faute d'un chiffre connu de
+ * toute l'entreprise le sous-évaluerait en silence.</p>
+ *
+ * <p>Un poids déclaré prime toujours : une référence lourde ou légère se saisit,
+ * et cette constante ne s'y substitue jamais.</p>
+ */
+export const POIDS_MOYEN_FILTRE_KG = 0.2;
+
+/**
  * Poids total d'une expédition comptée en unités.
  *
  * <p>Un expéditeur de filtres ne pèse pas ses palettes : il compte les pièces
  * et connaît le poids moyen de la référence. Le poids total s'en déduit, et
  * c'est lui que la formule tonne-kilomètre attend.</p>
  *
- * <p>Rend {@code null} tant que l'un des deux manque : un poids déduit d'une
- * quantité inconnue serait une invention, et la saisie directe du poids reste
- * ouverte pour les expéditions qu'on pèse réellement.</p>
+ * <p>Le poids moyen manquant retombe sur {@link POIDS_MOYEN_FILTRE_KG}. La
+ * quantité, elle, reste exigée : c'est la seule des deux que personne ne peut
+ * supposer, et un tonnage déduit d'un nombre de pièces inconnu serait une
+ * invention. La saisie directe du poids reste ouverte pour les expéditions
+ * qu'on pèse réellement.</p>
  */
 export function poidsTotalDepuisQuantite(
   quantite: number | null | undefined,
@@ -146,12 +165,15 @@ export function poidsTotalDepuisQuantite(
 ): number | null {
 
   if (quantite === null || quantite === undefined || !Number.isFinite(quantite)) return null;
-  if (poidsMoyenKg === null || poidsMoyenKg === undefined || !Number.isFinite(poidsMoyenKg)) {
-    return null;
-  }
-  if (quantite <= 0 || poidsMoyenKg <= 0) return null;
+  if (quantite <= 0) return null;
 
-  const total = quantite * poidsMoyenKg;
+  const poidsUnitaire =
+    poidsMoyenKg !== null && poidsMoyenKg !== undefined
+      && Number.isFinite(poidsMoyenKg) && poidsMoyenKg > 0
+      ? poidsMoyenKg
+      : POIDS_MOYEN_FILTRE_KG;
+
+  const total = quantite * poidsUnitaire;
   return Number.isFinite(total) ? total : null;
 }
 

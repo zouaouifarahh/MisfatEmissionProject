@@ -72,12 +72,6 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
-      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
-           comptait deja ; cet ecran les niait. -->
-      <app-mesures-serveur
-        [categories]="['Émissions de réfrigérants','Refrigerant gas loss and other fugitive emissions']"
-        [exercice]="exerciceActif"
-        [organisation]="perimetreAffiche"></app-mesures-serveur>
 
       <table class="data-table">
         <thead>
@@ -127,15 +121,19 @@
               </span>
             </td>
             <td class="ta-center">
-              <div class="action-buttons">
+              <div class="action-buttons" *ngIf="!item.lectureSeule; else venueDeLaBase">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
                 <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
               </div>
+              <ng-template #venueDeLaBase>
+                <span class="lecture-seule"
+                      title="Mesure enregistrée en base : modifiable depuis l'import, non depuis cet écran">base</span>
+              </ng-template>
             </td>
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="12" class="empty-row">
+            <td colspan="14" class="empty-row">
               Aucune fuite de fluide frigorigène enregistrée sur ce périmètre.
             </td>
           </tr>
@@ -232,14 +230,25 @@
             <input id="rf-qte" type="number" step="any" [(ngModel)]="formModel.quantite" placeholder="0.00">
           </div>
 
-          <!-- Unité imposée : référentiel en physique, devise société en monétaire -->
+          <!-- En monétaire l'unité reste la devise de la société : elle n'est
+               pas un choix. En physique, l'unité du référentiel sert de valeur
+               par défaut mais peut être changée — une charge de fluide se relève
+               au kilogramme, un appoint parfois à la tonne. -->
           <div class="form-group flex-1">
             <label for="rf-unite">Unité</label>
-            <input id="rf-unite" type="text" [value]="formModel.unite" readonly class="readonly-field">
+
+            <select *ngIf="formModel.typeDonnee !== 'Monetaire'"
+                    id="rf-unite" name="rfUnite" [(ngModel)]="formModel.unite">
+              <option *ngFor="let u of unitesPhysiquesProposees" [value]="u">{{ u }}</option>
+            </select>
+
+            <input *ngIf="formModel.typeDonnee === 'Monetaire'"
+                   type="text" [value]="formModel.unite" readonly class="readonly-field">
+
             <small class="field-hint">
               {{ formModel.typeDonnee === 'Monetaire'
                   ? 'Devise de ' + societeActiveLabel
-                  : 'Unité du référentiel carbone' }}
+                  : 'Unité du référentiel carbone, modifiable' }}
             </small>
           </div>
 

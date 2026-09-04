@@ -22,7 +22,7 @@ import { SOURCE_VENTILATION, lignesVentileesPour } from '../../shared/dispatch/a
 import { inject } from '@angular/core';
 import {
   ModeVoyage, SegmentAerien, segmentAerien,
-  choisirFacteurVoyage, classerFacteursVoyage, calculerEmissionVoyage
+  choisirFacteurVoyage, classerFacteursVoyage, calculerEmissionVoyage, TRAJETS_PAR_MISSION
 } from './voyages-facteur';
 import {
   MODES_VOYAGE, reconnaitreMode, classeBadgeMode, emojiMode
@@ -35,13 +35,17 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresServeurService, MesureServeur } from '../../services/mesures-serveur.service';
+import { mesuresDeLEcran, ligneDeLaBase } from '../../shared/ui/mesures-en-tableau';
+import { posteParId } from '../../core/nomenclature-scopes';
 
 /** Origine d'une ligne, restituée en pastille dans le tableau. */
 export type Provenance = 'Réel' | 'Estimation' | 'Excel';
 
 /** Mission, catégorie 6 du Scope 3. */
 export interface EmissionVoyage {
+  /** Ligne venue de la base : ni modifiable ni supprimable depuis cet écran. */
+  lectureSeule?: boolean;
   /**
    * Code article de l'ERP, second degré de rapprochement.
    *
@@ -104,7 +108,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-voyages-affaires',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './voyages-affaires.html',
   styleUrl: './voyages-affaires.css'
@@ -209,6 +213,7 @@ export class VoyagesAffairesComponent implements OnInit {
    * son rendu : l'échec est rapporté dans l'interface, jamais propagé.</p>
    */
   ngOnInit(): void {
+    this.chargerMesuresServeur();
     try {
       if (isPlatformBrowser(this.platformId)) {
         const sauvegarde = localStorage.getItem(CLE_STOCKAGE);
@@ -407,7 +412,7 @@ export class VoyagesAffairesComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre([...this.lignesServeur, ...this.toutesLignes], this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -667,6 +672,37 @@ export class VoyagesAffairesComponent implements OnInit {
     this.formModel.facteur = facteur.factorValue;
     this.formModel.uniteFacteur = facteur.unit;
     this.formModel.baseAppliquee = facteur.databaseSource;
+  }
+
+  /**
+   * Décomposition du calcul, pour l'aperçu de la modale.
+   *
+   * <p>La distance saisie est celle de l'aller ; le calcul la double depuis
+   * toujours, mais la modale annonçait « Distance × Facteur × Participants » et
+   * taisait ce doublement. Un total deux fois supérieur à ce que la formule
+   * affichée laissait attendre se lit comme une erreur — et rien ne permettait
+   * de vérifier que c'en était une ou non.</p>
+   *
+   * <p>Rend {@code null} sur une valorisation monétaire : un montant de mission
+   * couvre déjà le billet entier et n'est pas doublé.</p>
+   */
+  get detailAllerRetour(): {
+    aller: number; trajets: number; total: number; participants: number;
+  } | null {
+
+    if (this.formModel.monetaire) return null;
+
+    const aller = this.formModel.distanceKm;
+    if (aller === null || !Number.isFinite(aller) || aller <= 0) return null;
+
+    const participants = this.formModel.participants > 0 ? this.formModel.participants : 1;
+
+    return {
+      aller,
+      trajets: TRAJETS_PAR_MISSION,
+      total: aller * TRAJETS_PAR_MISSION,
+      participants
+    };
   }
 
   get emissionPrevisionnelle(): number {
@@ -1098,6 +1134,43 @@ export class VoyagesAffairesComponent implements OnInit {
   /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
   libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
     return libelleRapprochement(rapprochement);
+  }
+
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /** Mesures que la base porte pour cet écran. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /** Intitulé de repli si la nomenclature ne nomme pas ce poste. */
+  private readonly CATEGORIE_REPLI = 'voyages-affaires';
+
+  /**
+   * Charge les mesures de la base.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales
+   * restent affichées, seules les mesures de la base manquent.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => { this.mesuresServeur = mesures; this.cdr.markForCheck(); },
+      error: () => { this.mesuresServeur = []; this.cdr.markForCheck(); }
+    });
+  }
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient dans un panneau séparé qui annonçait « N mesure(s)
+   * enregistrée(s) en base » au-dessus d'un tableau disant « aucune donnée » :
+   * deux vues de la même donnée, qui se contredisaient.</p>
+   */
+  get lignesServeur(): EmissionVoyage[] {
+    return mesuresDeLEcran(
+      this.mesuresServeur, { numeroGhg: 6 }, this.exerciceActif, this.perimetreAffiche
+    ).map(m => ligneDeLaBase(m, posteParId('voyages-affaires')?.libelle ?? this.CATEGORIE_REPLI) as unknown as EmissionVoyage);
   }
 
 }

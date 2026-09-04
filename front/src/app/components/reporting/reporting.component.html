@@ -362,16 +362,11 @@
       </footer>
     </section>
 
+
     <!-- ---------- PAGES SUIVANTES : DÉTAIL DES CATÉGORIES RETENUES ---------- -->
     <section class="rep-page rep-page-suite" *ngIf="scopesRetenus.length">
 
       <h2 class="doc-section doc-section-page">{{ t('sec4.detail') }}</h2>
-      <p class="doc-chapeau">
-        Ce détail ne porte que sur les {{ nombreRetenus }} catégorie(s) cochée(s) au panneau de
-        configuration, sur le périmètre {{ bilan.libelleSociete }} — exercice
-        {{ bilan.libelleExercice }}. Les catégories non retenues restent hors de ce document sans
-        être retirées du bilan.
-      </p>
 
       <div class="doc-tableau doc-bloc-scope" *ngFor="let scope of scopesRetenus"
            [style.--scope-couleur]="scope.couleur">
@@ -1182,7 +1177,7 @@
              se lit seul, avec son échéance en évidence. Un tableau les alignait
              comme des lignes de données interchangeables. -->
         <div class="plan-cartes">
-          <article class="plan-carte" *ngFor="let solution of solutions">
+          <article class="plan-carte" *ngFor="let solution of solutions; trackBy: suiviSolution">
             <header class="plan-carte-tete">
               <h4>{{ solution.titre }}</h4>
               <span class="plan-badge" *ngIf="solution.horizon">{{ solution.horizon }}</span>
@@ -1267,6 +1262,158 @@
         <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
       </footer>
     </section>
+    <!-- ---------- PLAN D'ACTIONS & PISTES D'ATTÉNUATION ----------
+         Seul contenu de la synthèse qui ne dérive d'aucun calcul : les chiffres
+         disent où l'entreprise en est, ces actions disent ce qu'elle compte
+         faire. Les commandes portent la classe « ecran-seul » : elles
+         disparaissent à l'impression, le texte reste. -->
+    <section class="rep-page rep-page-suite">
+
+      <h2 class="doc-section doc-section-page">Plan d'actions &amp; pistes d'atténuation</h2>
+
+      <p class="doc-chapeau" *ngIf="solutions.length">
+        {{ solutions.length }} action(s) consignée(s) sur ce périmètre.
+        <ng-container *ngIf="solutionsChiffrees">
+          {{ solutionsChiffrees }} d'entre elles portent une réduction estimée, pour un total de
+          <strong>{{ reductionAnnoncee | number:'1.0-1' }} tCO₂e</strong> par an.
+        </ng-container>
+      </p>
+
+      <p class="doc-vide" *ngIf="!solutions.length">
+        Aucune action n'est encore consignée. Cette section porte le plan que l'inventaire
+        appelle : les mesures décidées, le poste qu'elles visent et l'effet attendu.
+      </p>
+
+      <table class="doc-tableau-simple plan-actions" *ngIf="solutions.length">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th>Poste visé</th>
+            <th class="ta-right">Réduction estimée</th>
+            <th>Statut</th>
+            <th class="ecran-seul ta-center">—</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let solution of solutions; let i = index; trackBy: suiviSolution">
+
+            <tr *ngIf="solutionEnEdition !== solution.id">
+              <td>
+                <span class="cell-strong">{{ solution.titre }}</span>
+                <span class="plan-horizon" *ngIf="solution.horizon">{{ solution.horizon }}</span>
+                <div class="cell-note" *ngIf="solution.impact">{{ solution.impact }}</div>
+              </td>
+              <td>{{ solution.scopeVise || '—' }}</td>
+              <td class="ta-right num">
+                <ng-container *ngIf="solution.impactTco2e !== null && solution.impactTco2e !== undefined">
+                  {{ solution.impactTco2e | number:'1.0-1' }} tCO₂e
+                </ng-container>
+                <!-- Non chiffré ne vaut pas zéro : le tiret le dit. -->
+                <span class="cell-note" *ngIf="solution.impactTco2e === null || solution.impactTco2e === undefined">
+                  non chiffrée
+                </span>
+              </td>
+              <td>
+                <span class="plan-statut" *ngIf="solution.statut">{{ solution.statut }}</span>
+                <span class="cell-note" *ngIf="!solution.statut">—</span>
+              </td>
+              <td class="ecran-seul ta-center">
+                <span class="solution-actions">
+                  <button type="button" (click)="deplacerSolution(i, -1)" [disabled]="i === 0"
+                          title="Remonter cette action" aria-label="Remonter">▲</button>
+                  <button type="button" (click)="deplacerSolution(i, 1)"
+                          [disabled]="i === solutions.length - 1"
+                          title="Descendre cette action" aria-label="Descendre">▼</button>
+                  <button type="button" (click)="modifierSolution(solution)"
+                          [attr.aria-label]="'Modifier — ' + solution.titre"
+                          title="Modifier cette action">✏️</button>
+                  <button type="button" class="solution-retirer"
+                          (click)="supprimerSolution(solution)"
+                          [attr.aria-label]="'Supprimer — ' + solution.titre"
+                          title="Supprimer cette action">🗑</button>
+                </span>
+              </td>
+            </tr>
+
+            <tr *ngIf="solutionEnEdition === solution.id" class="ecran-seul">
+              <td colspan="5">
+                <div class="solution-edition">
+                  <div class="solution-edition-duo">
+                    <label>
+                      <span>Titre de la solution</span>
+                      <input type="text" name="planTitre" [(ngModel)]="brouillonSolution.titre"
+                             placeholder="ex : Relamping LED des ateliers">
+                    </label>
+                    <label class="solution-edition-court">
+                      <span>Horizon</span>
+                      <input type="text" name="planHorizon" [(ngModel)]="brouillonSolution.horizon"
+                             placeholder="ex : 2028">
+                    </label>
+                  </div>
+
+                  <div class="solution-edition-duo">
+                    <label>
+                      <span>Scope ou catégorie visé</span>
+                      <select name="planScope" [(ngModel)]="brouillonSolution.scopeVise">
+                        <option value="">—</option>
+                        <option *ngFor="let cible of ciblesSolution" [value]="cible">{{ cible }}</option>
+                      </select>
+                    </label>
+                    <label class="solution-edition-court">
+                      <span>Réduction estimée (tCO₂e / an)</span>
+                      <input type="number" step="any" min="0" name="planImpactT"
+                             [(ngModel)]="brouillonSolution.impactTco2e"
+                             placeholder="laisser vide si non chiffrée">
+                    </label>
+                  </div>
+
+                  <div class="solution-edition-duo">
+                    <label class="solution-edition-court">
+                      <span>Statut</span>
+                      <select name="planStatut" [(ngModel)]="brouillonSolution.statut">
+                        <option [ngValue]="undefined">—</option>
+                        <option *ngFor="let s of statutsSolution" [ngValue]="s">{{ s }}</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Portée</span>
+                      <input type="text" name="planPortee" [(ngModel)]="brouillonSolution.portee"
+                             placeholder="Sites, flux ou familles d'achat concernés…">
+                    </label>
+                  </div>
+
+                  <label>
+                    <span>Note descriptive</span>
+                    <textarea name="planImpact" rows="3" [(ngModel)]="brouillonSolution.impact"
+                              placeholder="Effet attendu, conditions de réussite, points de vigilance…"></textarea>
+                  </label>
+
+                  <div class="bloc-actions">
+                    <button type="button" class="bloc-annuler"
+                            (click)="annulerSolution()">Annuler</button>
+                    <button type="button" class="bloc-valider"
+                            (click)="enregistrerSolution()">Enregistrer</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </table>
+
+      <div class="solution-ajout ecran-seul">
+        <button type="button" class="bloc-valider" (click)="ajouterSolution()"
+                [disabled]="solutionEnEdition !== null">
+          + Ajouter une action / solution
+        </button>
+      </div>
+
+      <footer class="doc-pied">
+        <span>Plan d'actions</span>
+        <span>{{ bilan.libelleSociete }} · {{ bilan.libelleExercice }}</span>
+      </footer>
+    </section>
+
   </article>
 
   <!-- ================= DOCUMENT IMPRIMABLE — MODE 2 : RAPPORT NORMÉ ================= -->
@@ -1287,7 +1434,7 @@
                lecteur qui cherche une mesure précise la trouve ici, sans avoir
                à parcourir le chapitre. -->
           <ol class="som-sous-liste" *ngIf="chapitre.gabarit === 'solutions' && solutions.length">
-            <li *ngFor="let solution of solutions; let i = index">
+            <li *ngFor="let solution of solutions; let i = index; trackBy: suiviSolution">
               <button type="button" class="som-sous-entree"
                       (click)="allerALaSolution(solution)">
                 <span class="som-num">{{ numeroSolution(i) }}</span>
@@ -1510,46 +1657,43 @@
           </ng-container>
 
           <!-- ---------- 11. SOLUTIONS ET RECOMMANDATIONS ---------- -->
-          <!-- Seul contenu du rapport qui ne dérive d'aucun calcul : les
-               chiffres disent où l'entreprise en est, ces solutions disent ce
-               qu'elle compte faire. Les boutons d'édition portent la classe
-               « ecran-seul » : ils disparaissent à l'impression, le texte
-               reste. -->
+          <!-- Le rapport normé restitue le plan d'actions, il ne le saisit
+               plus : la saisie vit désormais dans la synthèse exécutive, où le
+               plan se décide. Deux formulaires sur la même donnée finissaient
+               par diverger, et rien ne disait lequel faisait foi. -->
           <ng-container *ngIf="chapitre.gabarit === 'solutions'">
 
             <p class="norme-avis" *ngIf="!solutions.length">
-              Aucune solution n'est encore consignée. Ce chapitre porte le plan d'action que
-              l'inventaire appelle : les mesures décidées, leur portée et leur échéance.
+              Aucune solution n'est encore consignée. Ce chapitre reprend le plan d'actions
+              tenu dans la synthèse exécutive : les mesures décidées, le poste qu'elles visent
+              et l'effet attendu.
             </p>
 
-            <article class="solution" *ngFor="let solution of solutions; let i = index"
+            <article class="solution" *ngFor="let solution of solutions; let i = index; trackBy: suiviSolution"
                      [id]="'solution-' + solution.id">
 
-              <div class="solution-entete" *ngIf="solutionEnEdition !== solution.id">
+              <div class="solution-entete">
                 <h4>
                   <span class="solution-num">{{ numeroSolution(i) }}</span>
                   {{ solution.titre }}
                 </h4>
 
                 <span class="solution-horizon" *ngIf="solution.horizon">{{ solution.horizon }}</span>
-
-                <span class="solution-actions ecran-seul">
-                  <button type="button" (click)="deplacerSolution(i, -1)" [disabled]="i === 0"
-                          title="Remonter cette solution" aria-label="Remonter">▲</button>
-                  <button type="button" (click)="deplacerSolution(i, 1)"
-                          [disabled]="i === solutions.length - 1"
-                          title="Descendre cette solution" aria-label="Descendre">▼</button>
-                  <button type="button" (click)="modifierSolution(solution)"
-                          [attr.aria-label]="'Modifier — ' + solution.titre"
-                          title="Modifier cette solution">✏️</button>
-                  <button type="button" class="solution-retirer"
-                          (click)="supprimerSolution(solution)"
-                          [attr.aria-label]="'Supprimer — ' + solution.titre"
-                          title="Supprimer cette solution">🗑</button>
-                </span>
               </div>
 
-              <dl class="solution-champs" *ngIf="solutionEnEdition !== solution.id">
+              <dl class="solution-champs">
+                <div *ngIf="solution.scopeVise">
+                  <dt>Poste visé</dt>
+                  <dd>{{ solution.scopeVise }}</dd>
+                </div>
+                <div *ngIf="solution.impactTco2e !== null && solution.impactTco2e !== undefined">
+                  <dt>Réduction estimée</dt>
+                  <dd>{{ solution.impactTco2e | number:'1.0-1' }} tCO₂e / an</dd>
+                </div>
+                <div *ngIf="solution.statut">
+                  <dt>Statut</dt>
+                  <dd>{{ solution.statut }}</dd>
+                </div>
                 <div *ngIf="solution.portee">
                   <dt>Portée</dt>
                   <dd>{{ solution.portee }}</dd>
@@ -1559,45 +1703,7 @@
                   <dd>{{ solution.impact }}</dd>
                 </div>
               </dl>
-
-              <div class="solution-edition ecran-seul" *ngIf="solutionEnEdition === solution.id">
-                <div class="solution-edition-duo">
-                  <label>
-                    <span>Intitulé de la solution</span>
-                    <input type="text" name="solTitre" [(ngModel)]="brouillonSolution.titre"
-                           placeholder="ex : Relamping LED des ateliers">
-                  </label>
-                  <label class="solution-edition-court">
-                    <span>Horizon</span>
-                    <input type="text" name="solHorizon" [(ngModel)]="brouillonSolution.horizon"
-                           placeholder="ex : 2028">
-                  </label>
-                </div>
-                <label>
-                  <span>Portée</span>
-                  <textarea name="solPortee" rows="3" [(ngModel)]="brouillonSolution.portee"
-                            placeholder="Sites, flux ou familles d'achat concernés…"></textarea>
-                </label>
-                <label>
-                  <span>Impact attendu</span>
-                  <textarea name="solImpact" rows="3" [(ngModel)]="brouillonSolution.impact"
-                            placeholder="Effet estimé sur l'empreinte — ex : −12 % du Scope 2."></textarea>
-                </label>
-                <div class="bloc-actions">
-                  <button type="button" class="bloc-annuler"
-                          (click)="annulerSolution()">Annuler</button>
-                  <button type="button" class="bloc-valider"
-                          (click)="enregistrerSolution()">Enregistrer</button>
-                </div>
-              </div>
             </article>
-
-            <div class="solution-ajout ecran-seul">
-              <button type="button" class="bloc-valider" (click)="ajouterSolution()"
-                      [disabled]="solutionEnEdition !== null">
-                + Ajouter une solution
-              </button>
-            </div>
           </ng-container>
 
           <!-- ---------- BLOCS DE TEXTE ÉDITABLES ---------- -->

@@ -56,6 +56,27 @@ public class CorrectedLineDto {
     /** Code du référentiel qui a désigné le facteur, quand il y en a un. */
     private String sourceCode;
 
+    /**
+     * Site de la mesure. Facultatif : une ligne de classeur comptable n'en
+     * désigne aucun tant que l'utilisateur consulte une société entière.
+     */
     private Long usineId;
+
+    /**
+     * Société de la mesure, transmise telle quelle par l'écran.
+     *
+     * <p>Elle était auparavant déduite de {@link #usineId}, que l'écran
+     * d'import remplissait avec un identifiant de <em>société</em>. Les deux
+     * séries se recouvrent : la société 2 était lue comme l'usine 2, laquelle
+     * appartient à la société 1. Tout ce qui était corrigé depuis MISFAT MAROC,
+     * SOLAUFIL FRANCE ou SOLAUFIL TUNISIE finissait au bilan de MISFAT
+     * TUNISIE.</p>
+     *
+     * <p>Une société transmise prime donc sur la déduction par le site ; celle-ci
+     * ne sert plus que lorsqu'un site est réellement désigné et qu'aucune
+     * société ne l'accompagne.</p>
+     */
+    private Long filialeId;
+
     private Long importLogId;
 }

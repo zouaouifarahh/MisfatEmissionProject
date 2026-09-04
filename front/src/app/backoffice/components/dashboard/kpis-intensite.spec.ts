@@ -128,15 +128,6 @@ describe('Tableau de bord — intensités et productivité carbone', () => {
       expect(composant.intensiteChiffreAffaires).toBeCloseTo(5, 6);
     });
 
-    it('rend la productivité carbone en devise par tonne émise', () => {
-      // 24 millions de dinars pour 120 tonnes : 200 000 TND par tonne. Le
-      // chiffre d'affaires quitte les millions, l'empreinte reste en tonnes.
-      poserActivite({ chiffreAffairesM: 24 });
-      const composant = monter().componentInstance;
-
-      expect(composant.productiviteCarbone).toBeCloseTo(200_000, 3);
-    });
-
     it('lit les dénominateurs de l\'exercice consulté, pas du dernier renseigné', () => {
       const activite = TestBed.inject(ActivityDataService);
       activite.enregistrer(null, { ...releveVide(EXERCICE), effectif: 400, annee: EXERCICE });
@@ -160,7 +151,6 @@ describe('Tableau de bord — intensités et productivité carbone', () => {
       expect(composant.intensiteCarbone).toBeNull();
       expect(composant.intensiteEffectif).toBeNull();
       expect(composant.intensiteChiffreAffaires).toBeNull();
-      expect(composant.productiviteCarbone).toBeNull();
     });
 
     it('refuse un dénominateur à zéro comme un dénominateur absent', () => {
@@ -169,7 +159,6 @@ describe('Tableau de bord — intensités et productivité carbone', () => {
 
       expect(composant.intensiteCarbone).toBeNull();
       expect(composant.intensiteEffectif).toBeNull();
-      expect(composant.productiviteCarbone).toBeNull();
     });
 
     it('n\'annonce aucun ratio isolément calculable comme manquant', () => {
@@ -232,27 +221,6 @@ describe('Tableau de bord — intensités et productivité carbone', () => {
       const jauge = composant.jaugeIntensite;
       expect(jauge.pctEchelle).toBe(100);
       expect(jauge.libelle).toContain('Hors échelle');
-    });
-  });
-
-  describe('lecture de la productivité carbone', () => {
-
-    it('invite à renseigner le chiffre d\'affaires quand il manque', () => {
-      const composant = monter().componentInstance;
-
-      expect(composant.productiviteCarbone).toBeNull();
-      expect(composant.noteProductivite).toContain("Données d'Activité");
-    });
-
-    it('ne porte plus le chiffre d\'affaires par salarié', () => {
-      // La carte affichait une productivité économique — ni CO₂ au numérateur
-      // ni au dénominateur — parmi les indicateurs carbone.
-      poserActivite({ chiffreAffairesM: 24, effectif: 400 });
-      const composant = monter().componentInstance;
-
-      // 24 M / 400 salariés vaudrait 60 000 : ce n'est pas ce qui est rendu.
-      expect(composant.productiviteCarbone).not.toBeCloseTo(60_000, 0);
-      expect(composant.productiviteCarbone).toBeCloseTo(200_000, 3);
     });
   });
 });

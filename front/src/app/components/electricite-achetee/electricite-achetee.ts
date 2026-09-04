@@ -24,7 +24,9 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import {
+  MesuresServeurService, MesureServeur, mesureDuPerimetre
+} from '../../services/mesures-serveur.service';
 
 /** Ligne de consommation d'électricité achetée. */
 export interface EmissionElectricite {
@@ -61,6 +63,14 @@ export interface EmissionElectricite {
   databaseSource?: string;
   /** Provenance : renseignée pour les seules lignes issues de la ventilation. */
   sourceData?: string;
+  /**
+   * Ligne venue de la base, non modifiable depuis cet écran.
+   *
+   * <p>Elle vient d'un import ou d'une saisie serveur ; la corriger d'ici
+   * demanderait un chemin d'écriture que la base ne propose pas encore. La
+   * montrer sans pouvoir la modifier vaut mieux que de la taire.</p>
+   */
+  lectureSeule?: boolean;
 }
 
 /** Catégorie GHG du Scope 2 côté référentiel carbone. */
@@ -81,7 +91,7 @@ const CLE_STOCKAGE = 'listeEmissionsElectricite';
 @Component({
   selector: 'app-electricite-achetee',
   standalone: true,
-  imports: [MesuresServeurComponent, FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [FiltreMasseComponent, KpisCategorieComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './electricite-achetee.html',
   styleUrl: './electricite-achetee.css'
@@ -188,11 +198,37 @@ export class ElectriciteAcheteeComponent implements OnInit {
 
     this.chargerFacteurs();
     this.chargerFiliales();
+    this.chargerMesuresServeur();
 
     this.entityService.filter$.subscribe(filtre => {
       this.societeActiveId = filtre.entityId;
       this.exerciceActif = filtre.year ?? null;
       this.majPerimetre();
+    });
+  }
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /**
+   * Charge les mesures que la base porte pour cet écran.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales et
+   * les lignes ventilées restent affichées, seules les mesures de la base
+   * manquent. Un écran vide serait un mensonge de plus que l'absence d'une
+   * ligne.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => {
+        this.mesuresServeur = mesures;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.mesuresServeur = [];
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -311,7 +347,6 @@ export class ElectriciteAcheteeComponent implements OnInit {
   exerciceActif: number | null = null;
 
   /** Perimetre organisationnel que les lignes doivent respecter. */
-  /** Perimetre consulte, ouvert au gabarit pour le panneau des mesures serveur. */
   get perimetreAffiche(): PerimetreOrganisation { return this.perimetreActif; }
   private get perimetreActif(): PerimetreOrganisation {
     return perimetreOrganisation(
@@ -882,9 +917,66 @@ export class ElectriciteAcheteeComponent implements OnInit {
     );
   }
 
-  /** Saisies de l'utilisateur et lignes ventilées, dans cet ordre d'affichage. */
+  /** Saisies de l'utilisateur, lignes ventilées et mesures de la base. */
   get toutesLignes(): EmissionElectricite[] {
-    return [...this.lignesVentilees, ...this.listeEmissions];
+    return [...this.lignesServeur, ...this.lignesVentilees, ...this.listeEmissions];
+  }
+
+  /**
+   * Libellés de catégorie que cet écran documente en base.
+   *
+   * <p>La base écrit « Energy » là où l'écran dit « Électricité achetée », et
+   * l'import anglais ajoute « Purchased electricity ». Aucun des trois ne se
+   * déduit des autres.</p>
+   */
+  private static readonly CATEGORIES_BASE =
+    ['Électricité achetée', 'Energy', 'Purchased electricity'];
+
+  /** Mesures de la base, telles que le serveur les rend. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient jusqu'ici dans un panneau séparé, au-dessus du
+   * tableau : l'écran annonçait « 1 mesure(s) enregistrée(s) en base » puis,
+   * deux lignes plus bas, « aucune consommation enregistrée ». Les deux
+   * portaient sur la même donnée et se contredisaient.</p>
+   *
+   * <p>Le filtrage est celui du panneau qu'elles remplacent — mêmes catégories,
+   * même périmètre, même exercice —, de sorte que rien n'apparaisse ni ne
+   * disparaisse au passage.</p>
+   */
+  get lignesServeur(): EmissionElectricite[] {
+    const attendues = new Set(
+      ElectriciteAcheteeComponent.CATEGORIES_BASE.map(c => clefCategorie(c)));
+
+    return this.mesuresServeur
+      .filter(m => attendues.has(clefCategorie(m.categorie))
+        && mesureDuPerimetre(m, this.exerciceActif, this.perimetreAffiche))
+      .map(m => ({
+        id: m.id,
+        scope: m.scope || 'Scope 2',
+        categorie: 'Électricité achetée',
+        etablissement: m.libelle,
+        reference: '',
+        emissionSource: m.libelle,
+        typeDonnee: 'Physique' as const,
+        quantite: m.quantite,
+        // Le facteur n'est pas rendu par l'API : il se déduit du rapport, et
+        // vaut zéro pour une quantité nulle plutôt que de valoir l'infini.
+        facteur: m.quantite ? m.emissionKg / m.quantite : 0,
+        unite: m.unite,
+        dateDebut: m.date,
+        dateFin: m.date,
+        emissionCalculee: m.emissionKg,
+        hypothese: 'Réelle' as const,
+        creeLe: m.date,
+        databaseSource: m.baseAppliquee,
+        sourceData: m.origine,
+        societeId: m.filialeId,
+        lectureSeule: true
+      }));
   }
 
 
@@ -938,4 +1030,19 @@ export class ElectriciteAcheteeComponent implements OnInit {
     return libelleRapprochement(rapprochement);
   }
 
+}
+
+/**
+ * Forme comparable d'un libellé de catégorie.
+ *
+ * <p>Sans accents ni ponctuation : « Électricité achetée » et « Electricite
+ * achetee » désignent le même poste, et le rapprochement ne doit pas dépendre
+ * de la façon dont la base a été saisie.</p>
+ */
+function clefCategorie(valeur: string | null | undefined): string {
+  return String(valeur ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .toLowerCase();
 }

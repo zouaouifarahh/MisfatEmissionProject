@@ -39,7 +39,17 @@ export interface LigneCorrigeePayload {
   unit?: string | null;
   categoryCode?: string | null;
   sourceCode?: string | null;
+  /** Site de la mesure, quand le périmètre consulté en désigne un. */
   usineId?: number | null;
+  /**
+   * Société de la mesure.
+   *
+   * <p>Transmise explicitement : le serveur la déduisait de {@link usineId},
+   * que cet écran remplissait avec un identifiant de société. Les deux séries
+   * se recouvrant, la société 2 était lue comme l'usine 2 — qui appartient à la
+   * société 1.</p>
+   */
+  filialeId?: number | null;
   importLogId?: number | null;
 }
 

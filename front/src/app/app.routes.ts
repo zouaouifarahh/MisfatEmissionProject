@@ -10,7 +10,11 @@ import { EmissionListComponent } from './components/emission-list/emission-list'
 import { EmissionMeasureComponent } from './components/emission-measure/emission-measure';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'signin', pathMatch: 'full' },
+  // La racine mène au tableau de bord, non à la connexion : la garde renvoie
+  // d'elle-même vers /signin quand aucune session n'est ouverte, et elle
+  // conserve alors l'adresse demandée. Pointer la racine sur /signin faisait
+  // repasser par le formulaire un utilisateur déjà connecté.
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 
   // Frontoffice
   { path: 'home', component: Home },
@@ -22,8 +26,14 @@ export const routes: Routes = [
   // et favoris existants aboutissent à la connexion au lieu d'un 404.
   { path: 'signup', redirectTo: 'signin', pathMatch: 'full' },
 
-  // Backoffice — réservé aux sessions ouvertes
+  // Backoffice — réservé aux sessions ouvertes.
+  //
+  // « dashboard » est l'adresse de référence : c'est elle que la racine, le
+  // repli et le retour de connexion visent. « tableau-de-bord » lui reste
+  // équivalente plutôt que redirigée, pour que les liens déjà posés dessus
+  // aboutissent sur l'écran et non sur un aller-retour.
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
+  { path: 'tableau-de-bord', component: DashboardComponent, canActivate: [authGuard] },
   { path: 'backoffice/user-approval', component: UserApprovalComponent, canActivate: [authGuard] },
 
   // Gestion des utilisateurs. Les écrans de la console ne sont pas des routes
@@ -31,6 +41,16 @@ export const routes: Routes = [
   // la priver de sa navigation latérale ni de son en-tête de périmètre.
   {
     path: 'settings/profile',
+    component: DashboardComponent,
+    canActivate: [authGuard],
+    data: { ecran: 'm-prof' }
+  },
+
+  // Même écran, sous l'adresse qu'attend le widget de profil de l'en-tête.
+  // 'settings/profile' est conservée plutôt que redirigée : les liens et
+  // favoris déjà posés dessus doivent continuer d'aboutir.
+  {
+    path: 'mon-profil',
     component: DashboardComponent,
     canActivate: [authGuard],
     data: { ecran: 'm-prof' }
@@ -56,6 +76,8 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
 
-  // Wildcard
-  { path: '**', redirectTo: 'signin' }
+  // Adresse inconnue : le tableau de bord, et non le formulaire de connexion.
+  // Une faute de frappe dans l'URL déconnectait visuellement un utilisateur qui
+  // avait pourtant sa session ; la garde tranche si elle a lieu de le faire.
+  { path: '**', redirectTo: 'dashboard' }
 ];

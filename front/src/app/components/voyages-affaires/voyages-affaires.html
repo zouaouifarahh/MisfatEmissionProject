@@ -93,12 +93,6 @@
 
     <!-- TABLEAU DE DONNÉES -->
     <div class="table-container">
-      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
-           comptait deja ; cet ecran les niait. -->
-      <app-mesures-serveur
-        [numeroGhg]="6"
-        [exercice]="exerciceActif"
-        [organisation]="perimetreAffiche"></app-mesures-serveur>
 
       <table class="data-table">
         <thead>
@@ -195,15 +189,19 @@
             <td class="ta-right num num-fort">{{ item.emissionCalculee | number:'1.0-2' }}</td>
 
             <td class="ta-center">
-              <div class="action-buttons">
+              <div class="action-buttons" *ngIf="!item.lectureSeule; else venueDeLaBase">
                 <button class="btn-edit" title="Modifier" (click)="ouvrirModale(item)">✏️</button>
                 <button class="btn-delete" title="Supprimer" (click)="supprimerEmission(item.id)">🗑️</button>
               </div>
+              <ng-template #venueDeLaBase>
+                <span class="lecture-seule"
+                      title="Mesure enregistrée en base : modifiable depuis l'import, non depuis cet écran">base</span>
+              </ng-template>
             </td>
           </tr>
 
           <tr *ngIf="!emissionsFiltrees.length">
-            <td colspan="10" class="empty-row">
+            <td colspan="12" class="empty-row">
               Aucune mission enregistrée sur ce périmètre.
             </td>
           </tr>
@@ -360,9 +358,15 @@
         <!-- SAISIE PAR DISTANCE -->
         <div class="form-row" *ngIf="!formModel.monetaire">
           <div class="form-group flex-1">
-            <label for="vo-dist">Distance (km) *</label>
+            <label for="vo-dist">Distance aller (km) *</label>
             <input id="vo-dist" type="number" step="any" [(ngModel)]="formModel.distanceKm"
                    (ngModelChange)="onDistanceChange(); onDistanceSaisie()" placeholder="0.00">
+            <!-- Le libellé dit « aller » parce que le calcul compte le retour :
+                 sans cela, une distance déjà doublée à la saisie le serait deux
+                 fois, et rien à l'écran ne l'aurait laissé voir. -->
+            <small class="field-hint">
+              Le retour est compté automatiquement : saisissez le trajet aller.
+            </small>
             <small class="field-hint distance-proposee" *ngIf="distanceProposee">
               Distance indicative {{ formModel.depart }} → {{ formModel.destination }},
               de capitale à capitale. Corrigez-la si vous connaissez le trajet réel.
@@ -449,8 +453,31 @@
 
           <p class="formule-hint">
             <span aria-hidden="true">🧮</span>
-            {{ formModel.monetaire ? 'Montant × Facteur' : 'Distance × Facteur × Participants' }}
+            {{ formModel.monetaire
+               ? 'Montant × Facteur'
+               : '(Distance Aller × 2) × Participants × Facteur' }}
           </p>
+
+          <!-- Le doublement est écrit noir sur blanc : le total valait deux fois
+               ce que la formule affichée laissait attendre, et rien ne disait
+               si c'était voulu. -->
+          <div class="calcul-detail" *ngIf="detailAllerRetour as d">
+            <div class="calcul-ligne">
+              <span>Distance Aller × 2 (Aller-Retour)</span>
+              <strong>
+                {{ d.aller | number:'1.0-2' }} km × {{ d.trajets }}
+                = {{ d.total | number:'1.0-2' }} km
+              </strong>
+            </div>
+            <div class="calcul-ligne">
+              <span>Participants</span>
+              <strong>× {{ d.participants | number:'1.0-0' }}</strong>
+            </div>
+            <div class="calcul-ligne" *ngIf="formModel.facteur">
+              <span>Facteur d'émission</span>
+              <strong>× {{ formModel.facteur | number:'1.0-8' }} {{ formModel.uniteFacteur }}</strong>
+            </div>
+          </div>
 
           <div class="preview-total">
             Émissions estimées

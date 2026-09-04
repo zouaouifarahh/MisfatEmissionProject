@@ -87,12 +87,6 @@
 
     <div class="table-container">
 
-      <!-- Ce que la base porte pour cette categorie. Le tableau de bord les
-           comptait deja ; cet ecran les niait. -->
-      <app-mesures-serveur
-        [categories]="['Combustion des véhicules','Company owned cars','Company owned vehicles']"
-        [exercice]="exerciceActif"
-        [organisation]="perimetreAffiche"></app-mesures-serveur>
 
       <table class="data-table">
 
@@ -173,13 +167,17 @@
 
             <td>
 
-              <div class="action-buttons">
+              <div class="action-buttons" *ngIf="!item.lectureSeule; else venueDeLaBase">
 
                 <button class="btn-edit" (click)="ouvrirModale(item)">✏️</button>
 
                 <button class="btn-delete" (click)="supprimerEmission(item.id)">🗑️</button>
 
               </div>
+              <ng-template #venueDeLaBase>
+                <span class="lecture-seule"
+                      title="Mesure enregistrée en base : modifiable depuis l'import, non depuis cet écran">base</span>
+              </ng-template>
 
             </td>
 
@@ -356,23 +354,23 @@
 
              
 
-              <!-- Mode Physique (Lecture seule auto-affectée) -->
+              <!-- Mode Physique : l'unité du facteur sert de valeur par défaut, sans
+                   s'imposer. Un carburant se relève au litre ou au kilogramme
+                   selon la source du relevé. -->
 
-              <input *ngIf="formModel.typeDonnee === 'Physique'"
+              <select *ngIf="formModel.typeDonnee === 'Physique'"
 
-                     type="text"
+                      class="form-control"
 
-                     class="form-control"
+                      name="unite"
 
-                     name="unite"
+                      [(ngModel)]="formModel.unite"
 
-                     [(ngModel)]="formModel.unite"
+                      required>
 
-                     readonly
+                <option *ngFor="let u of unitesPhysiquesProposees" [value]="u">{{ u }}</option>
 
-                     placeholder="Sélectionnez une source..."
-
-                     style="background-color: #f1f5f9; cursor: not-allowed; font-weight: 600; color: #334155;">
+              </select>
 
 
 

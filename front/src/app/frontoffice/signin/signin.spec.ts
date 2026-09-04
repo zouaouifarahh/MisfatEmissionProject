@@ -214,6 +214,63 @@ describe('SigninComponent', () => {
     });
   });
 
+  describe('écran ouvert au retour de la connexion', () => {
+
+    /** Rejoue l'amorce du composant avec une adresse demandée avant la garde. */
+    const avecRetour = (adresse: string) => {
+      (component as unknown as { retour: string | null }).retour = adresse;
+    };
+
+    it("ouvre le tableau de bord quand aucune adresse n'a été demandée", () => {
+      compteApprouve();
+      component.nomComplet = 'Farah Zwawi';
+      component.email = 'f.zwawi@misfat.com';
+      component.onLogin();
+
+      expect(naviguer).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it("reprend l'adresse demandée avant la redirection", () => {
+      compteApprouve();
+      avecRetour('/backoffice/emission-measures/combustion-etablissements');
+
+      component.nomComplet = 'Farah Zwawi';
+      component.email = 'f.zwawi@misfat.com';
+      component.onLogin();
+
+      // Le lien suivi ne doit pas être perdu : c'est la raison d'être du
+      // paramètre que la garde dépose en renvoyant vers la connexion.
+      expect(naviguer)
+        .toHaveBeenCalledWith('/backoffice/emission-measures/combustion-etablissements');
+    });
+
+    it("n'ouvre pas la console sur une fiche de compte", () => {
+      compteApprouve();
+      avecRetour('/mon-profil');
+
+      component.nomComplet = 'Farah Zwawi';
+      component.email = 'f.zwawi@misfat.com';
+      component.onLogin();
+
+      // Une session expirée sur « Mon Profil » ramenait sur « Mon Profil » :
+      // un clic sur l'avatar, un retour par le formulaire, et la console
+      // s'ouvrait sur sa fiche personnelle. Une page de compte se consulte,
+      // elle n'est pas un point d'entrée.
+      expect(naviguer).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it("écarte aussi l'ancienne adresse du profil, paramètres compris", () => {
+      compteApprouve();
+      avecRetour('/settings/profile?onglet=notes');
+
+      component.nomComplet = 'Farah Zwawi';
+      component.email = 'f.zwawi@misfat.com';
+      component.onLogin();
+
+      expect(naviguer).toHaveBeenCalledWith('/dashboard');
+    });
+  });
+
   describe('domaine imposé', () => {
 
     it('complète une saisie sans domaine', () => {

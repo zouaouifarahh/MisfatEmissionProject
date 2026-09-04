@@ -50,4 +50,26 @@
       </option>
     </select>
   </label>
+
+  <!-- Identité de la session, poussée à droite par sa marge automatique.
+       Le profil et la sortie sont deux boutons distincts : le clic sur la photo
+       doit ouvrir « Mon Profil » sans détour, et une sortie cachée derrière un
+       menu déroulant se cherche. -->
+  <div class="session-zone" *ngIf="nomUtilisateur">
+
+    <button type="button" class="session-profil" (click)="allerAuProfil()"
+            title="Ouvrir Mon Profil">
+      <img class="session-avatar" [src]="avatarUrl" alt="" aria-hidden="true">
+      <span class="session-texte">
+        <span class="session-nom">{{ nomUtilisateur }}</span>
+        <span class="session-role" *ngIf="roleUtilisateur">{{ roleUtilisateur }}</span>
+      </span>
+    </button>
+
+    <button type="button" class="session-sortie" (click)="seDeconnecter()"
+            title="Fermer la session">
+      <span aria-hidden="true">⏻</span>
+      <span class="session-sortie-texte">Déconnexion</span>
+    </button>
+  </div>
 </header>

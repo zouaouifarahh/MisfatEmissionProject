@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-  calculerEmission, modeCalculDe, poidsTotalDepuisQuantite, tonnesKilometres
+  calculerEmission, modeCalculDe, poidsTotalDepuisQuantite, tonnesKilometres,
+  POIDS_MOYEN_FILTRE_KG
 } from './transport-facteur';
 
 /**
@@ -94,12 +95,26 @@ describe('Transport amont — échelle du calcul massique', () => {
       expect(poidsTotalDepuisQuantite(40_000, 0.3)).toBeCloseTo(12_000, 6);
     });
 
-    it('refuse de déduire un poids d\'une donnée manquante', () => {
-      // Un poids déduit d'une quantité inconnue serait une invention.
+    it('refuse de déduire un poids sans quantité', () => {
+      // Un poids déduit d'une quantité inconnue serait une invention : c'est la
+      // seule des deux données que personne ne peut supposer.
       expect(poidsTotalDepuisQuantite(null, 0.3)).toBeNull();
-      expect(poidsTotalDepuisQuantite(40_000, null)).toBeNull();
       expect(poidsTotalDepuisQuantite(0, 0.3)).toBeNull();
-      expect(poidsTotalDepuisQuantite(40_000, 0)).toBeNull();
+    });
+
+    it("retombe sur le poids d'un filtre quand la masse unitaire manque", () => {
+      // MISFAT expédie des filtres de deux cents grammes. Écarter du bilan un
+      // chargement réel faute d'un chiffre connu de toute l'entreprise le
+      // sous-évaluerait en silence.
+      expect(POIDS_MOYEN_FILTRE_KG).toBe(0.2);
+      expect(poidsTotalDepuisQuantite(40_000, null)).toBeCloseTo(8_000, 6);
+      expect(poidsTotalDepuisQuantite(40_000, 0)).toBeCloseTo(8_000, 6);
+    });
+
+    it('laisse toujours primer une masse déclarée', () => {
+      // Une référence plus lourde que la moyenne se saisit, et le repli ne s'y
+      // substitue jamais.
+      expect(poidsTotalDepuisQuantite(40_000, 0.3)).toBeCloseTo(12_000, 6);
     });
 
     it('applique la formule des tonnes-kilomètres', () => {

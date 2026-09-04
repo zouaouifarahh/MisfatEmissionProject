@@ -35,11 +35,15 @@ import { PerimetreOrganisation } from '../../core/perimetre';
 import {
   perimetreOrganisation, trierParPerimetre
 } from '../../shared/ui/perimetre-ecran';
-import { MesuresServeurComponent } from '../../shared/ui/mesures-serveur';
+import { MesuresServeurService, MesureServeur } from '../../services/mesures-serveur.service';
+import { mesuresDeLEcran, ligneDeLaBase } from '../../shared/ui/mesures-en-tableau';
+import { posteParId } from '../../core/nomenclature-scopes';
 import { periodeDeLExercice } from '../../shared/dispatch/exercice-de-ligne';
 
 /** Immobilisation valorisée, catégorie 15 du Scope 3. */
 export interface EmissionInvestissement {
+  /** Ligne venue de la base : ni modifiable ni supprimable depuis cet écran. */
+  lectureSeule?: boolean;
   id: number;
   scope: string;
   categorie: string;
@@ -95,7 +99,7 @@ const TAILLES_PAGE = [20, 50, 100];
 @Component({
   selector: 'app-investissements',
   standalone: true,
-  imports: [MesuresServeurComponent, CorrectionAnomaliesComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
+  imports: [CorrectionAnomaliesComponent, LignesDispatcheesComponent, CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './investissements.html',
   styleUrl: './investissements.css'
@@ -222,6 +226,7 @@ export class InvestissementsComponent implements OnInit {
    * propagé au tableau de bord dont il interromprait le rendu.
    */
   ngOnInit(): void {
+    this.chargerMesuresServeur();
     try {
       this.listeEmissions = this.listeEmissions ?? [];
 
@@ -449,7 +454,7 @@ export class InvestissementsComponent implements OnInit {
 
   /** Tri du perimetre : ce qui est retenu, et ce qui est ecarte. */
   private get triPerimetre() {
-    return trierParPerimetre(this.toutesLignes, this.exerciceActif, this.perimetreActif);
+    return trierParPerimetre([...this.lignesServeur, ...this.toutesLignes], this.exerciceActif, this.perimetreActif);
   }
 
   /** Lignes du perimetre consulte : societe ET exercice. */
@@ -1097,6 +1102,43 @@ export class InvestissementsComponent implements OnInit {
   /** Intitulé du degré de rapprochement, pour l'infobulle du tableau. */
   libelleRapprochement(rapprochement: Rapprochement | null | undefined): string {
     return libelleRapprochement(rapprochement);
+  }
+
+
+  // ---------- Mesures de la base ----------
+
+  private readonly mesuresServeurService = inject(MesuresServeurService);
+
+  /** Mesures que la base porte pour cet écran. */
+  private mesuresServeur: MesureServeur[] = [];
+
+  /** Intitulé de repli si la nomenclature ne nomme pas ce poste. */
+  private readonly CATEGORIE_REPLI = 'investissements';
+
+  /**
+   * Charge les mesures de la base.
+   *
+   * <p>Le serveur muet ne doit pas vider le tableau : les saisies locales
+   * restent affichées, seules les mesures de la base manquent.</p>
+   */
+  private chargerMesuresServeur(): void {
+    this.mesuresServeurService.mesures().subscribe({
+      next: mesures => { this.mesuresServeur = mesures; this.cdr.markForCheck(); },
+      error: () => { this.mesuresServeur = []; this.cdr.markForCheck(); }
+    });
+  }
+
+  /**
+   * Mesures de la base, converties en lignes du tableau.
+   *
+   * <p>Elles s'affichaient dans un panneau séparé qui annonçait « N mesure(s)
+   * enregistrée(s) en base » au-dessus d'un tableau disant « aucune donnée » :
+   * deux vues de la même donnée, qui se contredisaient.</p>
+   */
+  get lignesServeur(): EmissionInvestissement[] {
+    return mesuresDeLEcran(
+      this.mesuresServeur, { numeroGhg: 15 }, this.exerciceActif, this.perimetreAffiche
+    ).map(m => ligneDeLaBase(m, posteParId('investissements')?.libelle ?? this.CATEGORIE_REPLI) as unknown as EmissionInvestissement);
   }
 
 }

@@ -263,7 +263,9 @@ export class DispatchStore {
   concernePerimetre(exercice: number | null, entityId: number | null): boolean {
     const etat = this.etat.value;
 
-    if (entityId !== null && etat.entityId !== null && etat.entityId !== entityId) return false;
+    // Même règle que {@link lignesPour}, dont ceci est le résumé booléen : une
+    // répartition qui ne nomme pas sa société ne relève d'aucune en particulier.
+    if (entityId !== null && etat.entityId !== entityId) return false;
     if (exercice !== null && etat.exercice !== null && etat.exercice !== exercice) return false;
 
     return true;
@@ -280,7 +282,16 @@ export class DispatchStore {
 
     // La société reste un critère de lot : le classeur est importé pour une
     // société, et ses lignes n'en portent pas d'autre.
-    if (entityId !== null && etat.entityId !== null && etat.entityId !== entityId) {
+    //
+    // Une répartition sans société n'est pas « valable partout » : elle est
+    // d'origine inconnue. Elle était retenue sous chaque filiale, si bien
+    // qu'un même classeur comptait une fois pour MISFAT TUNISIE, une fois pour
+    // MISFAT MAROC et une fois pour SOLAUFIL — le total du groupe valant alors
+    // plusieurs fois le contenu du fichier. L'écran d'import exige désormais
+    // une société au dépôt ; ce cas ne subsiste que pour les répartitions
+    // mémorisées avant cette règle, et elles ne remontent plus que dans la vue
+    // consolidée, qui ne demande aucune société.
+    if (entityId !== null && etat.entityId !== entityId) {
       return AUCUNE_LIGNE;
     }
 

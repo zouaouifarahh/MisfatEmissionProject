@@ -8,7 +8,8 @@ import {
   mapperColonnes, colonnesManquantes, lireClasseurVoyages, lireFeuilleVoyages
 } from './voyages-excel';
 import {
-  segmentAerien, choisirFacteurVoyage, classerFacteursVoyage, calculerEmissionVoyage
+  segmentAerien, choisirFacteurVoyage, classerFacteursVoyage, calculerEmissionVoyage,
+  TRAJETS_PAR_MISSION
 } from './voyages-facteur';
 import { FacteurDetaille } from '../../services/referential.service';
 
@@ -129,19 +130,34 @@ describe('Segments aériens et matching', () => {
     expect(classerFacteursVoyage(FACTEURS_BDD, { mode: 'Avion', monetaire: true })).toEqual([]);
   });
 
-  it('calcule les émissions au passager-kilomètre', () => {
+  it('calcule les émissions au passager-kilomètre, aller-retour compris', () => {
+    // La distance saisie est celle de l'aller : 2 969,02 km à 0,12952 kgCO₂e
+    // valent 384,56 pour un trajet, donc 769,12 pour la mission entière. Ne
+    // compter que l'aller sous-évaluait le poste de moitié.
     expect(calculerEmissionVoyage({
       facteur: 0.1295238796, monetaire: false, distanceKm: 2969.02, montant: null
-    })).toBeCloseTo(384.53, 1);
-
-    // Deux participants sur le même trajet doublent les émissions.
-    expect(calculerEmissionVoyage({
-      facteur: 0.1295238796, monetaire: false, distanceKm: 2969.02, montant: null, participants: 2
     })).toBeCloseTo(769.12, 1);
 
+    // Deux participants sur la même mission doublent encore.
+    expect(calculerEmissionVoyage({
+      facteur: 0.1295238796, monetaire: false, distanceKm: 2969.02, montant: null, participants: 2
+    })).toBeCloseTo(1538.24, 1);
+
+    // La valorisation monétaire n'est pas doublée : un montant de mission
+    // couvre déjà le billet entier, retour inclus.
     expect(calculerEmissionVoyage({
       facteur: 0.5, monetaire: true, distanceKm: null, montant: 1000
     })).toBe(500);
+  });
+
+  it('ne compte le retour qu\'une fois', () => {
+    // Garde-fou : le facteur deux doit rester dans la formule, non se cumuler
+    // avec une distance que l'utilisateur aurait déjà doublée à la saisie.
+    const aller = calculerEmissionVoyage({
+      facteur: 1, monetaire: false, distanceKm: 100, montant: null
+    });
+    expect(aller).toBe(200);
+    expect(TRAJETS_PAR_MISSION).toBe(2);
   });
 });
 
